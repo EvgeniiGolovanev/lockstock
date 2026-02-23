@@ -41,13 +41,13 @@ npm.cmd run dev
 API routes currently use request headers:
 
 - `x-org-id`: organization UUID
-- `x-user-id`: user UUID
+- `Authorization: Bearer <access_token>`: Supabase JWT access token
 
-The backend verifies membership in `org_users`.
+The backend validates the JWT against Supabase Auth and verifies organization membership in `org_users`.
 
 Bootstrap flow:
 
-1. Call `POST /api/organizations` with `x-user-id` and `{ "name": "My Org" }`.
+1. Call `POST /api/organizations` with `Authorization: Bearer <access_token>` and `{ "name": "My Org" }`.
 2. Use returned organization id as `x-org-id` for all org-scoped endpoints.
 
 Example:
@@ -55,7 +55,7 @@ Example:
 ```bash
 curl -X POST http://localhost:3000/api/organizations \
   -H "Content-Type: application/json" \
-  -H "x-user-id: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" \
+  -H "Authorization: Bearer <access_token>" \
   -d "{\"name\":\"Demo Org\"}"
 ```
 
@@ -87,3 +87,17 @@ curl -X POST http://localhost:3000/api/organizations \
 2. Add endpoint-level tests for role/validation behavior.
 3. Add UI screens for materials, suppliers, teams, and PO receiving flow.
 4. Add integration workers (QBO/Shopify) behind feature flags.
+
+## Smoke Test Script
+
+Run end-to-end API smoke checks with JWT auth:
+
+```bash
+npm run smoke:test -- -AccessToken "<supabase_access_token>"
+```
+
+Optional custom base URL:
+
+```bash
+npm run smoke:test -- -AccessToken "<supabase_access_token>" -BaseUrl "http://localhost:3000"
+```

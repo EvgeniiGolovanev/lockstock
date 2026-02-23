@@ -31,7 +31,7 @@ export default function HomePage() {
           3. Start app with <code>npm run dev</code>.
         </p>
         <p>
-          4. Pass <code>x-org-id</code> and <code>x-user-id</code> headers to API requests.
+          4. Pass <code>Authorization: Bearer &lt;jwt&gt;</code> and <code>x-org-id</code> to org-scoped API requests.
         </p>
       </section>
 

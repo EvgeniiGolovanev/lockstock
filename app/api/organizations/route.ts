@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ApiError, handleApiError } from "@/lib/api/errors";
+import { handleApiError } from "@/lib/api/errors";
+import { requireAuthenticatedUserId } from "@/lib/api/auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { createOrganizationSchema } from "@/lib/validators/organization";
 
-function requireUserId(request: NextRequest): string {
-  const userId = request.headers.get("x-user-id");
-  if (!userId) {
-    throw new ApiError(401, "Missing x-user-id request header.");
-  }
-  return userId;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const userId = requireUserId(request);
+    const userId = await requireAuthenticatedUserId(request);
     const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase
@@ -33,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = requireUserId(request);
+    const userId = await requireAuthenticatedUserId(request);
     const supabase = getSupabaseAdmin();
     const payload = createOrganizationSchema.parse(await request.json());
 

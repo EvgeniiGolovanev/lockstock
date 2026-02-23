@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuthenticatedUserId } from "@/lib/api/auth";
 
 const roleRank = {
   viewer: 0,
@@ -20,10 +21,10 @@ export type RequestContext = {
 
 export async function requireRequestContext(request: NextRequest): Promise<RequestContext> {
   const orgId = request.headers.get("x-org-id");
-  const userId = request.headers.get("x-user-id");
+  const userId = await requireAuthenticatedUserId(request);
 
-  if (!orgId || !userId) {
-    throw new ApiError(401, "Missing x-org-id or x-user-id request header.");
+  if (!orgId) {
+    throw new ApiError(400, "Missing x-org-id request header.");
   }
 
   const supabase = getSupabaseAdmin();
