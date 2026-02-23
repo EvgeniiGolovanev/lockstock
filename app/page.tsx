@@ -1,23 +1,10 @@
-const endpoints = [
-  "GET /api/health",
-  "GET/POST /api/organizations",
-  "GET/POST /api/locations",
-  "GET/POST /api/materials",
-  "GET/POST /api/suppliers",
-  "GET/POST /api/teams",
-  "POST /api/teams/:id/members",
-  "POST /api/stock/movements",
-  "GET/POST /api/purchase-orders",
-  "POST /api/purchase-orders/:id/receive",
-  "GET /api/alerts/low-stock",
-  "GET /api/reports/stock-health"
-];
+import { LockstockWorkbench } from "@/components/lockstock-workbench";
 
 export default function HomePage() {
   return (
     <main>
-      <h1>LockStock API Scaffold</h1>
-      <p>Base implementation for a solopreneur-friendly stock management app built with Next.js + Supabase.</p>
+      <h1>LockStock Workbench</h1>
+      <p>Use this page to bootstrap an organization and execute the core material workflow.</p>
 
       <section className="card">
         <h2>Setup</h2>
@@ -31,18 +18,11 @@ export default function HomePage() {
           3. Start app with <code>npm run dev</code>.
         </p>
         <p>
-          4. Pass <code>Authorization: Bearer &lt;jwt&gt;</code> and <code>x-org-id</code> to org-scoped API requests.
+          4. Paste a valid Supabase access token below.
         </p>
       </section>
 
-      <section className="card">
-        <h2>Implemented Endpoints</h2>
-        {endpoints.map((endpoint) => (
-          <p key={endpoint}>
-            <code>{endpoint}</code>
-          </p>
-        ))}
-      </section>
+      <LockstockWorkbench />
     </main>
   );
 }
