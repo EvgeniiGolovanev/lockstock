@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "smoke:test": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1"
+    "smoke:test": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1",
+    "test:api": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.3",
@@ -23,6 +24,7 @@
     "@types/react-dom": "^19.0.4",
     "eslint": "^9.21.0",
     "eslint-config-next": "15.5.12",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.2.4"
   }
 }

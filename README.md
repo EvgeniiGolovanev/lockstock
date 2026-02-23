@@ -101,3 +101,11 @@ Optional custom base URL:
 ```bash
 npm run smoke:test -- -AccessToken "<supabase_access_token>" -BaseUrl "http://localhost:3000"
 ```
+
+## API Auth/Role Tests
+
+Run API integration-style tests for `401` auth and `403` role enforcement:
+
+```bash
+npm run test:api
+```
