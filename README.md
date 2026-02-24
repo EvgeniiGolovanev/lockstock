@@ -124,3 +124,22 @@ Run API integration-style tests for `401` auth and `403` role enforcement:
 ```bash
 npm run test:api
 ```
+
+## CI Pipeline Gates
+
+GitHub Actions workflow: `.github/workflows/ci.yml`
+
+It enforces, in order:
+
+1. `npm run typecheck`
+2. `npm run lint`
+3. `npm run test:api`
+4. `npm run build`
+
+On pushes to `main`, it also runs a linked-database migration drift gate and fails if the remote DB is missing any local migration in `supabase/migrations`.
+
+Required repository secrets for the migration gate:
+
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_DB_PASSWORD`

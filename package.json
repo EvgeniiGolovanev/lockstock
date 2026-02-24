@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "next typegen && tsc --noEmit",
+    "check:migrations:linked": "node scripts/check-linked-migrations.js",
     "smoke:test": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1",
     "test:api": "vitest run"
   },
