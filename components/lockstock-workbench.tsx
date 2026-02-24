@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Material = {
@@ -67,7 +69,16 @@ const STORAGE_KEYS = {
   orgId: "lockstock.orgId"
 } as const;
 
+const NAV_ITEMS = [
+  { href: "/", label: "Inventory" },
+  { href: "/materials", label: "Materials & Stock" },
+  { href: "/locations", label: "Locations" },
+  { href: "/vendors", label: "Vendors" },
+  { href: "/purchase-orders", label: "Purchase Orders" }
+] as const;
+
 export function LockstockWorkbench() {
+  const pathname = usePathname();
   const [baseUrl, setBaseUrl] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [orgId, setOrgId] = useState("");
@@ -139,6 +150,30 @@ export function LockstockWorkbench() {
       return poNumberMatch || supplierMatch || lineSkuMatch;
     });
   }, [materialById, poFilterQuery, poFilterStatus, poFilterSupplierId, purchaseOrders]);
+  const currentScreen = useMemo(() => {
+    if (pathname === "/materials") {
+      return { title: "Materials & Stock", subtitle: "Manage materials and stock movements." };
+    }
+    if (pathname === "/locations") {
+      return { title: "Locations", subtitle: "Configure storage and fulfillment locations." };
+    }
+    if (pathname === "/vendors") {
+      return { title: "Vendors", subtitle: "Maintain supplier records and lead times." };
+    }
+    if (pathname === "/purchase-orders") {
+      return { title: "Purchase Orders", subtitle: "Create, receive, and track purchase orders." };
+    }
+    return { title: "Inventory", subtitle: "Operational dashboard for stock and procurement." };
+  }, [pathname]);
+
+  const showLocationSection = pathname === "/" || pathname === "/locations";
+  const showMaterialSection = pathname === "/" || pathname === "/materials";
+  const showSupplierSection = pathname === "/" || pathname === "/vendors";
+  const showPurchaseOrderSection = pathname === "/" || pathname === "/purchase-orders";
+  const showReceiveSection = pathname === "/" || pathname === "/purchase-orders";
+  const showPoTableSection = pathname === "/" || pathname === "/purchase-orders";
+  const showMovementSection = pathname === "/" || pathname === "/materials";
+  const showSnapshotSection = pathname === "/";
 
   function isAuthTokenError(message: string) {
     const normalized = message.toLowerCase();
@@ -601,9 +636,34 @@ export function LockstockWorkbench() {
 
   return (
     <>
+      <section className="card shell-nav">
+        <div className="shell-top">
+          <div className="brand-mark">LS</div>
+          <div>
+            <h2>LockStock</h2>
+            <p className="subtle-line">Inventory Operations System</p>
+          </div>
+        </div>
+        <div className="nav-links">
+          {NAV_ITEMS.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`}>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="card">
-        <h2>Workbench</h2>
-        <p>Bootstrap and test the core flow directly from UI. Use Supabase email/password login or paste a JWT manually.</p>
+        <h1>{currentScreen.title}</h1>
+        <p>{currentScreen.subtitle}</p>
+      </section>
+
+      <section className="card">
+        <h2>Access & Environment</h2>
+        <p>Sign in, choose organization, and keep environment values synced.</p>
         <div className="grid grid-2">
           <label className="field">
             <span>Base URL</span>
@@ -690,8 +750,9 @@ export function LockstockWorkbench() {
         </div>
       </section>
 
-      <section className="card">
-        <h3>Create Location</h3>
+      {showLocationSection ? (
+        <section className="card">
+          <h3>Create Location</h3>
         <div className="grid grid-2">
           <label className="field">
             <span>Name</span>
@@ -707,10 +768,12 @@ export function LockstockWorkbench() {
             Create Location
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Create Material</h3>
+      {showMaterialSection ? (
+        <section className="card">
+          <h3>Create Material</h3>
         <div className="grid grid-2">
           <label className="field">
             <span>SKU</span>
@@ -738,10 +801,12 @@ export function LockstockWorkbench() {
             Create Material
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Create Supplier</h3>
+      {showSupplierSection ? (
+        <section className="card">
+          <h3>Create Supplier</h3>
         <div className="grid grid-2">
           <label className="field">
             <span>Name</span>
@@ -762,10 +827,12 @@ export function LockstockWorkbench() {
             Create Supplier
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Create Purchase Order</h3>
+      {showPurchaseOrderSection ? (
+        <section className="card">
+          <h3>Create Purchase Order</h3>
         <div className="grid grid-2">
           <label className="field">
             <span>Supplier</span>
@@ -819,10 +886,12 @@ export function LockstockWorkbench() {
             Create Purchase Order
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Receive Purchase Order</h3>
+      {showReceiveSection ? (
+        <section className="card">
+          <h3>Receive Purchase Order</h3>
         <div className="grid grid-2">
           <label className="field">
             <span>Purchase Order</span>
@@ -883,10 +952,12 @@ export function LockstockWorkbench() {
             Receive
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Purchase Orders</h3>
+      {showPoTableSection ? (
+        <section className="card">
+          <h3>Purchase Orders</h3>
         <div className="grid grid-3">
           <label className="field">
             <span>Search</span>
@@ -986,10 +1057,12 @@ export function LockstockWorkbench() {
             </table>
           </div>
         )}
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Record Stock Movement</h3>
+      {showMovementSection ? (
+        <section className="card">
+          <h3>Record Stock Movement</h3>
         <div className="grid grid-2">
           <label className="field">
             <span>Material</span>
@@ -1042,10 +1115,12 @@ export function LockstockWorkbench() {
             Record Movement
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card">
-        <h3>Data Snapshot</h3>
+      {showSnapshotSection ? (
+        <section className="card">
+          <h3>Data Snapshot</h3>
         <p>
           Materials: <strong>{materials.length}</strong> | Locations: <strong>{locations.length}</strong> | Suppliers:{" "}
           <strong>{suppliers.length}</strong> | Open POs:{" "}
@@ -1060,7 +1135,8 @@ export function LockstockWorkbench() {
         ) : (
           <p>Run &quot;Refresh Health&quot; to load metrics.</p>
         )}
-      </section>
+        </section>
+      ) : null}
 
       <section className="card">
         <h3>Activity</h3>
