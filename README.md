@@ -112,9 +112,10 @@ Open `http://localhost:3000` and use the workbench to:
 1. Sign in with Supabase email/password (or paste JWT manually).
 2. Load organizations and select active org.
 3. Create an organization (if needed).
-4. Create location and material.
-5. Record stock movement.
-6. Refresh stock health and low-stock metrics.
+4. Create location, material, and supplier.
+5. Create and receive purchase orders.
+6. Record stock movement.
+7. Refresh stock health and low-stock metrics.
 
 ## API Auth/Role Tests
 
