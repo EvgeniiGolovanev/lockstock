@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { requireAuthenticatedUserId } from "@/lib/api/auth";
+import { getSupabaseUserClient } from "@/lib/supabase-user";
+import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
 const roleRank = {
   viewer: 0,
@@ -12,22 +12,33 @@ const roleRank = {
 
 type Role = keyof typeof roleRank;
 
+const uuidV4LikePattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type RequestContext = {
   orgId: string;
   userId: string;
   role: Role;
-  supabase: ReturnType<typeof getSupabaseAdmin>;
+  supabase: ReturnType<typeof getSupabaseUserClient>;
 };
 
 export async function requireRequestContext(request: NextRequest): Promise<RequestContext> {
   const orgId = request.headers.get("x-org-id");
+  const token = extractBearerToken(request);
+
+  if (!token) {
+    throw new ApiError(401, "Missing Authorization Bearer token.");
+  }
+
   const userId = await requireAuthenticatedUserId(request);
 
   if (!orgId) {
     throw new ApiError(400, "Missing x-org-id request header.");
   }
+  if (!uuidV4LikePattern.test(orgId)) {
+    throw new ApiError(400, "x-org-id must be a valid UUID.");
+  }
 
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabaseUserClient(token);
 
   const { data, error } = await supabase
     .from("org_users")
@@ -56,7 +67,7 @@ export function requireMinRole(currentRole: Role, minimumRole: Role) {
 }
 
 export async function requireUserInOrg(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
+  supabase: ReturnType<typeof getSupabaseUserClient>,
   orgId: string,
   userId: string
 ) {

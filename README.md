@@ -22,7 +22,10 @@ npm install
 cp .env.example .env.local
 ```
 
-3. Apply the SQL migration in `supabase/migrations/202602231350_init.sql` to your Supabase project.
+3. Apply SQL migrations in order:
+   - `supabase/migrations/202602231350_init.sql`
+   - `supabase/migrations/202602232210_user_scoped_org_bootstrap.sql`
+   - `supabase/migrations/202602240110_fix_is_org_member_rls.sql`
 
 4. Run development server:
 
@@ -43,7 +46,7 @@ API routes currently use request headers:
 - `x-org-id`: organization UUID
 - `Authorization: Bearer <access_token>`: Supabase JWT access token
 
-The backend validates the JWT against Supabase Auth and verifies organization membership in `org_users`.
+The backend validates JWTs against Supabase Auth and uses a user-scoped database client (RLS-enforced) for API data access.
 
 Bootstrap flow:
 

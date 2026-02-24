@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { POST } from "@/app/api/materials/route";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { requireAuthenticatedUserId } from "@/lib/api/auth";
+import { getSupabaseUserClient } from "@/lib/supabase-user";
+import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
-vi.mock("@/lib/supabase-admin", () => ({
-  getSupabaseAdmin: vi.fn()
+vi.mock("@/lib/supabase-user", () => ({
+  getSupabaseUserClient: vi.fn()
 }));
 
 vi.mock("@/lib/api/auth", () => ({
@@ -48,17 +48,20 @@ function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") 
 }
 
 describe("POST /api/materials auth and role enforcement", () => {
+  const orgId = "11111111-1111-4111-8111-111111111111";
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns 401 when JWT user extraction fails", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("invalid");
     vi.mocked(requireAuthenticatedUserId).mockRejectedValue(new ApiError(401, "Invalid or expired access token."));
-    vi.mocked(getSupabaseAdmin).mockReturnValue(createSupabaseForRole("manager") as never);
+    vi.mocked(getSupabaseUserClient).mockReturnValue(createSupabaseForRole("manager") as never);
 
     const request = new NextRequest("http://localhost:3000/api/materials", {
       method: "POST",
-      headers: { "x-org-id": "org-1", Authorization: "Bearer invalid", "Content-Type": "application/json" },
+      headers: { "x-org-id": orgId, Authorization: "Bearer invalid", "Content-Type": "application/json" },
       body: JSON.stringify({ sku: "MAT-001", name: "Cement", uom: "bag", min_stock: 10 })
     });
 
@@ -70,13 +73,14 @@ describe("POST /api/materials auth and role enforcement", () => {
   });
 
   it("returns 403 when role is below manager", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
     vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
     const supabase = createSupabaseForRole("member");
-    vi.mocked(getSupabaseAdmin).mockReturnValue(supabase as never);
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
 
     const request = new NextRequest("http://localhost:3000/api/materials", {
       method: "POST",
-      headers: { "x-org-id": "org-1", Authorization: "Bearer token", "Content-Type": "application/json" },
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
       body: JSON.stringify({ sku: "MAT-001", name: "Cement", uom: "bag", min_stock: 10 })
     });
 

@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from "@supabase/supabase-js";
 
-let client: ReturnType<typeof createClient<any>> | null = null;
-
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -11,20 +9,19 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export function getSupabaseAdmin() {
-  if (client) {
-    return client;
-  }
-
+export function getSupabaseUserClient(accessToken: string) {
   const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRole = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-  client = createClient<any>(url, serviceRole, {
+  return createClient<any>(url, anonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
     }
   });
-
-  return client;
 }

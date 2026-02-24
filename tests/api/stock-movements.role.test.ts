@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/stock/movements/route";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { requireAuthenticatedUserId } from "@/lib/api/auth";
+import { getSupabaseUserClient } from "@/lib/supabase-user";
+import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
-vi.mock("@/lib/supabase-admin", () => ({
-  getSupabaseAdmin: vi.fn()
+vi.mock("@/lib/supabase-user", () => ({
+  getSupabaseUserClient: vi.fn()
 }));
 
 vi.mock("@/lib/api/auth", () => ({
@@ -34,18 +34,21 @@ function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") 
 }
 
 describe("POST /api/stock/movements role enforcement", () => {
+  const orgId = "11111111-1111-4111-8111-111111111111";
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns 403 when role is viewer", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
     vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
     const supabase = createSupabaseForRole("viewer");
-    vi.mocked(getSupabaseAdmin).mockReturnValue(supabase as never);
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
 
     const request = new NextRequest("http://localhost:3000/api/stock/movements", {
       method: "POST",
-      headers: { "x-org-id": "org-1", Authorization: "Bearer token", "Content-Type": "application/json" },
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
       body: JSON.stringify({
         material_id: "2f208318-9607-4e8a-b061-fdf4ec4e8115",
         location_id: "1477645d-65e2-42fe-b5b6-d64dad99b3e9",
@@ -63,13 +66,14 @@ describe("POST /api/stock/movements role enforcement", () => {
   });
 
   it("allows member role and returns 201", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
     vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
     const supabase = createSupabaseForRole("member");
-    vi.mocked(getSupabaseAdmin).mockReturnValue(supabase as never);
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
 
     const request = new NextRequest("http://localhost:3000/api/stock/movements", {
       method: "POST",
-      headers: { "x-org-id": "org-1", Authorization: "Bearer token", "Content-Type": "application/json" },
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
       body: JSON.stringify({
         material_id: "2f208318-9607-4e8a-b061-fdf4ec4e8115",
         location_id: "1477645d-65e2-42fe-b5b6-d64dad99b3e9",
