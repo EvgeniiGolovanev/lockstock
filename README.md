@@ -86,10 +86,10 @@ curl -X POST http://localhost:3000/api/organizations \
 
 ## Suggested Next Steps
 
-1. Replace header auth with Supabase JWT auth middleware.
-2. Add endpoint-level tests for role/validation behavior.
-3. Add UI screens for materials, suppliers, teams, and PO receiving flow.
-4. Add integration workers (QBO/Shopify) behind feature flags.
+1. Add pagination + server-side filtering for materials and purchase orders.
+2. Add audit log table + endpoint for critical stock and PO operations.
+3. Add integration workers (QBO/Shopify) behind feature flags.
+4. Add role-aware UI controls (viewer/member/manager/owner) to hide forbidden actions.
 
 ## Smoke Test Script
 
@@ -110,12 +110,11 @@ npm run smoke:test -- -AccessToken "<supabase_access_token>" -BaseUrl "http://lo
 Open `http://localhost:3000` and use the workbench to:
 
 1. Sign in with Supabase email/password (or paste JWT manually).
-2. Load organizations and select active org.
-3. Create an organization (if needed).
-4. Create location, material, and supplier.
-5. Create and receive purchase orders.
-6. Record stock movement.
-7. Refresh stock health and low-stock metrics.
+2. Let workspace auto-bootstrap organization context.
+3. Create location, material, and supplier.
+4. Create and receive purchase orders.
+5. Record stock movement.
+6. Refresh stock health and low-stock metrics.
 
 ## API Auth/Role Tests
 
@@ -143,3 +142,25 @@ Required repository secrets for the migration gate:
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
 - `SUPABASE_DB_PASSWORD`
+
+## Release Automation
+
+GitHub Actions workflow: `.github/workflows/release.yml`
+
+Trigger:
+
+- Runs automatically after `CI` succeeds on pushes to `main`.
+
+Steps:
+
+1. Link Supabase project and apply pending migrations (`supabase db push --linked`).
+2. Build and deploy production app to Vercel.
+
+Required repository secrets:
+
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_DB_PASSWORD`
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`

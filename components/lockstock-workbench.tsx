@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -59,7 +59,7 @@ type OrganizationMembership = {
 };
 
 type ActivityEntry = {
-  id: number;
+  id: string;
   line: string;
 };
 
@@ -121,7 +121,6 @@ export function LockstockWorkbench() {
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [busy, setBusy] = useState(false);
-  const activityIdRef = useRef(0);
 
   const normalizedBaseUrl = useMemo(() => baseUrl.replace(/\/+$/, ""), [baseUrl]);
   const isOrgScopedReady = Boolean(accessToken && orgId);
@@ -201,6 +200,7 @@ export function LockstockWorkbench() {
           if (window.localStorage.getItem(STORAGE_KEYS.token)) {
             setAccessToken("");
             setSignedInAs("");
+            clearWorkspaceData();
             addActivity("No active Supabase session. Cleared saved token.");
           }
           return;
@@ -222,8 +222,9 @@ export function LockstockWorkbench() {
         }
 
         if (event === "SIGNED_OUT") {
+          setAccessToken("");
           setSignedInAs("");
-          setOrganizations([]);
+          clearWorkspaceData();
         }
       });
 
@@ -251,6 +252,16 @@ export function LockstockWorkbench() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.orgId, orgId);
   }, [orgId]);
+
+  // bootstrapOrganizationContext is intentionally excluded to avoid re-bootstrap loops from function identity changes.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (!accessToken || !signedInAs || !normalizedBaseUrl) {
+      return;
+    }
+    void bootstrapOrganizationContext({ tokenOverride: accessToken, announce: false });
+  }, [accessToken, signedInAs, normalizedBaseUrl]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
     if (!movementMaterialId && materials[0]) {
@@ -297,8 +308,27 @@ export function LockstockWorkbench() {
 
   function addActivity(message: string) {
     const stamp = new Date().toLocaleTimeString();
-    activityIdRef.current += 1;
-    setActivity((prev) => [{ id: activityIdRef.current, line: `${stamp} - ${message}` }, ...prev].slice(0, 10));
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setActivity((prev) => [{ id, line: `${stamp} - ${message}` }, ...prev].slice(0, 10));
+  }
+
+  function clearWorkspaceData() {
+    setOrgId("");
+    setOrganizations([]);
+    setMaterials([]);
+    setLocations([]);
+    setSuppliers([]);
+    setPurchaseOrders([]);
+    setStockHealth(null);
+    setLowStockCount(null);
+  }
+
+  function getDefaultOrganizationName() {
+    const source = signedInAs || email;
+    if (source.includes("@")) {
+      return `${source.split("@")[0]} Workspace`;
+    }
+    return "LockStock Workspace";
   }
 
   function getPoProgress(po: PurchaseOrder) {
@@ -383,7 +413,7 @@ export function LockstockWorkbench() {
     } catch (error) {
       setAccessToken("");
       setSignedInAs("");
-      setOrganizations([]);
+      clearWorkspaceData();
       addActivity(`Login failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
@@ -400,8 +430,8 @@ export function LockstockWorkbench() {
       }
 
       setAccessToken("");
-      setOrganizations([]);
       setSignedInAs("");
+      clearWorkspaceData();
       addActivity("Signed out.");
     } catch (error) {
       addActivity(`Logout failed: ${(error as Error).message}`);
@@ -410,49 +440,18 @@ export function LockstockWorkbench() {
     }
   }
 
-  async function handleLoadOrganizations() {
-    try {
-      setBusy(true);
-      const response = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
-        requireOrg: false
-      });
-
-      setOrganizations(response.data);
-
-      if (response.data.length === 0) {
-        addActivity("No organizations found for this user.");
-        return;
-      }
-
-      const currentInList = response.data.find((item) => item.organization.id === orgId);
-      const selected = currentInList ? currentInList.organization.id : response.data[0].organization.id;
-      setOrgId(selected);
-      addActivity(`Loaded ${response.data.length} organizations.`);
-    } catch (error) {
-      const message = (error as Error).message;
-      if (isAuthTokenError(message)) {
-        setAccessToken("");
-        setSignedInAs("");
-        setOrganizations([]);
-      }
-      addActivity(`Loading organizations failed: ${message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function refreshCoreData(targetOrgId?: string) {
+  async function refreshCoreData(targetOrgId?: string, tokenOverride?: string) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
-      addActivity("Set an organization ID before loading materials and locations.");
+      addActivity("No active organization. Sign in again or sync workspace.");
       return;
     }
 
     const [materialsResult, locationsResult, suppliersResult, purchaseOrdersResult] = await Promise.all([
-      apiRequest<{ data: Material[] }>("/api/materials", { orgOverride: orgValue }),
-      apiRequest<{ data: Location[] }>("/api/locations", { orgOverride: orgValue }),
-      apiRequest<{ data: Supplier[] }>("/api/suppliers", { orgOverride: orgValue }),
-      apiRequest<{ data: PurchaseOrder[] }>("/api/purchase-orders", { orgOverride: orgValue })
+      apiRequest<{ data: Material[] }>("/api/materials", { orgOverride: orgValue, tokenOverride }),
+      apiRequest<{ data: Location[] }>("/api/locations", { orgOverride: orgValue, tokenOverride }),
+      apiRequest<{ data: Supplier[] }>("/api/suppliers", { orgOverride: orgValue, tokenOverride }),
+      apiRequest<{ data: PurchaseOrder[] }>("/api/purchase-orders", { orgOverride: orgValue, tokenOverride })
     ]);
 
     setMaterials(materialsResult.data);
@@ -464,24 +463,91 @@ export function LockstockWorkbench() {
     );
   }
 
+  async function bootstrapOrganizationContext(options?: { tokenOverride?: string; announce?: boolean }) {
+    const effectiveToken = options?.tokenOverride ?? accessToken;
+    if (!effectiveToken) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      let organizationsResult = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
+        requireOrg: false,
+        tokenOverride: effectiveToken
+      });
+
+      if (organizationsResult.data.length === 0) {
+        const defaultOrgName = getDefaultOrganizationName();
+        await apiRequest("/api/organizations", {
+          method: "POST",
+          requireOrg: false,
+          tokenOverride: effectiveToken,
+          body: { name: defaultOrgName }
+        });
+        addActivity(`No organization found. Created "${defaultOrgName}".`);
+        organizationsResult = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
+          requireOrg: false,
+          tokenOverride: effectiveToken
+        });
+      }
+
+      if (organizationsResult.data.length === 0) {
+        throw new Error("No organization available after bootstrap.");
+      }
+
+      setOrganizations(organizationsResult.data);
+
+      const existingSelection = organizationsResult.data.find((item) => item.organization.id === orgId);
+      const selectedMembership = existingSelection ?? organizationsResult.data[0];
+      if (selectedMembership.organization.id !== orgId) {
+        setOrgId(selectedMembership.organization.id);
+      }
+
+      if (options?.announce ?? true) {
+        addActivity(`Workspace ready: ${selectedMembership.organization.name} (${selectedMembership.role}).`);
+      }
+
+      await refreshCoreData(selectedMembership.organization.id, effectiveToken);
+    } catch (error) {
+      const message = (error as Error).message;
+      if (isAuthTokenError(message)) {
+        setAccessToken("");
+        setSignedInAs("");
+        clearWorkspaceData();
+      }
+      addActivity(`Workspace bootstrap failed: ${message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLoadOrganizations() {
+    await bootstrapOrganizationContext({ announce: true });
+  }
+
   async function handleCreateOrganization() {
     try {
       setBusy(true);
+      const nextOrgName = orgName.trim() || getDefaultOrganizationName();
       const response = await apiRequest<{ data: { id: string } }>("/api/organizations", {
         method: "POST",
         requireOrg: false,
-        body: { name: orgName }
+        body: { name: nextOrgName }
       });
 
       setOrgId(response.data.id);
       addActivity(`Organization created: ${response.data.id}`);
+      const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
+        requireOrg: false
+      });
+      setOrganizations(organizationsResponse.data);
       await refreshCoreData(response.data.id);
     } catch (error) {
       const message = (error as Error).message;
       if (isAuthTokenError(message)) {
         setAccessToken("");
         setSignedInAs("");
-        setOrganizations([]);
+        clearWorkspaceData();
       }
       addActivity(`Create organization failed: ${message}`);
     } finally {
@@ -663,15 +729,15 @@ export function LockstockWorkbench() {
 
       <section className="card">
         <h2>Access & Environment</h2>
-        <p>Sign in, choose organization, and keep environment values synced.</p>
+        <p>Sign in and the workspace will auto-bootstrap organization context.</p>
         <div className="grid grid-2">
           <label className="field">
             <span>Base URL</span>
             <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="http://localhost:3000" />
           </label>
           <label className="field">
-            <span>Organization ID (manual)</span>
-            <input value={orgId} onChange={(event) => setOrgId(event.target.value)} placeholder="uuid" />
+            <span>Active Organization ID</span>
+            <input value={orgId} readOnly placeholder="auto-selected" />
           </label>
         </div>
         <div className="grid grid-2">
@@ -697,14 +763,22 @@ export function LockstockWorkbench() {
             Sign Out
           </button>
           <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
-            Load Organizations
+            Sync Workspace
           </button>
         </div>
         {signedInAs ? <p>Signed in as: <strong>{signedInAs}</strong></p> : <p>Not signed in.</p>}
         {organizations.length > 0 ? (
           <label className="field">
             <span>Organization Picker</span>
-            <select value={orgId} onChange={(event) => setOrgId(event.target.value)}>
+            <select
+              value={orgId}
+              onChange={(event) => {
+                const nextOrgId = event.target.value;
+                setOrgId(nextOrgId);
+                addActivity(`Switched organization to ${nextOrgId}.`);
+                void refreshCoreData(nextOrgId);
+              }}
+            >
               {organizations.map((item) => (
                 <option key={item.organization.id} value={item.organization.id}>
                   {item.organization.name} ({item.role})
@@ -724,10 +798,10 @@ export function LockstockWorkbench() {
         </label>
         <div className="actions">
           <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
-            Reload Organizations
+            Sync Workspace
           </button>
           <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => refreshCoreData()}>
-            Load Core Data
+            Refresh Data
           </button>
           <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleRefreshHealth}>
             Refresh Health
