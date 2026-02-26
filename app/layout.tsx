@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LockStock Scaffold",
-  description: "Material stock management scaffold with Next.js and Supabase."
+  title: "LockStock",
+  description: "Inventory operations system for materials, locations, vendors, and purchase orders."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

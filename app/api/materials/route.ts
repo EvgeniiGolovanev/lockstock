@@ -6,6 +6,17 @@ import { createMaterialSchema } from "@/lib/validators/material";
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
+type MaterialBalanceRow = {
+  quantity: number | string | null;
+  location?: { code: string | null; name: string } | null;
+};
+
+type MaterialListRow = {
+  min_stock: number | string | null;
+  balances?: MaterialBalanceRow[];
+  [key: string]: unknown;
+};
+
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) {
     return fallback;
@@ -28,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("materials")
-      .select("*", { count: "exact" })
+      .select("*, balances:inventory_balances(quantity, location:locations(code,name))", { count: "exact" })
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -44,9 +55,32 @@ export async function GET(request: NextRequest) {
     }
 
     const total = count ?? 0;
+    const enriched = ((data ?? []) as MaterialListRow[]).map((material) => {
+      const balances = (Array.isArray(material.balances) ? material.balances : []) as MaterialBalanceRow[];
+      const totalQuantity = balances.reduce((sum: number, balance: MaterialBalanceRow) => sum + Number(balance.quantity ?? 0), 0);
+      const topBalance =
+        balances
+          .filter((balance: MaterialBalanceRow) => Number(balance.quantity ?? 0) > 0)
+          .sort((a: MaterialBalanceRow, b: MaterialBalanceRow) => Number(b.quantity ?? 0) - Number(a.quantity ?? 0))[0] ??
+        balances[0] ??
+        null;
+      const primaryLocation = topBalance?.location
+        ? `${topBalance.location.code ? `${topBalance.location.code} - ` : ""}${topBalance.location.name}`
+        : null;
+
+      const minStock = Number(material.min_stock ?? 0);
+      const stockStatus = totalQuantity <= 0 ? "out-of-stock" : totalQuantity <= minStock ? "low-stock" : "in-stock";
+
+      return {
+        ...material,
+        total_quantity: totalQuantity,
+        primary_location: primaryLocation,
+        stock_status: stockStatus
+      };
+    });
 
     return NextResponse.json({
-      data,
+      data: enriched,
       meta: {
         page,
         limit,

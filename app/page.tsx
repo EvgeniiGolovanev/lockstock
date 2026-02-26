@@ -1,9 +1,5 @@
 import { LockstockWorkbench } from "@/components/lockstock-workbench";
 
 export default function HomePage() {
-  return (
-    <main>
-      <LockstockWorkbench />
-    </main>
-  );
+  return <LockstockWorkbench />;
 }

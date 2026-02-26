@@ -4,12 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { filterInventoryRows, inventoryMetrics, normalizeStatus, purchaseOrderProgress } from "@/lib/ui/parity-models";
 
 type Material = {
   id: string;
   sku: string;
   name: string;
+  uom: string;
   min_stock: number;
+  total_quantity?: number;
+  primary_location?: string | null;
+  stock_status?: "in-stock" | "low-stock" | "out-of-stock";
 };
 
 type Location = {
@@ -105,6 +110,9 @@ export function LockstockWorkbench() {
   const [materialMinStock, setMaterialMinStock] = useState(10);
   const [supplierName, setSupplierName] = useState("Acme Supply");
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
+  const [showLocationForm, setShowLocationForm] = useState(false);
+  const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [showPoCreateForm, setShowPoCreateForm] = useState(false);
 
   const [movementMaterialId, setMovementMaterialId] = useState("");
   const [movementLocationId, setMovementLocationId] = useState("");
@@ -119,6 +127,7 @@ export function LockstockWorkbench() {
   const [receiveLocationId, setReceiveLocationId] = useState("");
   const [receiveQuantity, setReceiveQuantity] = useState(1);
   const [materialFilterQuery, setMaterialFilterQuery] = useState("");
+  const [inventoryCategory, setInventoryCategory] = useState("all");
   const [materialPage, setMaterialPage] = useState(1);
   const [materialTotal, setMaterialTotal] = useState(0);
   const [poFilterStatus, setPoFilterStatus] = useState<PurchaseOrderFilterStatus>("all");
@@ -144,6 +153,37 @@ export function LockstockWorkbench() {
     [purchaseOrders, receivePoId]
   );
   const materialById = useMemo(() => new Map(materials.map((material) => [material.id, material])), [materials]);
+  const inventoryCategories = useMemo(() => {
+    const categories = Array.from(new Set(materials.map((material) => material.uom || "Uncategorized")));
+    return ["all", ...categories];
+  }, [materials]);
+  const inventoryRows = useMemo(
+    () => filterInventoryRows(materials, materialFilterQuery, inventoryCategory),
+    [inventoryCategory, materialFilterQuery, materials]
+  );
+  const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
+  const priceByMaterial = useMemo(() => {
+    const next = new Map<string, number>();
+    for (const po of purchaseOrders) {
+      for (const line of po.lines) {
+        if (line.unit_price != null) {
+          next.set(line.material_id, Number(line.unit_price));
+        }
+      }
+    }
+    return next;
+  }, [purchaseOrders]);
+  const poStatusCounts = useMemo(
+    () =>
+      purchaseOrders.reduce(
+        (acc, po) => {
+          acc[po.status] += 1;
+          return acc;
+        },
+        { draft: 0, sent: 0, partial: 0, received: 0, cancelled: 0 }
+      ),
+    [purchaseOrders]
+  );
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
@@ -159,17 +199,19 @@ export function LockstockWorkbench() {
     if (pathname === "/purchase-orders") {
       return { title: "Purchase Orders", subtitle: "Create, receive, and track purchase orders." };
     }
-    return { title: "Inventory", subtitle: "Operational dashboard for stock and procurement." };
+    return { title: "Inventory Management", subtitle: "Manage your stock and track inventory levels." };
   }, [pathname]);
 
-  const showLocationSection = pathname === "/" || pathname === "/locations";
-  const showMaterialSection = pathname === "/" || pathname === "/materials";
-  const showSupplierSection = pathname === "/" || pathname === "/vendors";
-  const showPurchaseOrderSection = pathname === "/" || pathname === "/purchase-orders";
-  const showReceiveSection = pathname === "/" || pathname === "/purchase-orders";
-  const showPoTableSection = pathname === "/" || pathname === "/purchase-orders";
-  const showMovementSection = pathname === "/" || pathname === "/materials";
+  const showLocationSection = pathname === "/locations";
+  const showMaterialSection = pathname === "/materials";
+  const showSupplierSection = pathname === "/vendors";
+  const showPurchaseOrderSection = pathname === "/purchase-orders";
+  const showReceiveSection = pathname === "/purchase-orders";
+  const showPoTableSection = pathname === "/purchase-orders";
+  const showMovementSection = pathname === "/materials";
   const showSnapshotSection = pathname === "/";
+  const showAuthPanel = pathname !== "/" || !signedInAs;
+  const showOrgCreatePanel = pathname !== "/";
 
   function isAuthTokenError(message: string) {
     const normalized = message.toLowerCase();
@@ -357,10 +399,7 @@ export function LockstockWorkbench() {
   }
 
   function getPoProgress(po: PurchaseOrder) {
-    const totalOrdered = po.lines.reduce((sum, line) => sum + Number(line.quantity_ordered), 0);
-    const totalReceived = po.lines.reduce((sum, line) => sum + Number(line.quantity_received), 0);
-    const percentage = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0;
-    return { totalOrdered, totalReceived, percentage };
+    return purchaseOrderProgress(po);
   }
 
   async function apiRequest<T>(
@@ -803,11 +842,21 @@ export function LockstockWorkbench() {
       </section>
 
       <section className="card">
-        <h1>{currentScreen.title}</h1>
-        <p>{currentScreen.subtitle}</p>
+        <div className="title-row">
+          <div>
+            <h1>{currentScreen.title}</h1>
+            <p>{currentScreen.subtitle}</p>
+          </div>
+          {pathname === "/" ? (
+            <Link className="action-link" href="/materials">
+              + Add Item
+            </Link>
+          ) : null}
+        </div>
       </section>
 
-      <section className="card">
+      {showAuthPanel ? (
+        <section className="card">
         <h2>Access & Environment</h2>
         <p>Sign in and the workspace will auto-bootstrap organization context.</p>
         <div className="grid grid-2">
@@ -888,8 +937,10 @@ export function LockstockWorkbench() {
           </button>
         </div>
       </section>
+      ) : null}
 
-      <section className="card">
+      {showOrgCreatePanel ? (
+        <section className="card">
         <h3>Create Organization</h3>
         <div className="grid grid-2">
           <label className="field">
@@ -903,25 +954,77 @@ export function LockstockWorkbench() {
           </div>
         </div>
       </section>
+      ) : null}
 
       {showLocationSection ? (
         <section className="card">
-          <h3>Create Location</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Name</span>
-            <input value={locationName} onChange={(event) => setLocationName(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Code</span>
-            <input value={locationCode} onChange={(event) => setLocationCode(event.target.value)} />
-          </label>
-        </div>
-        <div className="actions">
-          <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateLocation}>
-            Create Location
-          </button>
-        </div>
+          <div className="title-row">
+            <h3>Location Management</h3>
+            <button type="button" onClick={() => setShowLocationForm((prev) => !prev)}>
+              {showLocationForm ? "Close" : "Add Location"}
+            </button>
+          </div>
+          {showLocationForm ? (
+            <>
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>Name</span>
+                  <input value={locationName} onChange={(event) => setLocationName(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Code</span>
+                  <input value={locationCode} onChange={(event) => setLocationCode(event.target.value)} />
+                </label>
+              </div>
+              <div className="actions">
+                <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateLocation}>
+                  Create Location
+                </button>
+              </div>
+            </>
+          ) : null}
+          <div className="kpi-grid">
+            <div className="kpi-card">
+              <p>Total Locations</p>
+              <strong>{locations.length}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Materials Assigned</p>
+              <strong>{materials.filter((material) => material.primary_location).length}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Tracked Materials</p>
+              <strong>{materials.length}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Stock Entries</p>
+              <strong>{materials.filter((material) => Number(material.total_quantity ?? 0) > 0).length}</strong>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                {locations.length === 0 ? (
+                  <tr>
+                    <td colSpan={2}>No locations created yet.</td>
+                  </tr>
+                ) : (
+                  locations.map((location) => (
+                    <tr key={location.id}>
+                      <td>{location.code ?? "-"}</td>
+                      <td>{location.name}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 
@@ -983,17 +1086,33 @@ export function LockstockWorkbench() {
                 <tr>
                   <th>SKU</th>
                   <th>Name</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
                   <th>Min Stock</th>
+                  <th>Location</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {materials.map((material) => (
-                  <tr key={material.id}>
-                    <td>{material.sku}</td>
-                    <td>{material.name}</td>
-                    <td>{material.min_stock}</td>
-                  </tr>
-                ))}
+                {materials.map((material) => {
+                  const quantity = Number(material.total_quantity ?? 0);
+                  const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+                  return (
+                    <tr key={material.id}>
+                      <td>{material.sku}</td>
+                      <td>{material.name}</td>
+                      <td>{material.uom}</td>
+                      <td>{quantity.toLocaleString()}</td>
+                      <td>{material.min_stock}</td>
+                      <td>{material.primary_location ?? "-"}</td>
+                      <td>
+                        <span className={`status-pill status-${status}`}>
+                          {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1015,86 +1134,153 @@ export function LockstockWorkbench() {
 
       {showSupplierSection ? (
         <section className="card">
-          <h3>Create Supplier</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Name</span>
-            <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Lead Time (days)</span>
-            <input
-              type="number"
-              min={0}
-              value={supplierLeadTime}
-              onChange={(event) => setSupplierLeadTime(Number(event.target.value))}
-            />
-          </label>
-        </div>
-        <div className="actions">
-          <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateSupplier}>
-            Create Supplier
-          </button>
-        </div>
+          <div className="title-row">
+            <h3>Vendor Management</h3>
+            <button type="button" onClick={() => setShowSupplierForm((prev) => !prev)}>
+              {showSupplierForm ? "Close" : "Add Vendor"}
+            </button>
+          </div>
+          {showSupplierForm ? (
+            <>
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>Name</span>
+                  <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Lead Time (days)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={supplierLeadTime}
+                    onChange={(event) => setSupplierLeadTime(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="actions">
+                <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateSupplier}>
+                  Create Supplier
+                </button>
+              </div>
+            </>
+          ) : null}
+          <div className="kpi-grid">
+            <div className="kpi-card">
+              <p>Total Vendors</p>
+              <strong>{suppliers.length}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Average Lead Time</p>
+              <strong>
+                {suppliers.length === 0
+                  ? "0"
+                  : Math.round(
+                      suppliers.reduce((sum, supplier) => sum + Number(supplier.lead_time_days || 0), 0) / suppliers.length
+                    )}
+                d
+              </strong>
+            </div>
+            <div className="kpi-card">
+              <p>Open Orders</p>
+              <strong>{purchaseOrders.filter((po) => po.status !== "received" && po.status !== "cancelled").length}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Received Orders</p>
+              <strong>{poStatusCounts.received}</strong>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Lead Time (days)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suppliers.length === 0 ? (
+                  <tr>
+                    <td colSpan={2}>No suppliers created yet.</td>
+                  </tr>
+                ) : (
+                  suppliers.map((supplier) => (
+                    <tr key={supplier.id}>
+                      <td>{supplier.name}</td>
+                      <td>{supplier.lead_time_days}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 
       {showPurchaseOrderSection ? (
         <section className="card">
-          <h3>Create Purchase Order</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Supplier</span>
-            <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
-              <option value="">Select supplier</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Material</span>
-            <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
-              <option value="">Select material</option>
-              {materials.map((material) => (
-                <option key={material.id} value={material.id}>
-                  {material.sku} - {material.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Quantity Ordered</span>
-            <input
-              type="number"
-              min={0.001}
-              step="0.001"
-              value={poQuantityOrdered}
-              onChange={(event) => setPoQuantityOrdered(Number(event.target.value))}
-            />
-          </label>
-          <label className="field">
-            <span>Unit Price</span>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={poUnitPrice}
-              onChange={(event) => setPoUnitPrice(Number(event.target.value))}
-            />
-          </label>
-        </div>
-        <div className="actions">
-          <button
-            type="button"
-            disabled={busy || !isOrgScopedReady || !poSupplierId || !poMaterialId || poQuantityOrdered <= 0}
-            onClick={handleCreatePurchaseOrder}
-          >
-            Create Purchase Order
-          </button>
-        </div>
+          <div className="title-row">
+            <h3>Create Purchase Order</h3>
+            <button type="button" onClick={() => setShowPoCreateForm((prev) => !prev)}>
+              {showPoCreateForm ? "Close" : "Create PO"}
+            </button>
+          </div>
+          {showPoCreateForm ? (
+            <>
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>Supplier</span>
+                  <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
+                    <option value="">Select supplier</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Material</span>
+                  <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
+                    <option value="">Select material</option>
+                    {materials.map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.sku} - {material.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Quantity Ordered</span>
+                  <input
+                    type="number"
+                    min={0.001}
+                    step="0.001"
+                    value={poQuantityOrdered}
+                    onChange={(event) => setPoQuantityOrdered(Number(event.target.value))}
+                  />
+                </label>
+                <label className="field">
+                  <span>Unit Price</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={poUnitPrice}
+                    onChange={(event) => setPoUnitPrice(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="actions">
+                <button
+                  type="button"
+                  disabled={busy || !isOrgScopedReady || !poSupplierId || !poMaterialId || poQuantityOrdered <= 0}
+                  onClick={handleCreatePurchaseOrder}
+                >
+                  Create Purchase Order
+                </button>
+              </div>
+            </>
+          ) : null}
         </section>
       ) : null}
 
@@ -1167,6 +1353,33 @@ export function LockstockWorkbench() {
       {showPoTableSection ? (
         <section className="card">
           <h3>Purchase Orders</h3>
+          <div className="kpi-grid">
+            <div className="kpi-card">
+              <p>Total POs</p>
+              <strong>{poTotal}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Pending</p>
+              <strong>{poStatusCounts.draft + poStatusCounts.sent + poStatusCounts.partial}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Received</p>
+              <strong>{poStatusCounts.received}</strong>
+            </div>
+            <div className="kpi-card">
+              <p>Total Value</p>
+              <strong>
+                $
+                {purchaseOrders
+                  .reduce(
+                    (sum, po) =>
+                      sum + po.lines.reduce((lineSum, line) => lineSum + Number(line.quantity_ordered) * Number(line.unit_price ?? 0), 0),
+                    0
+                  )
+                  .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </strong>
+            </div>
+          </div>
         <div className="grid grid-3">
           <label className="field">
             <span>Search</span>
@@ -1354,22 +1567,130 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showSnapshotSection ? (
-        <section className="card">
-          <h3>Data Snapshot</h3>
-        <p>
-          Materials: <strong>{materials.length}</strong> | Locations: <strong>{locations.length}</strong> | Suppliers:{" "}
-          <strong>{suppliers.length}</strong> | POs (filtered total): <strong>{poTotal}</strong> | Low stock:{" "}
-          <strong>{lowStockCount ?? "-"}</strong>
-        </p>
-        {stockHealth ? (
-          <p>
-            Total Qty: <strong>{stockHealth.total_quantity}</strong> | Out of stock: <strong>{stockHealth.out_of_stock}</strong> |
-            Low stock: <strong>{stockHealth.low_stock}</strong>
-          </p>
-        ) : (
-          <p>Run &quot;Refresh Health&quot; to load metrics.</p>
-        )}
-        </section>
+        <>
+          <section className="card">
+            <div className="kpi-grid">
+              <div className="kpi-card">
+                <p>Total Items</p>
+                <strong>{stockHealth?.total_quantity ?? metrics.totalItems}</strong>
+              </div>
+              <div className="kpi-card">
+                <p>Low Stock Alerts</p>
+                <strong>{lowStockCount ?? stockHealth?.low_stock ?? metrics.lowStock}</strong>
+              </div>
+              <div className="kpi-card">
+                <p>Out of Stock</p>
+                <strong>{stockHealth?.out_of_stock ?? metrics.outOfStock}</strong>
+              </div>
+              <div className="kpi-card">
+                <p>Total Value</p>
+                <strong>
+                  $
+                  {metrics.totalValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="inventory-toolbar">
+              <input
+                value={materialFilterQuery}
+                onChange={(event) => {
+                  setMaterialFilterQuery(event.target.value);
+                  setMaterialPage(1);
+                }}
+                placeholder="Search by name or SKU..."
+              />
+              <select value={inventoryCategory} onChange={(event) => setInventoryCategory(event.target.value)}>
+                {inventoryCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category === "all" ? "All Categories" : category}
+                  </option>
+                ))}
+              </select>
+              <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleRefreshHealth}>
+                Refresh
+              </button>
+            </div>
+          </section>
+
+          <section className="card">
+            {inventoryRows.length === 0 ? (
+              <p>No inventory items match these filters.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Item Name</th>
+                      <th>SKU</th>
+                      <th>Category</th>
+                      <th>Quantity</th>
+                      <th>Price</th>
+                      <th>Location</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inventoryRows.map((material) => {
+                      const quantity = Number(material.total_quantity ?? 0);
+                      const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+                      const unitPrice = priceByMaterial.get(material.id);
+
+                      return (
+                        <tr key={material.id}>
+                          <td>{material.name}</td>
+                          <td>{material.sku}</td>
+                          <td>{material.uom}</td>
+                          <td>{quantity.toLocaleString()}</td>
+                          <td>
+                            {unitPrice == null
+                              ? "-"
+                              : `$${unitPrice.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })}`}
+                          </td>
+                          <td>{material.primary_location ?? "-"}</td>
+                          <td>
+                            <span className={`status-pill status-${status}`}>
+                              {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
+                            </span>
+                          </td>
+                          <td>
+                            <button type="button" disabled className="ghost-btn">
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="actions">
+              <button type="button" disabled={busy || materialPage <= 1} onClick={() => setMaterialPage((prev) => Math.max(1, prev - 1))}>
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={busy || materialPage >= materialTotalPages}
+                onClick={() => setMaterialPage((prev) => Math.min(materialTotalPages, prev + 1))}
+              >
+                Next
+              </button>
+              <p className="subtle-line">
+                Page {materialPage} / {materialTotalPages} ({materialTotal} total)
+              </p>
+            </div>
+          </section>
+        </>
       ) : null}
 
       <section className="card">
