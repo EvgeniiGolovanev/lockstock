@@ -63,6 +63,16 @@ type ActivityEntry = {
   line: string;
 };
 
+type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+};
+
+const MATERIALS_PAGE_SIZE = 25;
+const PURCHASE_ORDERS_PAGE_SIZE = 20;
+
 const STORAGE_KEYS = {
   baseUrl: "lockstock.baseUrl",
   token: "lockstock.accessToken",
@@ -108,9 +118,14 @@ export function LockstockWorkbench() {
   const [receivePoLineId, setReceivePoLineId] = useState("");
   const [receiveLocationId, setReceiveLocationId] = useState("");
   const [receiveQuantity, setReceiveQuantity] = useState(1);
+  const [materialFilterQuery, setMaterialFilterQuery] = useState("");
+  const [materialPage, setMaterialPage] = useState(1);
+  const [materialTotal, setMaterialTotal] = useState(0);
   const [poFilterStatus, setPoFilterStatus] = useState<PurchaseOrderFilterStatus>("all");
   const [poFilterSupplierId, setPoFilterSupplierId] = useState("all");
   const [poFilterQuery, setPoFilterQuery] = useState("");
+  const [poPage, setPoPage] = useState(1);
+  const [poTotal, setPoTotal] = useState(0);
 
   const [materials, setMaterials] = useState<Material[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -129,26 +144,8 @@ export function LockstockWorkbench() {
     [purchaseOrders, receivePoId]
   );
   const materialById = useMemo(() => new Map(materials.map((material) => [material.id, material])), [materials]);
-  const filteredPurchaseOrders = useMemo(() => {
-    const normalizedQuery = poFilterQuery.trim().toLowerCase();
-
-    return purchaseOrders.filter((po) => {
-      if (poFilterStatus !== "all" && po.status !== poFilterStatus) {
-        return false;
-      }
-      if (poFilterSupplierId !== "all" && po.supplier?.id !== poFilterSupplierId) {
-        return false;
-      }
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const lineSkuMatch = po.lines.some((line) => materialById.get(line.material_id)?.sku.toLowerCase().includes(normalizedQuery));
-      const poNumberMatch = po.po_number.toLowerCase().includes(normalizedQuery);
-      const supplierMatch = (po.supplier?.name ?? "").toLowerCase().includes(normalizedQuery);
-      return poNumberMatch || supplierMatch || lineSkuMatch;
-    });
-  }, [materialById, poFilterQuery, poFilterStatus, poFilterSupplierId, purchaseOrders]);
+  const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
+  const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
     if (pathname === "/materials") {
       return { title: "Materials & Stock", subtitle: "Manage materials and stock movements." };
@@ -263,6 +260,30 @@ export function LockstockWorkbench() {
   }, [accessToken, signedInAs, normalizedBaseUrl]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
+  // loadMaterials is intentionally excluded to avoid dependency churn on function identity.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (!isOrgScopedReady || !normalizedBaseUrl) {
+      return;
+    }
+    void loadMaterials().catch((error) => {
+      addActivity(`Loading materials failed: ${(error as Error).message}`);
+    });
+  }, [isOrgScopedReady, normalizedBaseUrl, materialFilterQuery, materialPage]);
+  /* eslint-enable react-hooks/exhaustive-deps */
+
+  // loadPurchaseOrders is intentionally excluded to avoid dependency churn on function identity.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (!isOrgScopedReady || !normalizedBaseUrl) {
+      return;
+    }
+    void loadPurchaseOrders().catch((error) => {
+      addActivity(`Loading purchase orders failed: ${(error as Error).message}`);
+    });
+  }, [isOrgScopedReady, normalizedBaseUrl, poFilterStatus, poFilterSupplierId, poFilterQuery, poPage]);
+  /* eslint-enable react-hooks/exhaustive-deps */
+
   useEffect(() => {
     if (!movementMaterialId && materials[0]) {
       setMovementMaterialId(materials[0].id);
@@ -319,6 +340,10 @@ export function LockstockWorkbench() {
     setLocations([]);
     setSuppliers([]);
     setPurchaseOrders([]);
+    setMaterialTotal(0);
+    setPoTotal(0);
+    setMaterialPage(1);
+    setPoPage(1);
     setStockHealth(null);
     setLowStockCount(null);
   }
@@ -440,6 +465,63 @@ export function LockstockWorkbench() {
     }
   }
 
+  async function loadMaterials(targetOrgId?: string, tokenOverride?: string) {
+    const orgValue = targetOrgId ?? orgId;
+    if (!orgValue) {
+      return { count: 0 };
+    }
+
+    const params = new URLSearchParams({
+      page: String(materialPage),
+      limit: String(MATERIALS_PAGE_SIZE)
+    });
+    if (materialFilterQuery.trim()) {
+      params.set("q", materialFilterQuery.trim());
+    }
+
+    const response = await apiRequest<{ data: Material[]; meta?: PaginationMeta }>(`/api/materials?${params.toString()}`, {
+      orgOverride: orgValue,
+      tokenOverride
+    });
+
+    setMaterials(response.data);
+    setMaterialTotal(response.meta?.total ?? response.data.length);
+    return { count: response.data.length };
+  }
+
+  async function loadPurchaseOrders(targetOrgId?: string, tokenOverride?: string) {
+    const orgValue = targetOrgId ?? orgId;
+    if (!orgValue) {
+      return { count: 0 };
+    }
+
+    const params = new URLSearchParams({
+      page: String(poPage),
+      limit: String(PURCHASE_ORDERS_PAGE_SIZE)
+    });
+    if (poFilterStatus !== "all") {
+      params.set("status", poFilterStatus);
+    }
+    if (poFilterSupplierId !== "all") {
+      params.set("supplier_id", poFilterSupplierId);
+    }
+    if (poFilterQuery.trim()) {
+      params.set("q", poFilterQuery.trim());
+    }
+
+    const response = await apiRequest<{ data: PurchaseOrder[]; meta?: PaginationMeta }>(
+      `/api/purchase-orders?${params.toString()}`,
+      {
+        orgOverride: orgValue,
+        tokenOverride
+      }
+    );
+
+    setPurchaseOrders(response.data);
+    setPoTotal(response.meta?.total ?? response.data.length);
+    return { count: response.data.length };
+  }
+
   async function refreshCoreData(targetOrgId?: string, tokenOverride?: string) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
@@ -448,18 +530,16 @@ export function LockstockWorkbench() {
     }
 
     const [materialsResult, locationsResult, suppliersResult, purchaseOrdersResult] = await Promise.all([
-      apiRequest<{ data: Material[] }>("/api/materials", { orgOverride: orgValue, tokenOverride }),
+      loadMaterials(orgValue, tokenOverride),
       apiRequest<{ data: Location[] }>("/api/locations", { orgOverride: orgValue, tokenOverride }),
       apiRequest<{ data: Supplier[] }>("/api/suppliers", { orgOverride: orgValue, tokenOverride }),
-      apiRequest<{ data: PurchaseOrder[] }>("/api/purchase-orders", { orgOverride: orgValue, tokenOverride })
+      loadPurchaseOrders(orgValue, tokenOverride)
     ]);
 
-    setMaterials(materialsResult.data);
     setLocations(locationsResult.data);
     setSuppliers(suppliersResult.data);
-    setPurchaseOrders(purchaseOrdersResult.data);
     addActivity(
-      `Loaded ${materialsResult.data.length} materials, ${locationsResult.data.length} locations, ${suppliersResult.data.length} suppliers, ${purchaseOrdersResult.data.length} purchase orders.`
+      `Loaded ${materialsResult.count} materials, ${locationsResult.data.length} locations, ${suppliersResult.data.length} suppliers, ${purchaseOrdersResult.count} purchase orders.`
     );
   }
 
@@ -875,6 +955,61 @@ export function LockstockWorkbench() {
             Create Material
           </button>
         </div>
+        <div className="grid grid-2">
+          <label className="field">
+            <span>Material Search</span>
+            <input
+              value={materialFilterQuery}
+              onChange={(event) => {
+                setMaterialFilterQuery(event.target.value);
+                setMaterialPage(1);
+              }}
+              placeholder="Filter by SKU or name"
+            />
+          </label>
+          <div className="field">
+            <span>Material Page</span>
+            <p className="subtle-line">
+              Page {materialPage} / {materialTotalPages} ({materialTotal} total)
+            </p>
+          </div>
+        </div>
+        {materials.length === 0 ? (
+          <p>No materials on this page.</p>
+        ) : (
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Name</th>
+                  <th>Min Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materials.map((material) => (
+                  <tr key={material.id}>
+                    <td>{material.sku}</td>
+                    <td>{material.name}</td>
+                    <td>{material.min_stock}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="actions">
+          <button type="button" disabled={busy || materialPage <= 1} onClick={() => setMaterialPage((prev) => Math.max(1, prev - 1))}>
+            Previous Materials
+          </button>
+          <button
+            type="button"
+            disabled={busy || materialPage >= materialTotalPages}
+            onClick={() => setMaterialPage((prev) => Math.min(materialTotalPages, prev + 1))}
+          >
+            Next Materials
+          </button>
+        </div>
         </section>
       ) : null}
 
@@ -1037,13 +1172,22 @@ export function LockstockWorkbench() {
             <span>Search</span>
             <input
               value={poFilterQuery}
-              onChange={(event) => setPoFilterQuery(event.target.value)}
-              placeholder="PO number, supplier, material SKU"
+              onChange={(event) => {
+                setPoFilterQuery(event.target.value);
+                setPoPage(1);
+              }}
+              placeholder="PO number"
             />
           </label>
           <label className="field">
             <span>Status</span>
-            <select value={poFilterStatus} onChange={(event) => setPoFilterStatus(event.target.value as PurchaseOrderFilterStatus)}>
+            <select
+              value={poFilterStatus}
+              onChange={(event) => {
+                setPoFilterStatus(event.target.value as PurchaseOrderFilterStatus);
+                setPoPage(1);
+              }}
+            >
               <option value="all">all</option>
               <option value="draft">draft</option>
               <option value="sent">sent</option>
@@ -1054,7 +1198,13 @@ export function LockstockWorkbench() {
           </label>
           <label className="field">
             <span>Supplier</span>
-            <select value={poFilterSupplierId} onChange={(event) => setPoFilterSupplierId(event.target.value)}>
+            <select
+              value={poFilterSupplierId}
+              onChange={(event) => {
+                setPoFilterSupplierId(event.target.value);
+                setPoPage(1);
+              }}
+            >
               <option value="all">all suppliers</option>
               {suppliers.map((supplier) => (
                 <option key={supplier.id} value={supplier.id}>
@@ -1065,7 +1215,10 @@ export function LockstockWorkbench() {
           </label>
         </div>
 
-        {filteredPurchaseOrders.length === 0 ? (
+        <p className="subtle-line">
+          Page {poPage} / {poTotalPages} ({poTotal} total)
+        </p>
+        {purchaseOrders.length === 0 ? (
           <p>No purchase orders match these filters.</p>
         ) : (
           <div className="table-wrap">
@@ -1081,7 +1234,7 @@ export function LockstockWorkbench() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPurchaseOrders.map((po) => {
+                {purchaseOrders.map((po) => {
                   const progress = getPoProgress(po);
                   const linePreview = po.lines
                     .slice(0, 2)
@@ -1131,6 +1284,14 @@ export function LockstockWorkbench() {
             </table>
           </div>
         )}
+        <div className="actions">
+          <button type="button" disabled={busy || poPage <= 1} onClick={() => setPoPage((prev) => Math.max(1, prev - 1))}>
+            Previous Page
+          </button>
+          <button type="button" disabled={busy || poPage >= poTotalPages} onClick={() => setPoPage((prev) => Math.min(poTotalPages, prev + 1))}>
+            Next Page
+          </button>
+        </div>
         </section>
       ) : null}
 
@@ -1197,8 +1358,7 @@ export function LockstockWorkbench() {
           <h3>Data Snapshot</h3>
         <p>
           Materials: <strong>{materials.length}</strong> | Locations: <strong>{locations.length}</strong> | Suppliers:{" "}
-          <strong>{suppliers.length}</strong> | Open POs:{" "}
-          <strong>{purchaseOrders.filter((po) => po.status !== "received" && po.status !== "cancelled").length}</strong> | Low stock:{" "}
+          <strong>{suppliers.length}</strong> | POs (filtered total): <strong>{poTotal}</strong> | Low stock:{" "}
           <strong>{lowStockCount ?? "-"}</strong>
         </p>
         {stockHealth ? (

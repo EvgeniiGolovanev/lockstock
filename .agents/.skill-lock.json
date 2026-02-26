@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "skills": {
+    "tdd-workflow": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/affaan-m/everything-claude-code.git",
+      "skillFolderHash": "",
+      "installedAt": "2026-02-26T00:01:38.878Z",
+      "updatedAt": "2026-02-26T00:02:35.961Z"
+    }
+  },
+  "dismissed": {}
+}

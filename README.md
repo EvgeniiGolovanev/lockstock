@@ -84,12 +84,17 @@ curl -X POST http://localhost:3000/api/organizations \
 - `GET /api/alerts/low-stock`
 - `GET /api/reports/stock-health`
 
+List endpoint query params:
+
+- `GET /api/materials?q=&page=&limit=`
+- `GET /api/purchase-orders?q=&status=&supplier_id=&page=&limit=`
+
 ## Suggested Next Steps
 
-1. Add pagination + server-side filtering for materials and purchase orders.
-2. Add audit log table + endpoint for critical stock and PO operations.
-3. Add integration workers (QBO/Shopify) behind feature flags.
-4. Add role-aware UI controls (viewer/member/manager/owner) to hide forbidden actions.
+1. Add audit log table + endpoint for critical stock and PO operations.
+2. Add integration workers (QBO/Shopify) behind feature flags.
+3. Add role-aware UI controls (viewer/member/manager/owner) to hide forbidden actions.
+4. Add optimistic updates to reduce full reload calls after create/receive actions.
 
 ## Smoke Test Script
 
@@ -114,7 +119,8 @@ Open `http://localhost:3000` and use the workbench to:
 3. Create location, material, and supplier.
 4. Create and receive purchase orders.
 5. Record stock movement.
-6. Refresh stock health and low-stock metrics.
+6. Use server-side filters/pagination for materials and purchase orders.
+7. Refresh stock health and low-stock metrics.
 
 ## API Auth/Role Tests
 
