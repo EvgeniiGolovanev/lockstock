@@ -539,6 +539,164 @@ button:disabled {
   color: #586980;
 }
 
+.po-cards {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.po-card {
+  border: 1px solid var(--ls-border);
+  border-left: 4px solid #94a3b8;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.9rem;
+}
+
+.po-card-draft {
+  border-left-color: #f59e0b;
+}
+
+.po-card-sent,
+.po-card-partial {
+  border-left-color: #3b82f6;
+}
+
+.po-card-received {
+  border-left-color: #16a34a;
+}
+
+.po-card-cancelled {
+  border-left-color: #ef4444;
+}
+
+.po-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.po-card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.po-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  color: #111827;
+}
+
+.po-card-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.84rem;
+  color: #65758c;
+}
+
+.po-receive-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.po-meta-grid {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.po-meta-item {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  border: 1px solid #e8edf6;
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+  background: #f9fbff;
+}
+
+.po-meta-icon {
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eaf1ff;
+  color: #2f5b9a;
+  flex: 0 0 auto;
+}
+
+.po-meta-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.po-meta-label {
+  margin: 0;
+  font-size: 0.73rem;
+  color: #6b7b91;
+}
+
+.po-meta-value {
+  margin: 0.1rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1f2b3d;
+}
+
+.po-meta-amount {
+  font-size: 0.95rem;
+}
+
+.po-lines-wrap {
+  margin-top: 0.75rem;
+  border: 1px solid #e6ebf4;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.po-lines-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.po-lines-table th,
+.po-lines-table td {
+  text-align: left;
+  padding: 0.46rem 0.55rem;
+  border-bottom: 1px solid #edf2f8;
+  font-size: 0.82rem;
+}
+
+.po-lines-table th {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #617087;
+  background: #f8faff;
+}
+
+.po-lines-table tr:last-child td {
+  border-bottom: none;
+}
+
+.po-line-empty {
+  margin: 0.75rem 0 0;
+  font-size: 0.83rem;
+  color: #64748b;
+}
+
 .vendors-grid {
   margin-top: 0.9rem;
   display: grid;
@@ -743,6 +901,19 @@ button:disabled {
   }
 
   .purchase-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .po-card-head {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .po-card-head-right {
+    justify-content: flex-start;
+  }
+
+  .po-meta-grid {
     grid-template-columns: 1fr;
   }
 

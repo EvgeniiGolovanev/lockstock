@@ -85,6 +85,14 @@ export type PurchaseOrderOverview = {
   statusCounts: PurchaseOrderStatusCounts;
 };
 
+export type PurchaseOrderLineViewRow = {
+  materialLabel: string;
+  quantityOrdered: number;
+  quantityReceived: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
 export function normalizeStatus(
   status: MaterialRow["stock_status"],
   quantity: number,
@@ -217,6 +225,23 @@ export function purchaseOrderLinePreview(
     return preview;
   }
   return `${preview} +${po.lines.length - limit} more`;
+}
+
+export function purchaseOrderLineRows(
+  po: PurchaseOrderRow,
+  skuByMaterialId: Map<string, string>
+): PurchaseOrderLineViewRow[] {
+  return po.lines.map((line) => {
+    const unitPrice = Number(line.unit_price || 0);
+    const quantityOrdered = Number(line.quantity_ordered || 0);
+    return {
+      materialLabel: skuByMaterialId.get(line.material_id) ?? "material",
+      quantityOrdered,
+      quantityReceived: Number(line.quantity_received || 0),
+      unitPrice,
+      lineTotal: quantityOrdered * unitPrice
+    };
+  });
 }
 
 export function materialLocationSummary(materials: MaterialRow[], max = 5): MaterialLocationSummary[] {

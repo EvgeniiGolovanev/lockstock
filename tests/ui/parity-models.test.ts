@@ -5,6 +5,7 @@ import {
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
+  purchaseOrderLineRows,
   purchaseOrderLinePreview,
   purchaseOrderOverview,
   purchaseOrderProgress,
@@ -159,6 +160,31 @@ describe("parity models", () => {
         skuByMaterial
       )
     ).toBe("No lines");
+  });
+
+  it("builds purchase order line rows with totals", () => {
+    const skuByMaterial = new Map<string, string>([
+      ["m1", "TECH-001"],
+      ["m2", "FURN-023"]
+    ]);
+
+    const rows = purchaseOrderLineRows(purchaseOrders[0], skuByMaterial);
+    expect(rows).toEqual([
+      {
+        materialLabel: "TECH-001",
+        quantityOrdered: 10,
+        quantityReceived: 5,
+        unitPrice: 4,
+        lineTotal: 40
+      },
+      {
+        materialLabel: "FURN-023",
+        quantityOrdered: 3,
+        quantityReceived: 3,
+        unitPrice: 100,
+        lineTotal: 300
+      }
+    ]);
   });
 
   it("builds sorted material location summary", () => {
