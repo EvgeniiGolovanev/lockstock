@@ -18,6 +18,7 @@ export type PurchaseOrderLineRow = {
 
 export type PurchaseOrderRow = {
   id: string;
+  supplier?: { id?: string | null; name?: string | null } | null;
   status: "draft" | "sent" | "partial" | "received" | "cancelled";
   lines: PurchaseOrderLineRow[];
 };
@@ -44,6 +45,28 @@ export type ParsedLocationRow = {
 export type LocationWarehouseGroup = {
   warehouse: string;
   locations: ParsedLocationRow[];
+};
+
+export type SupplierRow = {
+  id: string;
+  name: string;
+  lead_time_days: number;
+};
+
+export type VendorMetrics = {
+  totalSuppliers: number;
+  averageLeadTimeDays: number;
+  openOrders: number;
+  receivedOrders: number;
+};
+
+export type SupplierOrderStatRow = {
+  supplierId: string;
+  name: string;
+  leadTimeDays: number;
+  totalOrders: number;
+  openOrders: number;
+  receivedOrders: number;
 };
 
 export function normalizeStatus(
@@ -195,4 +218,96 @@ export function groupLocationsByWarehouse(locations: LocationRow[]): LocationWar
       locations: list.sort((a, b) => a.zone.localeCompare(b.zone))
     }))
     .sort((a, b) => b.locations.length - a.locations.length || a.warehouse.localeCompare(b.warehouse));
+}
+
+export function vendorMetrics(suppliers: SupplierRow[], purchaseOrders: PurchaseOrderRow[]): VendorMetrics {
+  const totalSuppliers = suppliers.length;
+  const averageLeadTimeDays =
+    totalSuppliers === 0
+      ? 0
+      : Math.round(
+          suppliers.reduce((sum, supplier) => sum + Number(supplier.lead_time_days || 0), 0) / totalSuppliers
+        );
+  const openOrders = purchaseOrders.filter((po) => po.status !== "received" && po.status !== "cancelled").length;
+  const receivedOrders = purchaseOrders.filter((po) => po.status === "received").length;
+
+  return {
+    totalSuppliers,
+    averageLeadTimeDays,
+    openOrders,
+    receivedOrders
+  };
+}
+
+export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: PurchaseOrderRow[]): SupplierOrderStatRow[] {
+  const statsByKey = new Map<
+    string,
+    {
+      supplierId: string;
+      name: string;
+      totalOrders: number;
+      openOrders: number;
+      receivedOrders: number;
+    }
+  >();
+
+  for (const po of purchaseOrders) {
+    const supplierId = po.supplier?.id?.trim();
+    const supplierName = po.supplier?.name?.trim() || "Unknown";
+    const key = supplierId && supplierId.length > 0 ? `id:${supplierId}` : `name:${supplierName.toLowerCase()}`;
+    const current = statsByKey.get(key) ?? {
+      supplierId: supplierId || key,
+      name: supplierName,
+      totalOrders: 0,
+      openOrders: 0,
+      receivedOrders: 0
+    };
+
+    current.totalOrders += 1;
+    if (po.status === "received") {
+      current.receivedOrders += 1;
+    }
+    if (po.status !== "received" && po.status !== "cancelled") {
+      current.openOrders += 1;
+    }
+
+    statsByKey.set(key, current);
+  }
+
+  const supplierRows = suppliers.map((supplier) => {
+    const byId = statsByKey.get(`id:${supplier.id}`);
+    const byName = statsByKey.get(`name:${supplier.name.toLowerCase()}`);
+    const stats = byId ?? byName;
+    return {
+      supplierId: supplier.id,
+      name: supplier.name,
+      leadTimeDays: Number(supplier.lead_time_days || 0),
+      totalOrders: stats?.totalOrders ?? 0,
+      openOrders: stats?.openOrders ?? 0,
+      receivedOrders: stats?.receivedOrders ?? 0
+    };
+  });
+
+  const knownSupplierIds = new Set(suppliers.map((supplier) => supplier.id));
+  const knownSupplierNames = new Set(suppliers.map((supplier) => supplier.name.toLowerCase()));
+
+  const additionalRows = Array.from(statsByKey.values())
+    .filter((row) => {
+      if (knownSupplierIds.has(row.supplierId)) {
+        return false;
+      }
+      return !knownSupplierNames.has(row.name.toLowerCase());
+    })
+    .map((row) => ({
+      supplierId: row.supplierId,
+      name: row.name,
+      leadTimeDays: 0,
+      totalOrders: row.totalOrders,
+      openOrders: row.openOrders,
+      receivedOrders: row.receivedOrders
+    }));
+
+  return [...supplierRows, ...additionalRows].sort(
+    (a, b) => b.totalOrders - a.totalOrders || a.name.localeCompare(b.name)
+  );
 }

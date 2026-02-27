@@ -7,9 +7,12 @@ import {
   normalizeStatus,
   purchaseOrderProgress,
   splitLocationName,
+  supplierOrderStats,
   toParsedLocationRows,
+  vendorMetrics,
   type MaterialRow,
-  type PurchaseOrderRow
+  type PurchaseOrderRow,
+  type SupplierRow
 } from "@/lib/ui/parity-models";
 
 const materials: MaterialRow[] = [
@@ -46,6 +49,7 @@ const materials: MaterialRow[] = [
 const purchaseOrders: PurchaseOrderRow[] = [
   {
     id: "po1",
+    supplier: { id: "s1", name: "Alpha Supplies" },
     status: "received",
     lines: [
       {
@@ -62,6 +66,11 @@ const purchaseOrders: PurchaseOrderRow[] = [
       }
     ]
   }
+];
+
+const suppliers: SupplierRow[] = [
+  { id: "s1", name: "Alpha Supplies", lead_time_days: 7 },
+  { id: "s2", name: "Beta Trade", lead_time_days: 3 }
 ];
 
 describe("parity models", () => {
@@ -142,5 +151,46 @@ describe("parity models", () => {
     expect(groups[0].warehouse).toBe("Warehouse A");
     expect(groups[0].locations.map((location) => location.zone)).toEqual(["Zone 1", "Zone 2"]);
     expect(groups[1].warehouse).toBe("Warehouse B");
+  });
+
+  it("computes vendor metrics", () => {
+    const metrics = vendorMetrics(suppliers, [
+      ...purchaseOrders,
+      { id: "po2", supplier: { id: "s2", name: "Beta Trade" }, status: "draft", lines: [] },
+      { id: "po3", supplier: { id: "s2", name: "Beta Trade" }, status: "cancelled", lines: [] }
+    ]);
+
+    expect(metrics).toEqual({
+      totalSuppliers: 2,
+      averageLeadTimeDays: 5,
+      openOrders: 1,
+      receivedOrders: 1
+    });
+  });
+
+  it("builds supplier order stats with fallback rows", () => {
+    const rows = supplierOrderStats(suppliers, [
+      { id: "po1", supplier: { id: "s1", name: "Alpha Supplies" }, status: "received", lines: [] },
+      { id: "po2", supplier: { id: "s1", name: "Alpha Supplies" }, status: "draft", lines: [] },
+      { id: "po3", supplier: { id: "s9", name: "Unknown Vendor" }, status: "partial", lines: [] }
+    ]);
+
+    expect(rows[0]).toMatchObject({
+      supplierId: "s1",
+      name: "Alpha Supplies",
+      totalOrders: 2,
+      openOrders: 1,
+      receivedOrders: 1
+    });
+    expect(rows.find((row) => row.name === "Beta Trade")).toMatchObject({
+      totalOrders: 0,
+      openOrders: 0,
+      receivedOrders: 0
+    });
+    expect(rows.find((row) => row.name === "Unknown Vendor")).toMatchObject({
+      totalOrders: 1,
+      openOrders: 1,
+      receivedOrders: 0
+    });
   });
 });
