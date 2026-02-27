@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { filterInventoryRows, inventoryMetrics, normalizeStatus, purchaseOrderProgress } from "@/lib/ui/parity-models";
+import {
+  filterInventoryRows,
+  inventoryMetrics,
+  materialLocationSummary,
+  normalizeStatus,
+  purchaseOrderProgress
+} from "@/lib/ui/parity-models";
 
 type Material = {
   id: string;
@@ -53,6 +59,7 @@ type PurchaseOrder = {
 };
 
 type PurchaseOrderFilterStatus = "all" | PurchaseOrder["status"];
+type MaterialsTab = "create" | "add-stock";
 
 type OrganizationMembership = {
   role: "owner" | "manager" | "member" | "viewer";
@@ -156,6 +163,7 @@ export function LockstockWorkbench() {
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
+  const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("create");
 
   const [movementMaterialId, setMovementMaterialId] = useState("");
   const [movementLocationId, setMovementLocationId] = useState("");
@@ -205,6 +213,7 @@ export function LockstockWorkbench() {
     [inventoryCategory, materialFilterQuery, materials]
   );
   const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
+  const materialLocationRows = useMemo(() => materialLocationSummary(materials, 6), [materials]);
   const priceByMaterial = useMemo(() => {
     const next = new Map<string, number>();
     for (const po of purchaseOrders) {
@@ -251,7 +260,6 @@ export function LockstockWorkbench() {
   const showPurchaseOrderSection = pathname === "/purchase-orders";
   const showReceiveSection = pathname === "/purchase-orders";
   const showPoTableSection = pathname === "/purchase-orders";
-  const showMovementSection = pathname === "/materials";
   const showSnapshotSection = pathname === "/";
   const showAuthPanel = pathname !== "/" || !signedInAs;
   const showOrgCreatePanel = pathname !== "/";
@@ -1077,105 +1085,215 @@ export function LockstockWorkbench() {
 
       {showMaterialSection ? (
         <section className="card">
-          <h3>Create Material</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>SKU</span>
-            <input value={materialSku} onChange={(event) => setMaterialSku(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Name</span>
-            <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>UOM</span>
-            <input value={materialUom} onChange={(event) => setMaterialUom(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Min Stock</span>
-            <input
-              type="number"
-              value={materialMinStock}
-              onChange={(event) => setMaterialMinStock(Number(event.target.value))}
-            />
-          </label>
-        </div>
-        <div className="actions">
-          <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateMaterial}>
-            Create Material
-          </button>
-        </div>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Material Search</span>
-            <input
-              value={materialFilterQuery}
-              onChange={(event) => {
-                setMaterialFilterQuery(event.target.value);
-                setMaterialPage(1);
-              }}
-              placeholder="Filter by SKU or name"
-            />
-          </label>
-          <div className="field">
-            <span>Material Page</span>
-            <p className="subtle-line">
-              Page {materialPage} / {materialTotalPages} ({materialTotal} total)
-            </p>
+          <h3>Materials & Stock Management</h3>
+          <p className="subtle-line">Create materials and add stock to specific locations.</p>
+
+          <div className="materials-layout">
+            <div className="materials-main">
+              <div className="materials-tabs">
+                <button
+                  type="button"
+                  className={`tab-btn ${materialsTab === "create" ? "tab-btn-active" : ""}`}
+                  onClick={() => setMaterialsTab("create")}
+                >
+                  Create Material
+                </button>
+                <button
+                  type="button"
+                  className={`tab-btn ${materialsTab === "add-stock" ? "tab-btn-active" : ""}`}
+                  onClick={() => setMaterialsTab("add-stock")}
+                >
+                  Add to Stock
+                </button>
+              </div>
+
+              {materialsTab === "create" ? (
+                <div className="materials-form-wrap">
+                  <div className="grid grid-2">
+                    <label className="field">
+                      <span>SKU</span>
+                      <input value={materialSku} onChange={(event) => setMaterialSku(event.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span>Name</span>
+                      <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span>Unit</span>
+                      <input value={materialUom} onChange={(event) => setMaterialUom(event.target.value)} placeholder="pcs, kg, m, box" />
+                    </label>
+                    <label className="field">
+                      <span>Minimum Stock</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={materialMinStock}
+                        onChange={(event) => setMaterialMinStock(Number(event.target.value))}
+                      />
+                    </label>
+                  </div>
+                  <div className="actions">
+                    <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateMaterial}>
+                      Create Material
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="materials-form-wrap">
+                  <div className="grid grid-2">
+                    <label className="field">
+                      <span>Material</span>
+                      <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
+                        <option value="">Select material</option>
+                        {materials.map((material) => (
+                          <option key={material.id} value={material.id}>
+                            {material.sku} - {material.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Location</span>
+                      <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
+                        <option value="">Select location</option>
+                        {locations.map((location) => (
+                          <option key={location.id} value={location.id}>
+                            {location.code ? `${location.code} - ` : ""}
+                            {location.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Quantity Delta</span>
+                      <input
+                        type="number"
+                        value={movementQuantity}
+                        onChange={(event) => setMovementQuantity(Number(event.target.value))}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Reason</span>
+                      <select value={movementReason} onChange={(event) => setMovementReason(event.target.value)}>
+                        <option value="adjustment">Adjustment</option>
+                        <option value="transfer_in">Transfer In</option>
+                        <option value="transfer_out">Transfer Out</option>
+                        <option value="purchase_receive">Purchase Receive</option>
+                        <option value="correction">Correction</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="actions">
+                    <button
+                      type="button"
+                      disabled={busy || !isOrgScopedReady || !movementMaterialId || !movementLocationId}
+                      onClick={handleCreateMovement}
+                    >
+                      Add to Stock
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <aside className="materials-side">
+              <div className="side-card">
+                <h4>Materials Overview</h4>
+                <p>
+                  Total Materials <strong>{materials.length}</strong>
+                </p>
+                <p>
+                  In Stock <strong>{materials.filter((item) => Number(item.total_quantity ?? 0) > 0).length}</strong>
+                </p>
+                <p>
+                  Locations Used <strong>{materialLocationRows.filter((row) => row.location !== "Unassigned").length}</strong>
+                </p>
+              </div>
+              <div className="side-card">
+                <h4>Stock by Location</h4>
+                {materialLocationRows.length === 0 ? <p className="subtle-line">No materials yet.</p> : null}
+                {materialLocationRows.map((row) => (
+                  <div key={row.location} className="location-line">
+                    <span>{row.location}</span>
+                    <strong>{row.count}</strong>
+                  </div>
+                ))}
+              </div>
+            </aside>
           </div>
-        </div>
-        {materials.length === 0 ? (
-          <p>No materials on this page.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="compact-table">
-              <thead>
-                <tr>
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th>Min Stock</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {materials.map((material) => {
-                  const quantity = Number(material.total_quantity ?? 0);
-                  const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
-                  return (
-                    <tr key={material.id}>
-                      <td>{material.sku}</td>
-                      <td>{material.name}</td>
-                      <td>{material.uom}</td>
-                      <td>{quantity.toLocaleString()}</td>
-                      <td>{material.min_stock}</td>
-                      <td>{material.primary_location ?? "-"}</td>
-                      <td>
-                        <span className={`status-pill status-${status}`}>
-                          {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          <div className="materials-table-head">
+            <label className="field">
+              <span>Material Search</span>
+              <input
+                value={materialFilterQuery}
+                onChange={(event) => {
+                  setMaterialFilterQuery(event.target.value);
+                  setMaterialPage(1);
+                }}
+                placeholder="Filter by SKU or name"
+              />
+            </label>
+            <div className="field">
+              <span>Material Page</span>
+              <p className="subtle-line">
+                Page {materialPage} / {materialTotalPages} ({materialTotal} total)
+              </p>
+            </div>
           </div>
-        )}
-        <div className="actions">
-          <button type="button" disabled={busy || materialPage <= 1} onClick={() => setMaterialPage((prev) => Math.max(1, prev - 1))}>
-            Previous Materials
-          </button>
-          <button
-            type="button"
-            disabled={busy || materialPage >= materialTotalPages}
-            onClick={() => setMaterialPage((prev) => Math.min(materialTotalPages, prev + 1))}
-          >
-            Next Materials
-          </button>
-        </div>
+
+          {materials.length === 0 ? (
+            <p>No materials on this page.</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="compact-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Min Stock</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materials.map((material) => {
+                    const quantity = Number(material.total_quantity ?? 0);
+                    const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+                    return (
+                      <tr key={material.id}>
+                        <td>{material.sku}</td>
+                        <td>{material.name}</td>
+                        <td>{material.uom}</td>
+                        <td>{quantity.toLocaleString()}</td>
+                        <td>{material.min_stock}</td>
+                        <td>{material.primary_location ?? "-"}</td>
+                        <td>
+                          <span className={`status-pill status-${status}`}>
+                            {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="actions">
+            <button type="button" disabled={busy || materialPage <= 1} onClick={() => setMaterialPage((prev) => Math.max(1, prev - 1))}>
+              Previous Materials
+            </button>
+            <button
+              type="button"
+              disabled={busy || materialPage >= materialTotalPages}
+              onClick={() => setMaterialPage((prev) => Math.min(materialTotalPages, prev + 1))}
+            >
+              Next Materials
+            </button>
+          </div>
         </section>
       ) : null}
 
@@ -1550,64 +1668,6 @@ export function LockstockWorkbench() {
           </button>
           <button type="button" disabled={busy || poPage >= poTotalPages} onClick={() => setPoPage((prev) => Math.min(poTotalPages, prev + 1))}>
             Next Page
-          </button>
-        </div>
-        </section>
-      ) : null}
-
-      {showMovementSection ? (
-        <section className="card">
-          <h3>Record Stock Movement</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Material</span>
-            <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
-              <option value="">Select material</option>
-              {materials.map((material) => (
-                <option key={material.id} value={material.id}>
-                  {material.sku} - {material.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Location</span>
-            <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
-              <option value="">Select location</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.code ? `${location.code} - ` : ""}
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Quantity Delta</span>
-            <input
-              type="number"
-              value={movementQuantity}
-              onChange={(event) => setMovementQuantity(Number(event.target.value))}
-            />
-          </label>
-          <label className="field">
-            <span>Reason</span>
-            <select value={movementReason} onChange={(event) => setMovementReason(event.target.value)}>
-              <option value="adjustment">adjustment</option>
-              <option value="transfer_in">transfer_in</option>
-              <option value="transfer_out">transfer_out</option>
-              <option value="purchase_receive">purchase_receive</option>
-              <option value="correction">correction</option>
-            </select>
-          </label>
-        </div>
-        <div className="actions">
-          <button
-            type="button"
-            disabled={busy || !isOrgScopedReady || !movementMaterialId || !movementLocationId}
-            onClick={handleCreateMovement}
-          >
-            Record Movement
           </button>
         </div>
         </section>

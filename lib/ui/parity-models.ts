@@ -22,6 +22,11 @@ export type PurchaseOrderRow = {
   lines: PurchaseOrderLineRow[];
 };
 
+export type MaterialLocationSummary = {
+  location: string;
+  count: number;
+};
+
 export function normalizeStatus(
   status: MaterialRow["stock_status"],
   quantity: number,
@@ -102,4 +107,19 @@ export function purchaseOrderProgress(po: PurchaseOrderRow) {
     totalReceived,
     percentage
   };
+}
+
+export function materialLocationSummary(materials: MaterialRow[], max = 5): MaterialLocationSummary[] {
+  const counts = new Map<string, number>();
+
+  for (const material of materials) {
+    const raw = material.primary_location?.trim();
+    const key = raw && raw.length > 0 ? raw : "Unassigned";
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([location, count]) => ({ location, count }))
+    .sort((a, b) => b.count - a.count || a.location.localeCompare(b.location))
+    .slice(0, Math.max(1, max));
 }
