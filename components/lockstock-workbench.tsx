@@ -11,7 +11,9 @@ import {
   materialLocationSummary,
   normalizeStatus,
   purchaseOrderProgress,
-  toParsedLocationRows
+  supplierOrderStats,
+  toParsedLocationRows,
+  vendorMetrics
 } from "@/lib/ui/parity-models";
 
 type Material = {
@@ -162,6 +164,7 @@ export function LockstockWorkbench() {
   const [materialMinStock, setMaterialMinStock] = useState(10);
   const [supplierName, setSupplierName] = useState("Acme Supply");
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
+  const [supplierSearch, setSupplierSearch] = useState("");
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
@@ -244,6 +247,15 @@ export function LockstockWorkbench() {
       ),
     [purchaseOrders]
   );
+  const vendorKpis = useMemo(() => vendorMetrics(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
+  const supplierRows = useMemo(() => supplierOrderStats(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
+  const filteredSupplierRows = useMemo(() => {
+    const query = supplierSearch.trim().toLowerCase();
+    if (!query) {
+      return supplierRows;
+    }
+    return supplierRows.filter((row) => row.name.toLowerCase().includes(query));
+  }, [supplierRows, supplierSearch]);
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
@@ -785,6 +797,7 @@ export function LockstockWorkbench() {
         }
       });
       addActivity("Supplier created.");
+      setShowSupplierForm(false);
       await refreshCoreData();
     } catch (error) {
       addActivity(`Create supplier failed: ${(error as Error).message}`);
@@ -1337,84 +1350,118 @@ export function LockstockWorkbench() {
       {showSupplierSection ? (
         <section className="card">
           <div className="title-row">
-            <h3>Vendor Management</h3>
-            <button type="button" onClick={() => setShowSupplierForm((prev) => !prev)}>
-              {showSupplierForm ? "Close" : "Add Vendor"}
+            <div>
+              <h3>Vendor Management</h3>
+              <p className="subtle-line">Manage your material suppliers and vendors.</p>
+            </div>
+            <button type="button" onClick={() => setShowSupplierForm(true)}>
+              Add Vendor
             </button>
           </div>
-          {showSupplierForm ? (
-            <>
-              <div className="grid grid-2">
-                <label className="field">
-                  <span>Name</span>
-                  <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>Lead Time (days)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={supplierLeadTime}
-                    onChange={(event) => setSupplierLeadTime(Number(event.target.value))}
-                  />
-                </label>
-              </div>
-              <div className="actions">
-                <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateSupplier}>
-                  Create Supplier
-                </button>
-              </div>
-            </>
-          ) : null}
-          <div className="kpi-grid">
+
+          <div className="kpi-grid kpi-grid-3">
             <div className="kpi-card">
               <p>Total Vendors</p>
-              <strong>{suppliers.length}</strong>
+              <strong>{vendorKpis.totalSuppliers}</strong>
             </div>
             <div className="kpi-card">
               <p>Average Lead Time</p>
-              <strong>
-                {suppliers.length === 0
-                  ? "0"
-                  : Math.round(
-                      suppliers.reduce((sum, supplier) => sum + Number(supplier.lead_time_days || 0), 0) / suppliers.length
-                    )}
-                d
-              </strong>
+              <strong>{vendorKpis.averageLeadTimeDays}d</strong>
             </div>
             <div className="kpi-card">
               <p>Open Orders</p>
-              <strong>{purchaseOrders.filter((po) => po.status !== "received" && po.status !== "cancelled").length}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Received Orders</p>
-              <strong>{poStatusCounts.received}</strong>
+              <strong>{vendorKpis.openOrders}</strong>
             </div>
           </div>
+
+          <div className="vendors-table-head">
+            <label className="field">
+              <span>Search Vendor</span>
+              <input
+                value={supplierSearch}
+                onChange={(event) => setSupplierSearch(event.target.value)}
+                placeholder="Filter by vendor name"
+              />
+            </label>
+          </div>
+
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>Vendor Name</th>
                   <th>Lead Time (days)</th>
+                  <th>Open POs</th>
+                  <th>Received POs</th>
+                  <th>Total POs</th>
                 </tr>
               </thead>
               <tbody>
-                {suppliers.length === 0 ? (
+                {filteredSupplierRows.length === 0 ? (
                   <tr>
-                    <td colSpan={2}>No suppliers created yet.</td>
+                    <td colSpan={5}>No suppliers created yet.</td>
                   </tr>
                 ) : (
-                  suppliers.map((supplier) => (
-                    <tr key={supplier.id}>
+                  filteredSupplierRows.map((supplier) => (
+                    <tr key={supplier.supplierId}>
                       <td>{supplier.name}</td>
-                      <td>{supplier.lead_time_days}</td>
+                      <td>{supplier.leadTimeDays}</td>
+                      <td>{supplier.openOrders}</td>
+                      <td>{supplier.receivedOrders}</td>
+                      <td>{supplier.totalOrders}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
+
+          <div className="vendors-grid">
+            {filteredSupplierRows.slice(0, 6).map((supplier) => (
+              <article key={`card-${supplier.supplierId}`} className="vendor-card">
+                <h4>{supplier.name}</h4>
+                <p className="subtle-line">Lead Time: {supplier.leadTimeDays} days</p>
+                <div className="vendor-card-stats">
+                  <span>Open: {supplier.openOrders}</span>
+                  <span>Received: {supplier.receivedOrders}</span>
+                  <span>Total: {supplier.totalOrders}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {showSupplierForm ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add vendor">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>Add Vendor</h4>
+                  <button type="button" className="ghost-btn" onClick={() => setShowSupplierForm(false)}>
+                    Close
+                  </button>
+                </div>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>Name</span>
+                    <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Lead Time (days)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={supplierLeadTime}
+                      onChange={(event) => setSupplierLeadTime(Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateSupplier}>
+                    Create Supplier
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
