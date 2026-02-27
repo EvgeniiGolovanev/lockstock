@@ -6,10 +6,12 @@ import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   filterInventoryRows,
+  groupLocationsByWarehouse,
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
-  purchaseOrderProgress
+  purchaseOrderProgress,
+  toParsedLocationRows
 } from "@/lib/ui/parity-models";
 
 type Material = {
@@ -214,6 +216,12 @@ export function LockstockWorkbench() {
   );
   const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
   const materialLocationRows = useMemo(() => materialLocationSummary(materials, 6), [materials]);
+  const parsedLocations = useMemo(() => toParsedLocationRows(locations), [locations]);
+  const locationWarehouseGroups = useMemo(() => groupLocationsByWarehouse(locations), [locations]);
+  const locationsInUseCount = useMemo(() => {
+    const activeNames = new Set(materials.map((material) => material.primary_location).filter(Boolean));
+    return locations.filter((location) => activeNames.has(location.name)).length;
+  }, [locations, materials]);
   const priceByMaterial = useMemo(() => {
     const next = new Map<string, number>();
     for (const po of purchaseOrders) {
@@ -736,6 +744,7 @@ export function LockstockWorkbench() {
         }
       });
       addActivity("Location created.");
+      setShowLocationForm(false);
       await refreshCoreData();
     } catch (error) {
       addActivity(`Create location failed: ${(error as Error).message}`);
@@ -1014,72 +1023,100 @@ export function LockstockWorkbench() {
       {showLocationSection ? (
         <section className="card">
           <div className="title-row">
-            <h3>Location Management</h3>
-            <button type="button" onClick={() => setShowLocationForm((prev) => !prev)}>
-              {showLocationForm ? "Close" : "Add Location"}
+            <div>
+              <h3>Location Management</h3>
+              <p className="subtle-line">Create and manage warehouse locations.</p>
+            </div>
+            <button type="button" onClick={() => setShowLocationForm(true)}>
+              Add Location
             </button>
           </div>
-          {showLocationForm ? (
-            <>
-              <div className="grid grid-2">
-                <label className="field">
-                  <span>Name</span>
-                  <input value={locationName} onChange={(event) => setLocationName(event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>Code</span>
-                  <input value={locationCode} onChange={(event) => setLocationCode(event.target.value)} />
-                </label>
-              </div>
-              <div className="actions">
-                <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateLocation}>
-                  Create Location
-                </button>
-              </div>
-            </>
-          ) : null}
-          <div className="kpi-grid">
+
+          <div className="kpi-grid kpi-grid-3">
             <div className="kpi-card">
               <p>Total Locations</p>
               <strong>{locations.length}</strong>
             </div>
             <div className="kpi-card">
-              <p>Materials Assigned</p>
-              <strong>{materials.filter((material) => material.primary_location).length}</strong>
+              <p>Warehouses</p>
+              <strong>{locationWarehouseGroups.length}</strong>
             </div>
             <div className="kpi-card">
-              <p>Tracked Materials</p>
-              <strong>{materials.length}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Stock Entries</p>
-              <strong>{materials.filter((material) => Number(material.total_quantity ?? 0) > 0).length}</strong>
+              <p>Locations In Use</p>
+              <strong>{locationsInUseCount}</strong>
             </div>
           </div>
+
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
+                  <th>Location Name</th>
+                  <th>Warehouse</th>
+                  <th>Zone</th>
                   <th>Code</th>
-                  <th>Name</th>
                 </tr>
               </thead>
               <tbody>
-                {locations.length === 0 ? (
+                {parsedLocations.length === 0 ? (
                   <tr>
-                    <td colSpan={2}>No locations created yet.</td>
+                    <td colSpan={4}>No locations created yet.</td>
                   </tr>
                 ) : (
-                  locations.map((location) => (
+                  parsedLocations.map((location) => (
                     <tr key={location.id}>
-                      <td>{location.code ?? "-"}</td>
                       <td>{location.name}</td>
+                      <td>{location.warehouse}</td>
+                      <td>{location.zone}</td>
+                      <td>{location.code ?? "-"}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
+
+          <div className="warehouse-grid">
+            {locationWarehouseGroups.map((group) => (
+              <article key={group.warehouse} className="warehouse-card">
+                <h4>{group.warehouse}</h4>
+                {group.locations.map((location) => (
+                  <div key={location.id} className="warehouse-row">
+                    <span>{location.zone}</span>
+                    <span className="subtle-line">{location.code ?? "-"}</span>
+                  </div>
+                ))}
+              </article>
+            ))}
+          </div>
+
+          {showLocationForm ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add location">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>Add New Location</h4>
+                  <button type="button" className="ghost-btn" onClick={() => setShowLocationForm(false)}>
+                    Close
+                  </button>
+                </div>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>Name</span>
+                    <input value={locationName} onChange={(event) => setLocationName(event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Code</span>
+                    <input value={locationCode} onChange={(event) => setLocationCode(event.target.value)} />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateLocation}>
+                    Create Location
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 

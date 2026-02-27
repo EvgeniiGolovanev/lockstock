@@ -360,6 +360,10 @@ button:disabled {
   gap: 0.8rem;
 }
 
+.kpi-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .kpi-card {
   border: 1px solid var(--ls-border);
   border-radius: 12px;
@@ -554,6 +558,54 @@ button:disabled {
   color: #d94156;
 }
 
+.warehouse-grid {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.warehouse-card {
+  border: 1px solid var(--ls-border);
+  border-radius: 12px;
+  background: #f9fbff;
+  padding: 0.75rem;
+}
+
+.warehouse-card h4 {
+  margin: 0;
+}
+
+.warehouse-row {
+  margin-top: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid #e8edf7;
+  padding-top: 0.45rem;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 1rem;
+}
+
+.modal-card {
+  width: min(640px, 100%);
+  background: #ffffff;
+  border: 1px solid var(--ls-border);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.22);
+  padding: 1rem;
+}
+
 .ghost-btn {
   background: #ffffff;
   color: #334155;
@@ -618,6 +670,10 @@ button:disabled {
 
   .materials-layout,
   .materials-table-head {
+    grid-template-columns: 1fr;
+  }
+
+  .warehouse-grid {
     grid-template-columns: 1fr;
   }
 }
