@@ -510,6 +510,35 @@ button:disabled {
   gap: 0.75rem;
 }
 
+.purchase-actions {
+  margin-top: 0;
+}
+
+.purchase-kpi-grid {
+  margin-top: 0.9rem;
+}
+
+.purchase-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 1fr) minmax(220px, 1fr);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.po-empty {
+  margin-top: 0.75rem;
+  border: 1px dashed #d8e1ef;
+  border-radius: 12px;
+  background: #f9fbff;
+  padding: 1.2rem;
+  text-align: center;
+}
+
+.po-empty p {
+  margin: 0;
+  color: #586980;
+}
+
 .vendors-grid {
   margin-top: 0.9rem;
   display: grid;
@@ -710,6 +739,10 @@ button:disabled {
 
   .materials-layout,
   .materials-table-head {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-toolbar {
     grid-template-columns: 1fr;
   }
 

@@ -69,6 +69,22 @@ export type SupplierOrderStatRow = {
   receivedOrders: number;
 };
 
+export type PurchaseOrderStatusCounts = {
+  draft: number;
+  sent: number;
+  partial: number;
+  received: number;
+  cancelled: number;
+};
+
+export type PurchaseOrderOverview = {
+  totalOrders: number;
+  openOrders: number;
+  receivedOrders: number;
+  totalValue: number;
+  statusCounts: PurchaseOrderStatusCounts;
+};
+
 export function normalizeStatus(
   status: MaterialRow["stock_status"],
   quantity: number,
@@ -149,6 +165,58 @@ export function purchaseOrderProgress(po: PurchaseOrderRow) {
     totalReceived,
     percentage
   };
+}
+
+export function purchaseOrderOverview(purchaseOrders: PurchaseOrderRow[]): PurchaseOrderOverview {
+  const statusCounts = purchaseOrders.reduce<PurchaseOrderStatusCounts>(
+    (acc, po) => {
+      acc[po.status] += 1;
+      return acc;
+    },
+    {
+      draft: 0,
+      sent: 0,
+      partial: 0,
+      received: 0,
+      cancelled: 0
+    }
+  );
+
+  const totalValue = purchaseOrders.reduce((sum, po) => {
+    return (
+      sum +
+      po.lines.reduce((lineSum, line) => {
+        return lineSum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
+      }, 0)
+    );
+  }, 0);
+
+  return {
+    totalOrders: purchaseOrders.length,
+    openOrders: statusCounts.draft + statusCounts.sent + statusCounts.partial,
+    receivedOrders: statusCounts.received,
+    totalValue,
+    statusCounts
+  };
+}
+
+export function purchaseOrderLinePreview(
+  po: PurchaseOrderRow,
+  skuByMaterialId: Map<string, string>,
+  max = 2
+) {
+  const limit = Math.max(1, max);
+  if (po.lines.length === 0) {
+    return "No lines";
+  }
+  const preview = po.lines
+    .slice(0, limit)
+    .map((line) => skuByMaterialId.get(line.material_id) ?? "material")
+    .join(", ");
+  if (po.lines.length <= limit) {
+    return preview;
+  }
+  return `${preview} +${po.lines.length - limit} more`;
 }
 
 export function materialLocationSummary(materials: MaterialRow[], max = 5): MaterialLocationSummary[] {
