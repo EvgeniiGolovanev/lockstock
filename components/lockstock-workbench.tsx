@@ -84,13 +84,56 @@ const STORAGE_KEYS = {
   orgId: "lockstock.orgId"
 } as const;
 
-const NAV_ITEMS = [
-  { href: "/", label: "Inventory" },
-  { href: "/materials", label: "Materials & Stock" },
-  { href: "/locations", label: "Locations" },
-  { href: "/vendors", label: "Vendors" },
-  { href: "/purchase-orders", label: "Purchase Orders" }
+type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders";
+type NavHref = "/" | "/materials" | "/locations" | "/vendors" | "/purchase-orders";
+
+const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
+  { href: "/", label: "Inventory", icon: "inventory" },
+  { href: "/materials", label: "Materials & Stock", icon: "materials" },
+  { href: "/locations", label: "Locations", icon: "locations" },
+  { href: "/vendors", label: "Vendors", icon: "vendors" },
+  { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" }
 ] as const;
+
+function NavItemIcon({ icon }: { icon: NavIcon }) {
+  if (icon === "inventory") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16M6 7V5h12v2M6 19v-2h12v2" />
+      </svg>
+    );
+  }
+
+  if (icon === "materials") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3 4 7.2 12 11.4 20 7.2 12 3Zm-8 9L12 16l8-4M4 16l8 4 8-4" />
+      </svg>
+    );
+  }
+
+  if (icon === "locations") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 21s6-5.4 6-10.5A6 6 0 1 0 6 10.5C6 15.6 12 21 12 21Zm0-8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+      </svg>
+    );
+  }
+
+  if (icon === "vendors") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 20a4 4 0 0 0-8 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 8a4 4 0 0 0-3-3.9M17 11a2.5 2.5 0 1 0 0-5" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h2l2 9h10l2-7H8M9 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+    </svg>
+  );
+}
 
 export function LockstockWorkbench() {
   const pathname = usePathname();
@@ -823,21 +866,25 @@ export function LockstockWorkbench() {
     <>
       <section className="card shell-nav">
         <div className="shell-top">
-          <div className="brand-mark">LS</div>
-          <div>
-            <h2>LockStock</h2>
-            <p className="subtle-line">Inventory Operations System</p>
+          <div className="brand-wrap">
+            <div className="brand-mark">LS</div>
+            <div>
+              <h2>LockStock</h2>
+            </div>
           </div>
-        </div>
-        <div className="nav-links">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`}>
-                {item.label}
-              </Link>
-            );
-          })}
+          <div className="nav-links">
+            {NAV_ITEMS.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`}>
+                  <span className="nav-icon" aria-hidden="true">
+                    <NavItemIcon icon={item.icon} />
+                  </span>
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -1571,19 +1618,39 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="kpi-grid">
               <div className="kpi-card">
-                <p>Total Items</p>
+                <div className="kpi-top">
+                  <p>Total Items</p>
+                  <span className="kpi-dot kpi-blue" aria-hidden="true">
+                    ▣
+                  </span>
+                </div>
                 <strong>{stockHealth?.total_quantity ?? metrics.totalItems}</strong>
               </div>
               <div className="kpi-card">
-                <p>Low Stock Alerts</p>
+                <div className="kpi-top">
+                  <p>Low Stock Alerts</p>
+                  <span className="kpi-dot kpi-amber" aria-hidden="true">
+                    ↘
+                  </span>
+                </div>
                 <strong>{lowStockCount ?? stockHealth?.low_stock ?? metrics.lowStock}</strong>
               </div>
               <div className="kpi-card">
-                <p>Out of Stock</p>
+                <div className="kpi-top">
+                  <p>Out of Stock</p>
+                  <span className="kpi-dot kpi-red" aria-hidden="true">
+                    !
+                  </span>
+                </div>
                 <strong>{stockHealth?.out_of_stock ?? metrics.outOfStock}</strong>
               </div>
               <div className="kpi-card">
-                <p>Total Value</p>
+                <div className="kpi-top">
+                  <p>Total Value</p>
+                  <span className="kpi-dot kpi-green" aria-hidden="true">
+                    $
+                  </span>
+                </div>
                 <strong>
                   $
                   {metrics.totalValue.toLocaleString(undefined, {
@@ -1597,24 +1664,31 @@ export function LockstockWorkbench() {
 
           <section className="card">
             <div className="inventory-toolbar">
-              <input
-                value={materialFilterQuery}
-                onChange={(event) => {
-                  setMaterialFilterQuery(event.target.value);
-                  setMaterialPage(1);
-                }}
-                placeholder="Search by name or SKU..."
-              />
-              <select value={inventoryCategory} onChange={(event) => setInventoryCategory(event.target.value)}>
-                {inventoryCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category === "all" ? "All Categories" : category}
-                  </option>
-                ))}
-              </select>
-              <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleRefreshHealth}>
-                Refresh
-              </button>
+              <div className="search-input-wrap">
+                <span className="search-icon" aria-hidden="true">
+                  ⌕
+                </span>
+                <input
+                  value={materialFilterQuery}
+                  onChange={(event) => {
+                    setMaterialFilterQuery(event.target.value);
+                    setMaterialPage(1);
+                  }}
+                  placeholder="Search by name or SKU..."
+                />
+              </div>
+              <div className="category-wrap">
+                <span className="filter-icon" aria-hidden="true">
+                  ⌄
+                </span>
+                <select value={inventoryCategory} onChange={(event) => setInventoryCategory(event.target.value)}>
+                  {inventoryCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category === "all" ? "All Categories" : category}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </section>
 
@@ -1663,9 +1737,14 @@ export function LockstockWorkbench() {
                             </span>
                           </td>
                           <td>
-                            <button type="button" disabled className="ghost-btn">
-                              Edit
-                            </button>
+                            <div className="row-actions">
+                              <button type="button" disabled className="icon-btn">
+                                ✎
+                              </button>
+                              <button type="button" disabled className="icon-btn danger">
+                                🗑
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
