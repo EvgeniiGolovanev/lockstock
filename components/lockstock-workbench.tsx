@@ -10,7 +10,7 @@ import {
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
-  purchaseOrderLinePreview,
+  purchaseOrderLineRows,
   purchaseOrderOverview,
   purchaseOrderProgress,
   supplierOrderStats,
@@ -99,6 +99,7 @@ const STORAGE_KEYS = {
 
 type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders";
 type NavHref = "/" | "/materials" | "/locations" | "/vendors" | "/purchase-orders";
+type PurchaseMetaIcon = "lines" | "received" | "value";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/", label: "Inventory", icon: "inventory" },
@@ -144,6 +145,30 @@ function NavItemIcon({ icon }: { icon: NavIcon }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 7h2l2 9h10l2-7H8M9 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+    </svg>
+  );
+}
+
+function PurchaseOrderMetaIcon({ icon }: { icon: PurchaseMetaIcon }) {
+  if (icon === "lines") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3Zm7 0v5h5M8 13h8M8 17h8" />
+      </svg>
+    );
+  }
+
+  if (icon === "received") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M8 9.2l8 3.6M8 13l3 1.3" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3v18M16.5 7.5c0-1.9-1.9-3.5-4.5-3.5S7.5 5.6 7.5 7.5 9.4 11 12 11s4.5 1.6 4.5 3.5S14.6 18 12 18s-4.5-1.6-4.5-3.5" />
     </svg>
   );
 }
@@ -1589,72 +1614,120 @@ export function LockstockWorkbench() {
                 <p>No purchase orders match these filters.</p>
               </div>
             ) : (
-              <div className="table-wrap">
-                <table className="compact-table">
-                  <thead>
-                    <tr>
-                      <th>PO</th>
-                      <th>Supplier</th>
-                      <th>Status</th>
-                      <th>Lines</th>
-                      <th>Received</th>
-                      <th>Value</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {purchaseOrders.map((po) => {
-                      const progress = getPoProgress(po);
-                      const lineValue = po.lines.reduce(
-                        (sum, line) => sum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0),
-                        0
-                      );
-                      return (
-                        <tr key={po.id}>
-                          <td>{po.po_number}</td>
-                          <td>{po.supplier?.name ?? "Unknown"}</td>
-                          <td>
-                            <span className={`status-pill status-${po.status}`}>{po.status}</span>
-                          </td>
-                          <td>
-                            {po.lines.length}
-                            <div className="subtle-line">{purchaseOrderLinePreview(po, poSkuByMaterialId)}</div>
-                          </td>
-                          <td>
-                            <div>
-                              {progress.totalReceived}/{progress.totalOrdered}
-                            </div>
+              <div className="po-cards">
+                {purchaseOrders.map((po) => {
+                  const progress = getPoProgress(po);
+                  const lineRows = purchaseOrderLineRows(po, poSkuByMaterialId);
+                  const lineValue = lineRows.reduce((sum, line) => sum + line.lineTotal, 0);
+
+                  return (
+                    <article key={po.id} className={`po-card po-card-${po.status}`}>
+                      <div className="po-card-head">
+                        <div>
+                          <h4 className="po-card-title">{po.po_number}</h4>
+                          <p className="po-card-subtitle">{po.supplier?.name ?? "Unknown supplier"}</p>
+                        </div>
+                        <div className="po-card-head-right">
+                          <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
+                          <button
+                            type="button"
+                            disabled={busy || lineRows.length === 0}
+                            className="ghost-btn po-receive-btn"
+                            onClick={() => {
+                              setReceivePoId(po.id);
+                              setReceivePoLineId(po.lines[0]?.id ?? "");
+                              setShowPoReceiveForm(true);
+                            }}
+                          >
+                            Receive
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="po-meta-grid">
+                        <div className="po-meta-item">
+                          <span className="po-meta-icon" aria-hidden="true">
+                            <PurchaseOrderMetaIcon icon="lines" />
+                          </span>
+                          <div>
+                            <p className="po-meta-label">Lines</p>
+                            <p className="po-meta-value">{lineRows.length} material lines</p>
+                          </div>
+                        </div>
+                        <div className="po-meta-item">
+                          <span className="po-meta-icon" aria-hidden="true">
+                            <PurchaseOrderMetaIcon icon="received" />
+                          </span>
+                          <div>
+                            <p className="po-meta-label">Received Progress</p>
+                            <p className="po-meta-value">
+                              {progress.totalReceived}/{progress.totalOrdered} ({progress.percentage}%)
+                            </p>
                             <div className="progress-track" aria-label="received progress">
                               <span className="progress-fill" style={{ width: `${progress.percentage}%` }} />
                             </div>
-                            <div className="subtle-line">{progress.percentage}%</div>
-                          </td>
-                          <td>
-                            $
-                            {lineValue.toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2
-                            })}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              disabled={busy || po.lines.length === 0}
-                              className="ghost-btn"
-                              onClick={() => {
-                                setReceivePoId(po.id);
-                                setReceivePoLineId(po.lines[0]?.id ?? "");
-                                setShowPoReceiveForm(true);
-                              }}
-                            >
-                              Receive
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                        <div className="po-meta-item">
+                          <span className="po-meta-icon" aria-hidden="true">
+                            <PurchaseOrderMetaIcon icon="value" />
+                          </span>
+                          <div>
+                            <p className="po-meta-label">Total Amount</p>
+                            <p className="po-meta-value po-meta-amount">
+                              $
+                              {lineValue.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {lineRows.length === 0 ? (
+                        <p className="po-line-empty">No lines on this purchase order yet.</p>
+                      ) : (
+                        <div className="po-lines-wrap">
+                          <table className="po-lines-table">
+                            <thead>
+                              <tr>
+                                <th>Material</th>
+                                <th>Ordered</th>
+                                <th>Received</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lineRows.map((line, index) => (
+                                <tr key={`${po.id}-${line.materialLabel}-${index}`}>
+                                  <td>{line.materialLabel}</td>
+                                  <td>{line.quantityOrdered}</td>
+                                  <td>{line.quantityReceived}</td>
+                                  <td>
+                                    $
+                                    {line.unitPrice.toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2
+                                    })}
+                                  </td>
+                                  <td>
+                                    $
+                                    {line.lineTotal.toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2
+                                    })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
             <div className="actions">
