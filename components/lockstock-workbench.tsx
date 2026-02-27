@@ -553,7 +553,7 @@ export function LockstockWorkbench() {
   async function apiRequest<T>(
     path: string,
     options?: {
-      method?: "GET" | "POST";
+      method?: "GET" | "POST" | "PATCH";
       body?: Record<string, unknown>;
       orgOverride?: string;
       requireOrg?: boolean;
@@ -923,6 +923,26 @@ export function LockstockWorkbench() {
       return true;
     } catch (error) {
       addActivity(`Create purchase order failed: ${(error as Error).message}`);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMarkPurchaseOrderSent(poId: string, poNumber: string) {
+    try {
+      setBusy(true);
+      await apiRequest(`/api/purchase-orders/${poId}/status`, {
+        method: "PATCH",
+        body: {
+          status: "sent"
+        }
+      });
+      addActivity(`${poNumber} marked as sent.`);
+      await refreshCoreData();
+      return true;
+    } catch (error) {
+      addActivity(`Mark as sent failed: ${(error as Error).message}`);
       return false;
     } finally {
       setBusy(false);
@@ -1707,18 +1727,31 @@ export function LockstockWorkbench() {
                         </div>
                         <div className="po-card-head-right">
                           <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
-                          <button
-                            type="button"
-                            disabled={busy || lineRows.length === 0}
-                            className="ghost-btn po-receive-btn"
-                            onClick={() => {
-                              setReceivePoId(po.id);
-                              setReceivePoLineId(po.lines[0]?.id ?? "");
-                              setShowPoReceiveForm(true);
-                            }}
-                          >
-                            Receive
-                          </button>
+                          {po.status === "draft" ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              className="ghost-btn po-receive-btn"
+                              onClick={() => {
+                                void handleMarkPurchaseOrderSent(po.id, po.po_number);
+                              }}
+                            >
+                              Mark Sent
+                            </button>
+                          ) : po.status === "sent" || po.status === "partial" ? (
+                            <button
+                              type="button"
+                              disabled={busy || lineRows.length === 0}
+                              className="ghost-btn po-receive-btn"
+                              onClick={() => {
+                                setReceivePoId(po.id);
+                                setReceivePoLineId(po.lines[0]?.id ?? "");
+                                setShowPoReceiveForm(true);
+                              }}
+                            >
+                              Receive
+                            </button>
+                          ) : null}
                         </div>
                       </div>
 

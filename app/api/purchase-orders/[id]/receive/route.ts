@@ -28,6 +28,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (po.status === "cancelled") {
       throw new ApiError(400, "Cannot receive a cancelled purchase order.");
     }
+    if (po.status === "draft") {
+      throw new ApiError(400, "Purchase order must be sent before receiving.");
+    }
 
     const { data, error } = await supabase.rpc("receive_purchase_order", {
       p_org_id: orgId,

@@ -27,3 +27,7 @@ export const receivePurchaseOrderSchema = z.object({
     )
     .min(1)
 });
+
+export const transitionPurchaseOrderStatusSchema = z.object({
+  status: z.literal("sent")
+});
