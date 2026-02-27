@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterInventoryRows,
   inventoryMetrics,
+  materialLocationSummary,
   normalizeStatus,
   purchaseOrderProgress,
   type MaterialRow,
@@ -87,5 +88,22 @@ describe("parity models", () => {
     expect(progress.totalOrdered).toBe(13);
     expect(progress.totalReceived).toBe(8);
     expect(progress.percentage).toBe(62);
+  });
+
+  it("builds sorted material location summary", () => {
+    const summary = materialLocationSummary(
+      [
+        ...materials,
+        { ...materials[0], id: "m4", primary_location: "Warehouse A" },
+        { ...materials[0], id: "m5", primary_location: null }
+      ],
+      3
+    );
+
+    expect(summary).toEqual([
+      { location: "Warehouse A", count: 2 },
+      { location: "Unassigned", count: 1 },
+      { location: "Warehouse B", count: 1 }
+    ]);
   });
 });
