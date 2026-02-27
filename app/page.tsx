@@ -1,5 +1,5 @@
-import { LockstockWorkbench } from "@/components/lockstock-workbench";
+import { LockstockLanding } from "@/components/lockstock-landing";
 
 export default function HomePage() {
-  return <LockstockWorkbench />;
+  return <LockstockLanding />;
 }

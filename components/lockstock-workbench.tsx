@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   filterInventoryRows,
@@ -106,11 +107,11 @@ const STORAGE_KEYS = {
 } as const;
 
 type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders";
-type NavHref = "/" | "/materials" | "/locations" | "/vendors" | "/purchase-orders";
+type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders";
 type PurchaseMetaIcon = "lines" | "received" | "value";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
-  { href: "/", label: "Inventory", icon: "inventory" },
+  { href: "/inventory", label: "Inventory", icon: "inventory" },
   { href: "/materials", label: "Materials & Stock", icon: "materials" },
   { href: "/locations", label: "Locations", icon: "locations" },
   { href: "/vendors", label: "Vendors", icon: "vendors" },
@@ -189,6 +190,13 @@ export function LockstockWorkbench() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signedInAs, setSignedInAs] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountFullName, setAccountFullName] = useState("");
+  const [accountCompany, setAccountCompany] = useState("");
+  const [accountPhone, setAccountPhone] = useState("");
+  const [accountJobTitle, setAccountJobTitle] = useState("");
+  const [accountNewPassword, setAccountNewPassword] = useState("");
+  const [accountConfirmPassword, setAccountConfirmPassword] = useState("");
   const [orgName, setOrgName] = useState("LockStock Workspace");
 
   const [locationName, setLocationName] = useState("Main Warehouse");
@@ -309,6 +317,9 @@ export function LockstockWorkbench() {
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
+    if (pathname === "/account") {
+      return { title: "Account", subtitle: "Manage your email, password, and private profile details." };
+    }
     if (pathname === "/materials") {
       return { title: "Materials & Stock", subtitle: "Manage materials and stock movements." };
     }
@@ -328,9 +339,21 @@ export function LockstockWorkbench() {
   const showMaterialSection = pathname === "/materials";
   const showSupplierSection = pathname === "/vendors";
   const showPurchaseOrderSection = pathname === "/purchase-orders";
-  const showSnapshotSection = pathname === "/";
-  const showAuthPanel = pathname !== "/" || !signedInAs;
-  const showOrgCreatePanel = pathname !== "/";
+  const showAccountSection = pathname === "/account";
+  const showSnapshotSection = pathname === "/inventory";
+  const showAuthPanel = !signedInAs;
+  const showOrgCreatePanel = !signedInAs;
+
+  function applySessionState(session: { access_token: string; user: { email?: string | null; user_metadata?: Record<string, unknown> } }) {
+    setAccessToken(session.access_token || "");
+    setSignedInAs(session.user.email ?? "");
+    setEmail(session.user.email ?? "");
+    setAccountEmail(session.user.email ?? "");
+    setAccountFullName(metadataValue(session.user.user_metadata, "full_name"));
+    setAccountCompany(metadataValue(session.user.user_metadata, "company"));
+    setAccountPhone(metadataValue(session.user.user_metadata, "phone"));
+    setAccountJobTitle(metadataValue(session.user.user_metadata, "job_title"));
+  }
 
   function isAuthTokenError(message: string) {
     const normalized = message.toLowerCase();
@@ -363,9 +386,13 @@ export function LockstockWorkbench() {
           }
           return;
         }
-        setAccessToken((current) => current || data.session?.access_token || "");
-        setSignedInAs(data.session.user.email ?? "");
-        setEmail((current) => current || data.session?.user.email || "");
+        applySessionState({
+          access_token: data.session.access_token,
+          user: {
+            email: data.session.user.email,
+            user_metadata: data.session.user.user_metadata as Record<string, unknown>
+          }
+        });
       });
 
       const authListener = supabase.auth.onAuthStateChange((event, session) => {
@@ -374,14 +401,25 @@ export function LockstockWorkbench() {
         }
 
         if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") && session) {
-          setAccessToken(session.access_token);
-          setSignedInAs(session.user.email ?? "");
-          setEmail((current) => current || session.user.email || "");
+          applySessionState({
+            access_token: session.access_token,
+            user: {
+              email: session.user.email,
+              user_metadata: session.user.user_metadata as Record<string, unknown>
+            }
+          });
         }
 
         if (event === "SIGNED_OUT") {
           setAccessToken("");
           setSignedInAs("");
+          setAccountEmail("");
+          setAccountFullName("");
+          setAccountCompany("");
+          setAccountPhone("");
+          setAccountJobTitle("");
+          setAccountNewPassword("");
+          setAccountConfirmPassword("");
           clearWorkspaceData();
         }
       });
@@ -647,6 +685,88 @@ export function LockstockWorkbench() {
       addActivity("Signed out.");
     } catch (error) {
       addActivity(`Logout failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpdatePrivateInfo() {
+    try {
+      setBusy(true);
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.updateUser({
+        data: buildAccountMetadata({
+          fullName: accountFullName,
+          company: accountCompany,
+          phone: accountPhone,
+          jobTitle: accountJobTitle
+        })
+      });
+      if (error) {
+        throw error;
+      }
+
+      setAccountFullName(metadataValue(data.user.user_metadata, "full_name"));
+      setAccountCompany(metadataValue(data.user.user_metadata, "company"));
+      setAccountPhone(metadataValue(data.user.user_metadata, "phone"));
+      setAccountJobTitle(metadataValue(data.user.user_metadata, "job_title"));
+      addActivity("Private profile information updated.");
+    } catch (error) {
+      addActivity(`Update profile failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpdateEmail() {
+    try {
+      const nextEmail = accountEmail.trim().toLowerCase();
+      if (!nextEmail) {
+        addActivity("Update email failed: enter a valid email.");
+        return;
+      }
+
+      setBusy(true);
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.updateUser({
+        email: nextEmail
+      });
+      if (error) {
+        throw error;
+      }
+
+      setAccountEmail(nextEmail);
+      setEmail(nextEmail);
+      addActivity("Email update requested. Check your inbox to confirm the new address.");
+    } catch (error) {
+      addActivity(`Update email failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpdatePassword() {
+    const validationError = validatePasswordChange(accountNewPassword, accountConfirmPassword);
+    if (validationError) {
+      addActivity(`Update password failed: ${validationError}`);
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.updateUser({
+        password: accountNewPassword
+      });
+      if (error) {
+        throw error;
+      }
+
+      setAccountNewPassword("");
+      setAccountConfirmPassword("");
+      addActivity("Password updated.");
+    } catch (error) {
+      addActivity(`Update password failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -1035,6 +1155,22 @@ export function LockstockWorkbench() {
               );
             })}
           </div>
+          <div className="shell-user-actions">
+            {signedInAs ? (
+              <>
+                <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
+                  Account
+                </Link>
+                <button type="button" className="ghost-btn" disabled={busy} onClick={handleLogout}>
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <Link href="/" className="nav-link">
+                Sign In
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 
@@ -1044,7 +1180,7 @@ export function LockstockWorkbench() {
             <h1>{currentScreen.title}</h1>
             <p>{currentScreen.subtitle}</p>
           </div>
-          {pathname === "/" ? (
+          {pathname === "/inventory" ? (
             <Link className="action-link" href="/materials">
               + Add Item
             </Link>
@@ -1151,6 +1287,96 @@ export function LockstockWorkbench() {
           </div>
         </div>
       </section>
+      ) : null}
+
+      {showAccountSection ? (
+        <section className="card">
+          {signedInAs ? (
+            <div className="grid account-grid">
+              <article className="account-card">
+                <h3>Private Info</h3>
+                <p className="subtle-line">Stored as private profile metadata on your user account.</p>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>Full Name</span>
+                    <input value={accountFullName} onChange={(event) => setAccountFullName(event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Company</span>
+                    <input value={accountCompany} onChange={(event) => setAccountCompany(event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Phone</span>
+                    <input value={accountPhone} onChange={(event) => setAccountPhone(event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Job Title</span>
+                    <input value={accountJobTitle} onChange={(event) => setAccountJobTitle(event.target.value)} />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button type="button" disabled={busy} onClick={handleUpdatePrivateInfo}>
+                    Save Private Info
+                  </button>
+                </div>
+              </article>
+
+              <article className="account-card">
+                <h3>Email</h3>
+                <p className="subtle-line">Changing email requires inbox confirmation from Supabase Auth.</p>
+                <div className="grid">
+                  <label className="field">
+                    <span>Current Email</span>
+                    <input value={signedInAs} readOnly />
+                  </label>
+                  <label className="field">
+                    <span>New Email</span>
+                    <input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button type="button" disabled={busy || !accountEmail.trim()} onClick={handleUpdateEmail}>
+                    Update Email
+                  </button>
+                </div>
+              </article>
+
+              <article className="account-card">
+                <h3>Password</h3>
+                <p className="subtle-line">Use a strong password with at least 8 characters.</p>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>New Password</span>
+                    <input
+                      type="password"
+                      value={accountNewPassword}
+                      onChange={(event) => setAccountNewPassword(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Confirm New Password</span>
+                    <input
+                      type="password"
+                      value={accountConfirmPassword}
+                      onChange={(event) => setAccountConfirmPassword(event.target.value)}
+                    />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button
+                    type="button"
+                    disabled={busy || !accountNewPassword || !accountConfirmPassword}
+                    onClick={handleUpdatePassword}
+                  >
+                    Update Password
+                  </button>
+                </div>
+              </article>
+            </div>
+          ) : (
+            <p>Sign in to manage your account details.</p>
+          )}
+        </section>
       ) : null}
 
       {showLocationSection ? (
