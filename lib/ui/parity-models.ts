@@ -27,6 +27,25 @@ export type MaterialLocationSummary = {
   count: number;
 };
 
+export type LocationRow = {
+  id: string;
+  name: string;
+  code?: string | null;
+};
+
+export type ParsedLocationRow = {
+  id: string;
+  name: string;
+  code?: string | null;
+  warehouse: string;
+  zone: string;
+};
+
+export type LocationWarehouseGroup = {
+  warehouse: string;
+  locations: ParsedLocationRow[];
+};
+
 export function normalizeStatus(
   status: MaterialRow["stock_status"],
   quantity: number,
@@ -122,4 +141,58 @@ export function materialLocationSummary(materials: MaterialRow[], max = 5): Mate
     .map(([location, count]) => ({ location, count }))
     .sort((a, b) => b.count - a.count || a.location.localeCompare(b.location))
     .slice(0, Math.max(1, max));
+}
+
+export function splitLocationName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return {
+      warehouse: "Unassigned",
+      zone: "General"
+    };
+  }
+
+  const dashIndex = trimmed.indexOf("-");
+  if (dashIndex > 0) {
+    const warehouse = trimmed.slice(0, dashIndex).trim();
+    const zone = trimmed.slice(dashIndex + 1).trim();
+    return {
+      warehouse: warehouse || "Unassigned",
+      zone: zone || "General"
+    };
+  }
+
+  return {
+    warehouse: trimmed,
+    zone: "General"
+  };
+}
+
+export function toParsedLocationRows(locations: LocationRow[]): ParsedLocationRow[] {
+  return locations.map((location) => {
+    const split = splitLocationName(location.name);
+    return {
+      ...location,
+      warehouse: split.warehouse,
+      zone: split.zone
+    };
+  });
+}
+
+export function groupLocationsByWarehouse(locations: LocationRow[]): LocationWarehouseGroup[] {
+  const parsed = toParsedLocationRows(locations);
+  const groups = new Map<string, ParsedLocationRow[]>();
+
+  for (const location of parsed) {
+    const list = groups.get(location.warehouse) ?? [];
+    list.push(location);
+    groups.set(location.warehouse, list);
+  }
+
+  return Array.from(groups.entries())
+    .map(([warehouse, list]) => ({
+      warehouse,
+      locations: list.sort((a, b) => a.zone.localeCompare(b.zone))
+    }))
+    .sort((a, b) => b.locations.length - a.locations.length || a.warehouse.localeCompare(b.warehouse));
 }

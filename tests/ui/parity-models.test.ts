@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   filterInventoryRows,
+  groupLocationsByWarehouse,
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
   purchaseOrderProgress,
+  splitLocationName,
+  toParsedLocationRows,
   type MaterialRow,
   type PurchaseOrderRow
 } from "@/lib/ui/parity-models";
@@ -105,5 +108,39 @@ describe("parity models", () => {
       { location: "Unassigned", count: 1 },
       { location: "Warehouse B", count: 1 }
     ]);
+  });
+
+  it("splits location name into warehouse and zone", () => {
+    expect(splitLocationName("Warehouse A - Zone 1")).toEqual({
+      warehouse: "Warehouse A",
+      zone: "Zone 1"
+    });
+    expect(splitLocationName("Main Warehouse")).toEqual({
+      warehouse: "Main Warehouse",
+      zone: "General"
+    });
+    expect(splitLocationName("")).toEqual({
+      warehouse: "Unassigned",
+      zone: "General"
+    });
+  });
+
+  it("builds parsed location rows and groups by warehouse", () => {
+    const rows = toParsedLocationRows([
+      { id: "l1", name: "Warehouse A - Zone 2", code: "A2" },
+      { id: "l2", name: "Warehouse A - Zone 1", code: "A1" },
+      { id: "l3", name: "Warehouse B - Main", code: "B1" }
+    ]);
+    expect(rows[0]).toMatchObject({ warehouse: "Warehouse A", zone: "Zone 2" });
+
+    const groups = groupLocationsByWarehouse([
+      { id: "l1", name: "Warehouse A - Zone 2", code: "A2" },
+      { id: "l2", name: "Warehouse A - Zone 1", code: "A1" },
+      { id: "l3", name: "Warehouse B - Main", code: "B1" }
+    ]);
+
+    expect(groups[0].warehouse).toBe("Warehouse A");
+    expect(groups[0].locations.map((location) => location.zone)).toEqual(["Zone 1", "Zone 2"]);
+    expect(groups[1].warehouse).toBe("Warehouse B");
   });
 });
