@@ -10,6 +10,8 @@ import {
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
+  purchaseOrderLinePreview,
+  purchaseOrderOverview,
   purchaseOrderProgress,
   supplierOrderStats,
   toParsedLocationRows,
@@ -168,6 +170,7 @@ export function LockstockWorkbench() {
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
+  const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("create");
 
   const [movementMaterialId, setMovementMaterialId] = useState("");
@@ -208,7 +211,6 @@ export function LockstockWorkbench() {
     () => purchaseOrders.find((po) => po.id === receivePoId) ?? null,
     [purchaseOrders, receivePoId]
   );
-  const materialById = useMemo(() => new Map(materials.map((material) => [material.id, material])), [materials]);
   const inventoryCategories = useMemo(() => {
     const categories = Array.from(new Set(materials.map((material) => material.uom || "Uncategorized")));
     return ["all", ...categories];
@@ -236,17 +238,10 @@ export function LockstockWorkbench() {
     }
     return next;
   }, [purchaseOrders]);
-  const poStatusCounts = useMemo(
-    () =>
-      purchaseOrders.reduce(
-        (acc, po) => {
-          acc[po.status] += 1;
-          return acc;
-        },
-        { draft: 0, sent: 0, partial: 0, received: 0, cancelled: 0 }
-      ),
-    [purchaseOrders]
-  );
+  const poOverview = useMemo(() => purchaseOrderOverview(purchaseOrders), [purchaseOrders]);
+  const poSkuByMaterialId = useMemo(() => {
+    return new Map(materials.map((material) => [material.id, material.sku]));
+  }, [materials]);
   const vendorKpis = useMemo(() => vendorMetrics(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
   const supplierRows = useMemo(() => supplierOrderStats(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
   const filteredSupplierRows = useMemo(() => {
@@ -278,8 +273,6 @@ export function LockstockWorkbench() {
   const showMaterialSection = pathname === "/materials";
   const showSupplierSection = pathname === "/vendors";
   const showPurchaseOrderSection = pathname === "/purchase-orders";
-  const showReceiveSection = pathname === "/purchase-orders";
-  const showPoTableSection = pathname === "/purchase-orders";
   const showSnapshotSection = pathname === "/";
   const showAuthPanel = pathname !== "/" || !signedInAs;
   const showOrgCreatePanel = pathname !== "/";
@@ -824,8 +817,10 @@ export function LockstockWorkbench() {
       });
       addActivity("Purchase order created.");
       await refreshCoreData();
+      return true;
     } catch (error) {
       addActivity(`Create purchase order failed: ${(error as Error).message}`);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -848,8 +843,10 @@ export function LockstockWorkbench() {
       });
       addActivity("Purchase order receipt recorded.");
       await refreshCoreData();
+      return true;
     } catch (error) {
       addActivity(`Receive purchase order failed: ${(error as Error).message}`);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -1466,295 +1463,363 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showPurchaseOrderSection ? (
-        <section className="card">
-          <div className="title-row">
-            <h3>Create Purchase Order</h3>
-            <button type="button" onClick={() => setShowPoCreateForm((prev) => !prev)}>
-              {showPoCreateForm ? "Close" : "Create PO"}
-            </button>
-          </div>
-          {showPoCreateForm ? (
-            <>
-              <div className="grid grid-2">
-                <label className="field">
-                  <span>Supplier</span>
-                  <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
-                    <option value="">Select supplier</option>
-                    {suppliers.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Material</span>
-                  <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
-                    <option value="">Select material</option>
-                    {materials.map((material) => (
-                      <option key={material.id} value={material.id}>
-                        {material.sku} - {material.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Quantity Ordered</span>
-                  <input
-                    type="number"
-                    min={0.001}
-                    step="0.001"
-                    value={poQuantityOrdered}
-                    onChange={(event) => setPoQuantityOrdered(Number(event.target.value))}
-                  />
-                </label>
-                <label className="field">
-                  <span>Unit Price</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={poUnitPrice}
-                    onChange={(event) => setPoUnitPrice(Number(event.target.value))}
-                  />
-                </label>
+        <>
+          <section className="card">
+            <div className="title-row">
+              <div>
+                <h3>Purchase Orders</h3>
+                <p className="subtle-line">Create and manage purchase orders for materials.</p>
               </div>
-              <div className="actions">
-                <button
-                  type="button"
-                  disabled={busy || !isOrgScopedReady || !poSupplierId || !poMaterialId || poQuantityOrdered <= 0}
-                  onClick={handleCreatePurchaseOrder}
-                >
-                  Create Purchase Order
+              <div className="actions purchase-actions">
+                <button type="button" className="ghost-btn" onClick={() => setShowPoReceiveForm(true)}>
+                  Receive
+                </button>
+                <button type="button" onClick={() => setShowPoCreateForm(true)}>
+                  Create PO
                 </button>
               </div>
-            </>
-          ) : null}
-        </section>
-      ) : null}
-
-      {showReceiveSection ? (
-        <section className="card">
-          <h3>Receive Purchase Order</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Purchase Order</span>
-            <select value={receivePoId} onChange={(event) => setReceivePoId(event.target.value)}>
-              <option value="">Select purchase order</option>
-              {purchaseOrders
-                .filter((po) => po.status !== "received" && po.status !== "cancelled")
-                .map((po) => (
-                  <option key={po.id} value={po.id}>
-                    {po.po_number} - {po.supplier?.name ?? "Unknown"} ({po.status})
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Line</span>
-            <select value={receivePoLineId} onChange={(event) => setReceivePoLineId(event.target.value)}>
-              <option value="">Select line</option>
-              {(selectedPurchaseOrder?.lines ?? []).map((line) => {
-                const material = materials.find((item) => item.id === line.material_id);
-                return (
-                  <option key={line.id} value={line.id}>
-                    {(material?.sku ?? "Material")} | ordered {line.quantity_ordered} | received {line.quantity_received}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <label className="field">
-            <span>Location</span>
-            <select value={receiveLocationId} onChange={(event) => setReceiveLocationId(event.target.value)}>
-              <option value="">Select location</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.code ? `${location.code} - ` : ""}
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Quantity Received</span>
-            <input
-              type="number"
-              min={0.001}
-              step="0.001"
-              value={receiveQuantity}
-              onChange={(event) => setReceiveQuantity(Number(event.target.value))}
-            />
-          </label>
-        </div>
-        <div className="actions">
-          <button
-            type="button"
-            disabled={busy || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
-            onClick={handleReceivePurchaseOrder}
-          >
-            Receive
-          </button>
-        </div>
-        </section>
-      ) : null}
-
-      {showPoTableSection ? (
-        <section className="card">
-          <h3>Purchase Orders</h3>
-          <div className="kpi-grid">
-            <div className="kpi-card">
-              <p>Total POs</p>
-              <strong>{poTotal}</strong>
             </div>
-            <div className="kpi-card">
-              <p>Pending</p>
-              <strong>{poStatusCounts.draft + poStatusCounts.sent + poStatusCounts.partial}</strong>
+            <div className="kpi-grid purchase-kpi-grid">
+              <div className="kpi-card">
+                <div className="kpi-top">
+                  <p>Total POs</p>
+                  <span className="kpi-dot kpi-blue" aria-hidden="true">
+                    PO
+                  </span>
+                </div>
+                <strong>{poTotal}</strong>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-top">
+                  <p>Open Orders</p>
+                  <span className="kpi-dot kpi-amber" aria-hidden="true">
+                    OP
+                  </span>
+                </div>
+                <strong>{poOverview.openOrders}</strong>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-top">
+                  <p>Received</p>
+                  <span className="kpi-dot kpi-green" aria-hidden="true">
+                    RC
+                  </span>
+                </div>
+                <strong>{poOverview.receivedOrders}</strong>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-top">
+                  <p>Total Value</p>
+                  <span className="kpi-dot kpi-green" aria-hidden="true">
+                    $
+                  </span>
+                </div>
+                <strong>
+                  $
+                  {poOverview.totalValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </strong>
+              </div>
             </div>
-            <div className="kpi-card">
-              <p>Received</p>
-              <strong>{poStatusCounts.received}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Total Value</p>
-              <strong>
-                $
-                {purchaseOrders
-                  .reduce(
-                    (sum, po) =>
-                      sum + po.lines.reduce((lineSum, line) => lineSum + Number(line.quantity_ordered) * Number(line.unit_price ?? 0), 0),
-                    0
-                  )
-                  .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </strong>
-            </div>
-          </div>
-        <div className="grid grid-3">
-          <label className="field">
-            <span>Search</span>
-            <input
-              value={poFilterQuery}
-              onChange={(event) => {
-                setPoFilterQuery(event.target.value);
-                setPoPage(1);
-              }}
-              placeholder="PO number"
-            />
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <select
-              value={poFilterStatus}
-              onChange={(event) => {
-                setPoFilterStatus(event.target.value as PurchaseOrderFilterStatus);
-                setPoPage(1);
-              }}
-            >
-              <option value="all">all</option>
-              <option value="draft">draft</option>
-              <option value="sent">sent</option>
-              <option value="partial">partial</option>
-              <option value="received">received</option>
-              <option value="cancelled">cancelled</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Supplier</span>
-            <select
-              value={poFilterSupplierId}
-              onChange={(event) => {
-                setPoFilterSupplierId(event.target.value);
-                setPoPage(1);
-              }}
-            >
-              <option value="all">all suppliers</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+          </section>
 
-        <p className="subtle-line">
-          Page {poPage} / {poTotalPages} ({poTotal} total)
-        </p>
-        {purchaseOrders.length === 0 ? (
-          <p>No purchase orders match these filters.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="compact-table">
-              <thead>
-                <tr>
-                  <th>PO</th>
-                  <th>Status</th>
-                  <th>Supplier</th>
-                  <th>Lines</th>
-                  <th>Received</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchaseOrders.map((po) => {
-                  const progress = getPoProgress(po);
-                  const linePreview = po.lines
-                    .slice(0, 2)
-                    .map((line) => materialById.get(line.material_id)?.sku ?? "material")
-                    .join(", ");
+          <section className="card">
+            <div className="purchase-toolbar">
+              <div className="search-input-wrap">
+                <span className="search-icon" aria-hidden="true">
+                  S
+                </span>
+                <input
+                  value={poFilterQuery}
+                  onChange={(event) => {
+                    setPoFilterQuery(event.target.value);
+                    setPoPage(1);
+                  }}
+                  placeholder="Search by PO number..."
+                />
+              </div>
+              <label className="field">
+                <span>Status</span>
+                <select
+                  value={poFilterStatus}
+                  onChange={(event) => {
+                    setPoFilterStatus(event.target.value as PurchaseOrderFilterStatus);
+                    setPoPage(1);
+                  }}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="partial">Partial</option>
+                  <option value="received">Received</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Supplier</span>
+                <select
+                  value={poFilterSupplierId}
+                  onChange={(event) => {
+                    setPoFilterSupplierId(event.target.value);
+                    setPoPage(1);
+                  }}
+                >
+                  <option value="all">All suppliers</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="subtle-line">
+              Page {poPage} / {poTotalPages} ({poTotal} total)
+            </p>
+          </section>
 
-                  return (
-                    <tr key={po.id}>
-                      <td>{po.po_number}</td>
-                      <td>
-                        <span className={`status-pill status-${po.status}`}>{po.status}</span>
-                      </td>
-                      <td>{po.supplier?.name ?? "Unknown"}</td>
-                      <td>
-                        {po.lines.length}
-                        <div className="subtle-line">
-                          {linePreview}
-                          {po.lines.length > 2 ? ` +${po.lines.length - 2} more` : ""}
-                        </div>
-                      </td>
-                      <td>
-                        <div>
-                          {progress.totalReceived}/{progress.totalOrdered}
-                        </div>
-                        <div className="progress-track" aria-label="received progress">
-                          <span className="progress-fill" style={{ width: `${progress.percentage}%` }} />
-                        </div>
-                        <div className="subtle-line">{progress.percentage}%</div>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
-                            setReceivePoId(po.id);
-                            setReceivePoLineId(po.lines[0]?.id ?? "");
-                            addActivity(`Selected ${po.po_number} in receive form.`);
-                          }}
-                        >
-                          Use in Receive
-                        </button>
-                      </td>
+          <section className="card">
+            <div className="title-row">
+              <h3>All Purchase Orders</h3>
+            </div>
+            {purchaseOrders.length === 0 ? (
+              <div className="po-empty">
+                <p>No purchase orders match these filters.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>PO</th>
+                      <th>Supplier</th>
+                      <th>Status</th>
+                      <th>Lines</th>
+                      <th>Received</th>
+                      <th>Value</th>
+                      <th>Action</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="actions">
-          <button type="button" disabled={busy || poPage <= 1} onClick={() => setPoPage((prev) => Math.max(1, prev - 1))}>
-            Previous Page
-          </button>
-          <button type="button" disabled={busy || poPage >= poTotalPages} onClick={() => setPoPage((prev) => Math.min(poTotalPages, prev + 1))}>
-            Next Page
-          </button>
-        </div>
-        </section>
+                  </thead>
+                  <tbody>
+                    {purchaseOrders.map((po) => {
+                      const progress = getPoProgress(po);
+                      const lineValue = po.lines.reduce(
+                        (sum, line) => sum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0),
+                        0
+                      );
+                      return (
+                        <tr key={po.id}>
+                          <td>{po.po_number}</td>
+                          <td>{po.supplier?.name ?? "Unknown"}</td>
+                          <td>
+                            <span className={`status-pill status-${po.status}`}>{po.status}</span>
+                          </td>
+                          <td>
+                            {po.lines.length}
+                            <div className="subtle-line">{purchaseOrderLinePreview(po, poSkuByMaterialId)}</div>
+                          </td>
+                          <td>
+                            <div>
+                              {progress.totalReceived}/{progress.totalOrdered}
+                            </div>
+                            <div className="progress-track" aria-label="received progress">
+                              <span className="progress-fill" style={{ width: `${progress.percentage}%` }} />
+                            </div>
+                            <div className="subtle-line">{progress.percentage}%</div>
+                          </td>
+                          <td>
+                            $
+                            {lineValue.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              disabled={busy || po.lines.length === 0}
+                              className="ghost-btn"
+                              onClick={() => {
+                                setReceivePoId(po.id);
+                                setReceivePoLineId(po.lines[0]?.id ?? "");
+                                setShowPoReceiveForm(true);
+                              }}
+                            >
+                              Receive
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="actions">
+              <button type="button" disabled={busy || poPage <= 1} onClick={() => setPoPage((prev) => Math.max(1, prev - 1))}>
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={busy || poPage >= poTotalPages}
+                onClick={() => setPoPage((prev) => Math.min(poTotalPages, prev + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </section>
+
+          {showPoCreateForm ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create purchase order">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>Create Purchase Order</h4>
+                  <button type="button" className="ghost-btn" onClick={() => setShowPoCreateForm(false)}>
+                    Close
+                  </button>
+                </div>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>Supplier</span>
+                    <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
+                      <option value="">Select supplier</option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Material</span>
+                    <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
+                      <option value="">Select material</option>
+                      {materials.map((material) => (
+                        <option key={material.id} value={material.id}>
+                          {material.sku} - {material.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Quantity Ordered</span>
+                    <input
+                      type="number"
+                      min={0.001}
+                      step="0.001"
+                      value={poQuantityOrdered}
+                      onChange={(event) => setPoQuantityOrdered(Number(event.target.value))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Unit Price</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={poUnitPrice}
+                      onChange={(event) => setPoUnitPrice(Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button
+                    type="button"
+                    disabled={busy || !isOrgScopedReady || !poSupplierId || !poMaterialId || poQuantityOrdered <= 0}
+                    onClick={async () => {
+                      const success = await handleCreatePurchaseOrder();
+                      if (success) {
+                        setShowPoCreateForm(false);
+                      }
+                    }}
+                  >
+                    Create Purchase Order
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {showPoReceiveForm ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Receive purchase order">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>Receive Purchase Order</h4>
+                  <button type="button" className="ghost-btn" onClick={() => setShowPoReceiveForm(false)}>
+                    Close
+                  </button>
+                </div>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>Purchase Order</span>
+                    <select value={receivePoId} onChange={(event) => setReceivePoId(event.target.value)}>
+                      <option value="">Select purchase order</option>
+                      {purchaseOrders
+                        .filter((po) => po.status !== "received" && po.status !== "cancelled")
+                        .map((po) => (
+                          <option key={po.id} value={po.id}>
+                            {po.po_number} - {po.supplier?.name ?? "Unknown"} ({po.status})
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Line</span>
+                    <select value={receivePoLineId} onChange={(event) => setReceivePoLineId(event.target.value)}>
+                      <option value="">Select line</option>
+                      {(selectedPurchaseOrder?.lines ?? []).map((line) => {
+                        const material = materials.find((item) => item.id === line.material_id);
+                        return (
+                          <option key={line.id} value={line.id}>
+                            {(material?.sku ?? "Material")} | ordered {line.quantity_ordered} | received {line.quantity_received}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Location</span>
+                    <select value={receiveLocationId} onChange={(event) => setReceiveLocationId(event.target.value)}>
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.code ? `${location.code} - ` : ""}
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Quantity Received</span>
+                    <input
+                      type="number"
+                      min={0.001}
+                      step="0.001"
+                      value={receiveQuantity}
+                      onChange={(event) => setReceiveQuantity(Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button
+                    type="button"
+                    disabled={busy || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
+                    onClick={async () => {
+                      const success = await handleReceivePurchaseOrder();
+                      if (success) {
+                        setShowPoReceiveForm(false);
+                      }
+                    }}
+                  >
+                    Receive
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {showSnapshotSection ? (

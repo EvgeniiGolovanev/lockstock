@@ -5,6 +5,8 @@ import {
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
+  purchaseOrderLinePreview,
+  purchaseOrderOverview,
   purchaseOrderProgress,
   splitLocationName,
   supplierOrderStats,
@@ -100,6 +102,63 @@ describe("parity models", () => {
     expect(progress.totalOrdered).toBe(13);
     expect(progress.totalReceived).toBe(8);
     expect(progress.percentage).toBe(62);
+  });
+
+  it("computes purchase order overview metrics", () => {
+    const overview = purchaseOrderOverview([
+      ...purchaseOrders,
+      {
+        id: "po2",
+        supplier: { id: "s2", name: "Beta Trade" },
+        status: "partial",
+        lines: [
+          {
+            material_id: "m3",
+            quantity_ordered: 20,
+            quantity_received: 10,
+            unit_price: 2
+          }
+        ]
+      },
+      {
+        id: "po3",
+        supplier: { id: "s2", name: "Beta Trade" },
+        status: "cancelled",
+        lines: []
+      }
+    ]);
+
+    expect(overview.totalOrders).toBe(3);
+    expect(overview.openOrders).toBe(1);
+    expect(overview.receivedOrders).toBe(1);
+    expect(overview.totalValue).toBe(380);
+    expect(overview.statusCounts).toEqual({
+      draft: 0,
+      sent: 0,
+      partial: 1,
+      received: 1,
+      cancelled: 1
+    });
+  });
+
+  it("builds purchase order line preview", () => {
+    const skuByMaterial = new Map<string, string>([
+      ["m1", "TECH-001"],
+      ["m2", "FURN-023"],
+      ["m3", "TECH-045"]
+    ]);
+
+    expect(purchaseOrderLinePreview(purchaseOrders[0], skuByMaterial, 1)).toBe("TECH-001 +1 more");
+    expect(
+      purchaseOrderLinePreview(
+        {
+          id: "po-empty",
+          status: "draft",
+          lines: []
+        },
+        skuByMaterial
+      )
+    ).toBe("No lines");
   });
 
   it("builds sorted material location summary", () => {
