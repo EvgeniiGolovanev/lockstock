@@ -149,6 +149,7 @@ function parseRemoteMigrationVersionsFromJsonOutput(output) {
 function parseRemoteMigrationVersionsFromPrettyOutput(output) {
   const remote = new Set();
   let remoteColumnIndex = 1;
+  let localColumnIndex = 0;
   let headerColumns = null;
   let sawTableRow = false;
 
@@ -179,6 +180,10 @@ function parseRemoteMigrationVersionsFromPrettyOutput(output) {
       if (candidateIndex >= 0) {
         remoteColumnIndex = candidateIndex;
       }
+      const localIndex = parts.findIndex((part) => /local/i.test(part));
+      if (localIndex >= 0) {
+        localColumnIndex = localIndex;
+      }
       headerColumns = parts.map((part) => part.toLowerCase());
       continue;
     }
@@ -193,11 +198,32 @@ function parseRemoteMigrationVersionsFromPrettyOutput(output) {
       if (idx >= 0) {
         remoteColumnIndex = idx;
       }
+      const idxLocal = headerColumns.findIndex((part) => part.includes("local"));
+      if (idxLocal >= 0) {
+        localColumnIndex = idxLocal;
+      }
     }
 
     const remoteCell = parts[remoteColumnIndex] ?? parts[1] ?? "";
-    for (const version of collectVersionTokens(remoteCell)) {
+    const directRemoteTokens = collectVersionTokens(remoteCell);
+    for (const version of directRemoteTokens) {
       remote.add(version);
+    }
+
+    // Some CLI outputs leave "Remote" empty but include versions in a later column.
+    // If no token was found in the declared remote column, inspect other non-local columns.
+    if (directRemoteTokens.length === 0) {
+      for (let index = 0; index < parts.length; index += 1) {
+        if (index === localColumnIndex) {
+          continue;
+        }
+        if (index === remoteColumnIndex) {
+          continue;
+        }
+        for (const version of collectVersionTokens(parts[index])) {
+          remote.add(version);
+        }
+      }
     }
   }
 

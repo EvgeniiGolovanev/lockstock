@@ -80,4 +80,19 @@ Local          Remote         Time (UTC)
     expect(parsed.has("202602231350")).toBe(true);
     expect(parsed.has("202602232210")).toBe(true);
   });
+
+  it("parses remote versions when remote column is blank but later column contains versions", () => {
+    const output = `
+Local        | Remote | Time (UTC)
+-------------|--------|---------------
+202602231350 |        | 202602231350
+202602232210 |        | 202602232210
+202602240110 |        | 202602240110
+Connecting to remote database...
+`;
+    const parsed = parseRemoteMigrationVersionsFromPrettyOutput(output);
+    expect(parsed.has("202602231350")).toBe(true);
+    expect(parsed.has("202602232210")).toBe(true);
+    expect(parsed.has("202602240110")).toBe(true);
+  });
 });
