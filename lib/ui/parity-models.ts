@@ -93,6 +93,17 @@ export type PurchaseOrderLineViewRow = {
   lineTotal: number;
 };
 
+export type PurchaseOrderDraftLineInput = {
+  material_id: string;
+  quantity_ordered: number;
+  unit_price: number | null;
+};
+
+export type PurchaseOrderDraftSummary = {
+  lineCount: number;
+  totalAmount: number;
+};
+
 export function normalizeStatus(
   status: MaterialRow["stock_status"],
   quantity: number,
@@ -242,6 +253,15 @@ export function purchaseOrderLineRows(
       lineTotal: quantityOrdered * unitPrice
     };
   });
+}
+
+export function purchaseOrderDraftSummary(lines: PurchaseOrderDraftLineInput[]): PurchaseOrderDraftSummary {
+  return {
+    lineCount: lines.length,
+    totalAmount: lines.reduce((sum, line) => {
+      return sum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
+    }, 0)
+  };
 }
 
 export function materialLocationSummary(materials: MaterialRow[], max = 5): MaterialLocationSummary[] {

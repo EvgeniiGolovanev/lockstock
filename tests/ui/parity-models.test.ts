@@ -5,6 +5,7 @@ import {
   inventoryMetrics,
   materialLocationSummary,
   normalizeStatus,
+  purchaseOrderDraftSummary,
   purchaseOrderLineRows,
   purchaseOrderLinePreview,
   purchaseOrderOverview,
@@ -185,6 +186,19 @@ describe("parity models", () => {
         lineTotal: 300
       }
     ]);
+  });
+
+  it("computes purchase order draft summary totals", () => {
+    const summary = purchaseOrderDraftSummary([
+      { material_id: "m1", quantity_ordered: 5, unit_price: 4 },
+      { material_id: "m2", quantity_ordered: 2, unit_price: null },
+      { material_id: "m3", quantity_ordered: 3, unit_price: 10.5 }
+    ]);
+
+    expect(summary).toEqual({
+      lineCount: 3,
+      totalAmount: 51.5
+    });
   });
 
   it("builds sorted material location summary", () => {
