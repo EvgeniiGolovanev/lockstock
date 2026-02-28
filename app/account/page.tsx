@@ -1,5 +1,5 @@
-import { LockstockWorkbench } from "@/components/lockstock-workbench";
+import { LockstockAccount } from "@/components/lockstock-account";
 
 export default function AccountPage() {
-  return <LockstockWorkbench />;
+  return <LockstockAccount />;
 }

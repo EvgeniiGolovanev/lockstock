@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAccountMetadata, validatePasswordChange } from "@/lib/auth/account";
+import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 
 describe("account helpers", () => {
   it("builds auth metadata payload with trimmed values", () => {
@@ -39,5 +39,11 @@ describe("account helpers", () => {
     expect(validatePasswordChange("short", "short")).toBe("Password must be at least 8 characters.");
     expect(validatePasswordChange("new-password-123", "new-password-12")).toBe("Password confirmation does not match.");
     expect(validatePasswordChange("new-password-123", "new-password-123")).toBeNull();
+  });
+
+  it("reads string values from metadata safely", () => {
+    expect(metadataValue({ full_name: "Alex" }, "full_name")).toBe("Alex");
+    expect(metadataValue({ full_name: 42 }, "full_name")).toBe("");
+    expect(metadataValue(null, "full_name")).toBe("");
   });
 });
