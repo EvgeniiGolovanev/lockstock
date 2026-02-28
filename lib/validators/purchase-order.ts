@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createPurchaseOrderSchema = z.object({
   supplier_id: z.string().uuid(),
+  currency: z.enum(["EUR", "USD"]).default("EUR"),
   po_number: z.string().max(100).optional(),
   expected_at: z.string().date().optional(),
   notes: z.string().max(2000).optional(),

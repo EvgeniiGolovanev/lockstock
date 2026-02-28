@@ -3,6 +3,7 @@ export type OrgRole = "owner" | "manager" | "member" | "viewer";
 export type MovementReason = "adjustment" | "transfer_in" | "transfer_out" | "purchase_receive" | "correction";
 
 export type PurchaseOrderStatus = "draft" | "sent" | "partial" | "received" | "cancelled";
+export type PurchaseOrderCurrency = "EUR" | "USD";
 
 export type Material = {
   id: string;
