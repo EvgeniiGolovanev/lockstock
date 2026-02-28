@@ -313,6 +313,7 @@ export type Database = {
           id: string;
           org_id: string;
           supplier_id: string;
+          currency: string;
           po_number: string;
           status: Database["public"]["Enums"]["po_status"];
           expected_at: string | null;
@@ -327,6 +328,7 @@ export type Database = {
           id?: string;
           org_id: string;
           supplier_id: string;
+          currency?: string;
           po_number: string;
           status?: Database["public"]["Enums"]["po_status"];
           expected_at?: string | null;
@@ -341,6 +343,7 @@ export type Database = {
           id?: string;
           org_id?: string;
           supplier_id?: string;
+          currency?: string;
           po_number?: string;
           status?: Database["public"]["Enums"]["po_status"];
           expected_at?: string | null;

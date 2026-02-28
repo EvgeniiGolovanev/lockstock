@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
       .insert({
         org_id: orgId,
         supplier_id: payload.supplier_id,
+        currency: payload.currency,
         po_number: poNumber,
         expected_at: payload.expected_at ?? null,
         notes: payload.notes ?? null,

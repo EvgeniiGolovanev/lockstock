@@ -16,10 +16,15 @@ export type PurchaseOrderLineRow = {
   unit_price: number | null;
 };
 
+export type PurchaseOrderCurrency = "EUR" | "USD";
+
+export type CurrencyTotals = Record<PurchaseOrderCurrency, number>;
+
 export type PurchaseOrderRow = {
   id: string;
   supplier?: { id?: string | null; name?: string | null } | null;
   status: "draft" | "sent" | "partial" | "received" | "cancelled";
+  currency?: string | null;
   lines: PurchaseOrderLineRow[];
 };
 
@@ -82,6 +87,7 @@ export type PurchaseOrderOverview = {
   openOrders: number;
   receivedOrders: number;
   totalValue: number;
+  totalValueByCurrency: CurrencyTotals;
   statusCounts: PurchaseOrderStatusCounts;
 };
 
@@ -103,6 +109,42 @@ export type PurchaseOrderDraftSummary = {
   lineCount: number;
   totalAmount: number;
 };
+
+const moneyFormatter = new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+function emptyCurrencyTotals(): CurrencyTotals {
+  return {
+    EUR: 0,
+    USD: 0
+  };
+}
+
+export function normalizePurchaseOrderCurrency(value: string | null | undefined): PurchaseOrderCurrency {
+  return value === "USD" ? "USD" : "EUR";
+}
+
+export function currencySymbol(currency: PurchaseOrderCurrency): string {
+  return currency === "USD" ? "$" : "€";
+}
+
+export function formatCurrencyAmount(amount: number, currency: PurchaseOrderCurrency): string {
+  return `${currencySymbol(currency)}${moneyFormatter.format(Number(amount || 0))}`;
+}
+
+export function formatCurrencyTotals(totals: CurrencyTotals): string {
+  const eur = Number(totals.EUR || 0);
+  const usd = Number(totals.USD || 0);
+  if (eur > 0 && usd > 0) {
+    return `${formatCurrencyAmount(eur, "EUR")} + ${formatCurrencyAmount(usd, "USD")}`;
+  }
+  if (usd > 0) {
+    return formatCurrencyAmount(usd, "USD");
+  }
+  return formatCurrencyAmount(eur, "EUR");
+}
 
 export function normalizeStatus(
   status: MaterialRow["stock_status"],
@@ -142,20 +184,23 @@ export function inventoryMetrics(materials: MaterialRow[], purchaseOrders: Purch
     }
   );
 
-  const totalValue = purchaseOrders.reduce((sum, po) => {
-    return (
-      sum +
-      po.lines.reduce((lineSum, line) => {
-        return lineSum + Number(line.quantity_received || 0) * Number(line.unit_price || 0);
-      }, 0)
-    );
-  }, 0);
+  const totalValueByCurrency = purchaseOrders.reduce<CurrencyTotals>((sum, po) => {
+    const poCurrency = normalizePurchaseOrderCurrency(po.currency);
+    const poValue = po.lines.reduce((lineSum, line) => {
+      return lineSum + Number(line.quantity_received || 0) * Number(line.unit_price || 0);
+    }, 0);
+    sum[poCurrency] += poValue;
+    return sum;
+  }, emptyCurrencyTotals());
+
+  const totalValue = totalValueByCurrency.EUR + totalValueByCurrency.USD;
 
   return {
     totalItems: totals.totalItems,
     lowStock: totals.lowStock,
     outOfStock: totals.outOfStock,
-    totalValue
+    totalValue,
+    totalValueByCurrency
   };
 }
 
@@ -201,20 +246,23 @@ export function purchaseOrderOverview(purchaseOrders: PurchaseOrderRow[]): Purch
     }
   );
 
-  const totalValue = purchaseOrders.reduce((sum, po) => {
-    return (
-      sum +
-      po.lines.reduce((lineSum, line) => {
-        return lineSum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
-      }, 0)
-    );
-  }, 0);
+  const totalValueByCurrency = purchaseOrders.reduce<CurrencyTotals>((sum, po) => {
+    const poCurrency = normalizePurchaseOrderCurrency(po.currency);
+    const poValue = po.lines.reduce((lineSum, line) => {
+      return lineSum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
+    }, 0);
+    sum[poCurrency] += poValue;
+    return sum;
+  }, emptyCurrencyTotals());
+
+  const totalValue = totalValueByCurrency.EUR + totalValueByCurrency.USD;
 
   return {
     totalOrders: purchaseOrders.length,
     openOrders: statusCounts.draft + statusCounts.sent + statusCounts.partial,
     receivedOrders: statusCounts.received,
     totalValue,
+    totalValueByCurrency,
     statusCounts
   };
 }

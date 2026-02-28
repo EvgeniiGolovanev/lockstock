@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  currencySymbol,
   filterInventoryRows,
+  formatCurrencyAmount,
+  formatCurrencyTotals,
   groupLocationsByWarehouse,
   inventoryMetrics,
   materialLocationSummary,
@@ -10,6 +13,7 @@ import {
   purchaseOrderLinePreview,
   purchaseOrderOverview,
   purchaseOrderProgress,
+  normalizePurchaseOrderCurrency,
   splitLocationName,
   supplierOrderStats,
   toParsedLocationRows,
@@ -78,6 +82,15 @@ const suppliers: SupplierRow[] = [
 ];
 
 describe("parity models", () => {
+  it("normalizes and formats purchase-order currency", () => {
+    expect(normalizePurchaseOrderCurrency(undefined)).toBe("EUR");
+    expect(normalizePurchaseOrderCurrency("USD")).toBe("USD");
+    expect(normalizePurchaseOrderCurrency("bad")).toBe("EUR");
+    expect(currencySymbol("EUR")).toBe("€");
+    expect(currencySymbol("USD")).toBe("$");
+    expect(formatCurrencyAmount(1200.5, "EUR").startsWith("€")).toBe(true);
+  });
+
   it("normalizes stock status from quantity and threshold when status is missing", () => {
     expect(normalizeStatus(undefined, 0, 1)).toBe("out-of-stock");
     expect(normalizeStatus(undefined, 1, 2)).toBe("low-stock");
@@ -134,6 +147,10 @@ describe("parity models", () => {
     expect(overview.openOrders).toBe(1);
     expect(overview.receivedOrders).toBe(1);
     expect(overview.totalValue).toBe(380);
+    expect(overview.totalValueByCurrency).toEqual({
+      EUR: 380,
+      USD: 0
+    });
     expect(overview.statusCounts).toEqual({
       draft: 0,
       sent: 0,
@@ -141,6 +158,33 @@ describe("parity models", () => {
       received: 1,
       cancelled: 1
     });
+  });
+
+  it("builds currency totals and renders mixed-currency labels", () => {
+    const overview = purchaseOrderOverview([
+      {
+        id: "po-eur",
+        currency: "EUR",
+        supplier: { id: "s1", name: "Alpha Supplies" },
+        status: "draft",
+        lines: [{ material_id: "m1", quantity_ordered: 2, quantity_received: 0, unit_price: 10 }]
+      },
+      {
+        id: "po-usd",
+        currency: "USD",
+        supplier: { id: "s2", name: "Beta Trade" },
+        status: "sent",
+        lines: [{ material_id: "m2", quantity_ordered: 3, quantity_received: 0, unit_price: 5 }]
+      }
+    ]);
+
+    expect(overview.totalValueByCurrency).toEqual({
+      EUR: 20,
+      USD: 15
+    });
+    const mixedLabel = formatCurrencyTotals(overview.totalValueByCurrency);
+    expect(mixedLabel).toContain("€");
+    expect(mixedLabel).toContain("$");
   });
 
   it("builds purchase order line preview", () => {

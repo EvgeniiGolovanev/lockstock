@@ -5,13 +5,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
+  currencySymbol,
   filterInventoryRows,
+  formatCurrencyAmount,
+  formatCurrencyTotals,
   groupLocationsByWarehouse,
   inventoryMetrics,
   materialLocationSummary,
+  normalizePurchaseOrderCurrency,
   normalizeStatus,
   purchaseOrderDraftSummary,
   purchaseOrderLineRows,
+  type PurchaseOrderCurrency,
   purchaseOrderOverview,
   purchaseOrderProgress,
   supplierOrderStats,
@@ -68,6 +73,7 @@ type PurchaseOrder = {
   id: string;
   po_number: string;
   status: "draft" | "sent" | "partial" | "received" | "cancelled";
+  currency: PurchaseOrderCurrency;
   supplier: { id: string; name: string } | null;
   lines: PurchaseOrderLine[];
 };
@@ -214,6 +220,7 @@ export function LockstockWorkbench() {
   const [poMaterialId, setPoMaterialId] = useState("");
   const [poQuantityOrdered, setPoQuantityOrdered] = useState(1);
   const [poUnitPrice, setPoUnitPrice] = useState(0);
+  const [poCurrency, setPoCurrency] = useState<PurchaseOrderCurrency>("EUR");
   const [poExpectedAt, setPoExpectedAt] = useState("");
   const [poNotes, setPoNotes] = useState("");
   const [poDraftLines, setPoDraftLines] = useState<PurchaseOrderDraftLine[]>([]);
@@ -272,11 +279,15 @@ export function LockstockWorkbench() {
     return locations.filter((location) => activeNames.has(location.name)).length;
   }, [locations, materials]);
   const priceByMaterial = useMemo(() => {
-    const next = new Map<string, number>();
+    const next = new Map<string, { unitPrice: number; currency: PurchaseOrderCurrency }>();
     for (const po of purchaseOrders) {
+      const poCurrency = normalizePurchaseOrderCurrency(po.currency);
       for (const line of po.lines) {
-        if (line.unit_price != null) {
-          next.set(line.material_id, Number(line.unit_price));
+        if (line.unit_price != null && !next.has(line.material_id)) {
+          next.set(line.material_id, {
+            unitPrice: Number(line.unit_price),
+            currency: poCurrency
+          });
         }
       }
     }
@@ -297,6 +308,22 @@ export function LockstockWorkbench() {
   const poSkuByMaterialId = useMemo(() => {
     return new Map(materials.map((material) => [material.id, material.sku]));
   }, [materials]);
+  const inventoryValueLabel = useMemo(() => formatCurrencyTotals(metrics.totalValueByCurrency), [metrics.totalValueByCurrency]);
+  const inventoryValueBadge = useMemo(() => {
+    const { EUR, USD } = metrics.totalValueByCurrency;
+    if (EUR > 0 && USD > 0) {
+      return "€/$";
+    }
+    return USD > 0 ? "$" : "€";
+  }, [metrics.totalValueByCurrency]);
+  const poTotalValueLabel = useMemo(() => formatCurrencyTotals(poOverview.totalValueByCurrency), [poOverview.totalValueByCurrency]);
+  const poTotalValueBadge = useMemo(() => {
+    const { EUR, USD } = poOverview.totalValueByCurrency;
+    if (EUR > 0 && USD > 0) {
+      return "€/$";
+    }
+    return USD > 0 ? "$" : "€";
+  }, [poOverview.totalValueByCurrency]);
   const vendorKpis = useMemo(() => vendorMetrics(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
   const supplierRows = useMemo(() => supplierOrderStats(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
   const filteredSupplierRows = useMemo(() => {
@@ -557,6 +584,7 @@ export function LockstockWorkbench() {
   function resetPoCreateForm() {
     setPoExpectedAt("");
     setPoNotes("");
+    setPoCurrency("EUR");
     setPoDraftLines([]);
     setPoQuantityOrdered(1);
     setPoUnitPrice(0);
@@ -924,6 +952,7 @@ export function LockstockWorkbench() {
         method: "POST",
         body: {
           supplier_id: poSupplierId,
+          currency: poCurrency,
           expected_at: poExpectedAt || undefined,
           notes: poNotes.trim() || undefined,
           lines
@@ -1662,16 +1691,10 @@ export function LockstockWorkbench() {
                 <div className="kpi-top">
                   <p>Total Value</p>
                   <span className="kpi-dot kpi-green" aria-hidden="true">
-                    $
+                    {poTotalValueBadge}
                   </span>
                 </div>
-                <strong>
-                  $
-                  {poOverview.totalValue.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })}
-                </strong>
+                <strong>{poTotalValueLabel}</strong>
               </div>
             </div>
           </section>
@@ -1745,6 +1768,7 @@ export function LockstockWorkbench() {
                   const progress = getPoProgress(po);
                   const lineRows = purchaseOrderLineRows(po, poSkuByMaterialId);
                   const lineValue = lineRows.reduce((sum, line) => sum + line.lineTotal, 0);
+                  const poCurrency = normalizePurchaseOrderCurrency(po.currency);
 
                   return (
                     <article key={po.id} className={`po-card po-card-${po.status}`}>
@@ -1813,13 +1837,7 @@ export function LockstockWorkbench() {
                           </span>
                           <div>
                             <p className="po-meta-label">Total Amount</p>
-                            <p className="po-meta-value po-meta-amount">
-                              $
-                              {lineValue.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                              })}
-                            </p>
+                            <p className="po-meta-value po-meta-amount">{formatCurrencyAmount(lineValue, poCurrency)}</p>
                           </div>
                         </div>
                       </div>
@@ -1844,20 +1862,8 @@ export function LockstockWorkbench() {
                                   <td>{line.materialLabel}</td>
                                   <td>{line.quantityOrdered}</td>
                                   <td>{line.quantityReceived}</td>
-                                  <td>
-                                    $
-                                    {line.unitPrice.toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2
-                                    })}
-                                  </td>
-                                  <td>
-                                    $
-                                    {line.lineTotal.toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2
-                                    })}
-                                  </td>
+                                  <td>{formatCurrencyAmount(line.unitPrice, poCurrency)}</td>
+                                  <td>{formatCurrencyAmount(line.lineTotal, poCurrency)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1915,6 +1921,13 @@ export function LockstockWorkbench() {
                         </select>
                       </label>
                       <label className="field">
+                        <span>Currency</span>
+                        <select value={poCurrency} onChange={(event) => setPoCurrency(event.target.value as PurchaseOrderCurrency)}>
+                          <option value="EUR">Euro (€)</option>
+                          <option value="USD">US Dollar ($)</option>
+                        </select>
+                      </label>
+                      <label className="field">
                         <span>Expected Date</span>
                         <input type="date" value={poExpectedAt} onChange={(event) => setPoExpectedAt(event.target.value)} />
                       </label>
@@ -1955,7 +1968,7 @@ export function LockstockWorkbench() {
                         />
                       </label>
                       <label className="field">
-                        <span>Unit Price</span>
+                        <span>Unit Price ({currencySymbol(poCurrency)})</span>
                         <input
                           type="number"
                           min={0}
@@ -1995,20 +2008,8 @@ export function LockstockWorkbench() {
                                 <tr key={line.id}>
                                   <td>{material ? `${material.sku} - ${material.name}` : "Unknown material"}</td>
                                   <td>{line.quantity_ordered}</td>
-                                  <td>
-                                    $
-                                    {Number(line.unit_price || 0).toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2
-                                    })}
-                                  </td>
-                                  <td>
-                                    $
-                                    {lineTotal.toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2
-                                    })}
-                                  </td>
+                                  <td>{formatCurrencyAmount(Number(line.unit_price || 0), poCurrency)}</td>
+                                  <td>{formatCurrencyAmount(lineTotal, poCurrency)}</td>
                                   <td>
                                     <button
                                       type="button"
@@ -2029,11 +2030,7 @@ export function LockstockWorkbench() {
                     )}
 
                     <p className="po-draft-summary">
-                      {poDraftSummary.lineCount} item(s) - $
-                      {poDraftSummary.totalAmount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
+                      {poDraftSummary.lineCount} item(s) - {formatCurrencyAmount(poDraftSummary.totalAmount, poCurrency)}
                     </p>
                   </section>
                 </div>
@@ -2224,16 +2221,10 @@ export function LockstockWorkbench() {
                 <div className="kpi-top">
                   <p>Total Value</p>
                   <span className="kpi-dot kpi-green" aria-hidden="true">
-                    $
+                    {inventoryValueBadge}
                   </span>
                 </div>
-                <strong>
-                  $
-                  {metrics.totalValue.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })}
-                </strong>
+                <strong>{inventoryValueLabel}</strong>
               </div>
             </div>
           </section>
@@ -2290,7 +2281,7 @@ export function LockstockWorkbench() {
                     {inventoryRows.map((material) => {
                       const quantity = Number(material.total_quantity ?? 0);
                       const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
-                      const unitPrice = priceByMaterial.get(material.id);
+                      const materialPrice = priceByMaterial.get(material.id);
 
                       return (
                         <tr key={material.id}>
@@ -2299,12 +2290,9 @@ export function LockstockWorkbench() {
                           <td>{material.uom}</td>
                           <td>{quantity.toLocaleString()}</td>
                           <td>
-                            {unitPrice == null
+                            {materialPrice == null
                               ? "-"
-                              : `$${unitPrice.toLocaleString(undefined, {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2
-                                })}`}
+                              : formatCurrencyAmount(materialPrice.unitPrice, materialPrice.currency)}
                           </td>
                           <td>{material.primary_location ?? "-"}</td>
                           <td>
