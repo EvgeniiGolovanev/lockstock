@@ -57,23 +57,31 @@ export function LockstockAccount() {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      void supabase.auth.getSession().then(({ data, error }) => {
-        if (unmounted || error) {
-          return;
-        }
-
-        if (!data.session) {
-          setSignedInAs("");
-          return;
-        }
-
-        applySessionState({
-          user: {
-            email: data.session.user.email,
-            user_metadata: data.session.user.user_metadata as Record<string, unknown>
+      void supabase.auth
+        .getSession()
+        .then(({ data, error }) => {
+          if (unmounted || error) {
+            return;
           }
+
+          if (!data.session) {
+            setSignedInAs("");
+            return;
+          }
+
+          applySessionState({
+            user: {
+              email: data.session.user.email,
+              user_metadata: data.session.user.user_metadata as Record<string, unknown>
+            }
+          });
+        })
+        .catch(() => {
+          if (unmounted) {
+            return;
+          }
+          setSignedInAs("");
         });
-      });
 
       const authListener = supabase.auth.onAuthStateChange((event, session) => {
         if (unmounted) {

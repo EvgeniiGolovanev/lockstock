@@ -383,26 +383,35 @@ export function LockstockWorkbench() {
     try {
       const supabase = getSupabaseBrowserClient();
 
-      void supabase.auth.getSession().then(({ data, error }) => {
-        if (unmounted || error) {
-          return;
-        }
-        if (!data.session) {
-          if (window.localStorage.getItem(STORAGE_KEYS.token)) {
-            setAccessToken("");
-            setSignedInAs("");
-            clearWorkspaceData();
-            addActivity("No active Supabase session. Cleared saved token.");
+      void supabase.auth
+        .getSession()
+        .then(({ data, error }) => {
+          if (unmounted || error) {
+            return;
           }
-          return;
-        }
-        applySessionState({
-          access_token: data.session.access_token,
-          user: {
-            email: data.session.user.email
+          if (!data.session) {
+            if (window.localStorage.getItem(STORAGE_KEYS.token)) {
+              setAccessToken("");
+              setSignedInAs("");
+              clearWorkspaceData();
+              addActivity("No active Supabase session. Cleared saved token.");
+            }
+            return;
           }
+          applySessionState({
+            access_token: data.session.access_token,
+            user: {
+              email: data.session.user.email
+            }
+          });
+        })
+        .catch(() => {
+          if (unmounted) {
+            return;
+          }
+          setAccessToken("");
+          setSignedInAs("");
         });
-      });
 
       const authListener = supabase.auth.onAuthStateChange((event, session) => {
         if (unmounted) {
