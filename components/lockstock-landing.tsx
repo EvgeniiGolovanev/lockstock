@@ -83,12 +83,20 @@ export function LockstockLanding() {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      void supabase.auth.getSession().then(({ data, error }) => {
-        if (unmounted || error) {
-          return;
-        }
-        setSignedInAs(data.session?.user.email ?? "");
-      });
+      void supabase.auth
+        .getSession()
+        .then(({ data, error }) => {
+          if (unmounted || error) {
+            return;
+          }
+          setSignedInAs(data.session?.user.email ?? "");
+        })
+        .catch(() => {
+          if (unmounted) {
+            return;
+          }
+          setSignedInAs("");
+        });
 
       const authListener = supabase.auth.onAuthStateChange((_event, session) => {
         if (unmounted) {

@@ -1501,6 +1501,48 @@ button:disabled {
   background: transparent;
 }
 
+.locale-switcher {
+  position: fixed;
+  top: 0.7rem;
+  right: 0.8rem;
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d6e0ee;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  padding: 0.25rem 0.35rem 0.25rem 0.55rem;
+}
+
+.locale-switcher-label {
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.locale-switcher-actions {
+  display: inline-flex;
+  gap: 0.22rem;
+}
+
+.locale-switcher-btn {
+  min-width: 2.15rem;
+  padding: 0.23rem 0.42rem;
+  font-size: 0.73rem;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  border-color: #d4dce8;
+}
+
+.locale-switcher-btn-active {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
 @media (max-width: 768px) {
   main {
     padding-top: 0.8rem;
@@ -1636,5 +1678,11 @@ button:disabled {
 
   .warehouse-grid {
     grid-template-columns: 1fr;
+  }
+
+  .locale-switcher {
+    top: auto;
+    bottom: 0.75rem;
+    right: 0.75rem;
   }
 }
