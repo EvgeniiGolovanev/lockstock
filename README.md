@@ -22,6 +22,11 @@ npm install
 cp .env.example .env.local
 ```
 
+Email integration vars:
+
+- `RESEND_API_KEY`: API key for sending organization invitation emails.
+- `EMAIL_FROM`: sender identity used by invitation emails (must be a verified domain in your provider).
+
 3. Apply SQL migrations in order:
    - `supabase/migrations/202602231350_init.sql`
    - `supabase/migrations/202602232210_user_scoped_org_bootstrap.sql`
@@ -62,11 +67,17 @@ curl -X POST http://localhost:3000/api/organizations \
   -d "{\"name\":\"Demo Org\"}"
 ```
 
+Account signup uses Supabase Auth email confirmation with redirect back to `/account`.
+
 ## Implemented Endpoints
 
 - `GET /api/health`
 - `GET /api/organizations`
 - `POST /api/organizations`
+- `GET /api/organizations/:id/members`
+- `POST /api/organizations/:id/members`
+- `PATCH /api/organizations/:id/members/:userId`
+- `DELETE /api/organizations/:id/members/:userId`
 - `GET /api/locations`
 - `POST /api/locations`
 - `GET /api/materials`
@@ -76,6 +87,9 @@ curl -X POST http://localhost:3000/api/organizations \
 - `GET /api/teams`
 - `POST /api/teams`
 - `POST /api/teams/:id/members`
+- `GET /api/invitations/pending`
+- `POST /api/invitations/:id/accept`
+- `POST /api/invitations/:id/reject`
 - `POST /api/stock/movements`
 - `GET /api/purchase-orders`
 - `POST /api/purchase-orders`

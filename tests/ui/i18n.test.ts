@@ -19,6 +19,14 @@ describe("i18n helpers", () => {
   it("translates known static phrases", () => {
     expect(translateText("Sign In", "fr")).toBe("Se connecter");
     expect(translateText("Purchase Orders", "fr")).toBe("Commandes d'achat");
+    expect(translateText("Members", "fr")).toBe("Membres");
+    expect(translateText("Manage organization members and invitations.", "fr")).toBe(
+      "Gerez les membres de l'organisation et les invitations."
+    );
+    expect(translateText("Pending Invitations", "fr")).toBe("Invitations en attente");
+    expect(translateText("No pending invitations.", "fr")).toBe("Aucune invitation en attente.");
+    expect(translateText("Invitation email sent.", "fr")).toBe("Email d'invitation envoye.");
+    expect(translateText("My Organization Memberships", "fr")).toBe("Mes appartenances aux organisations");
     expect(translateText("No activity yet.", "fr")).toBe("Aucune activite pour le moment.");
     expect(translateText("Sign In", "en")).toBe("Sign In");
   });
@@ -28,6 +36,9 @@ describe("i18n helpers", () => {
     expect(translateText("3 item(s) - EUR 120.00", "fr")).toBe("3 article(s) - EUR 120.00");
     expect(translateText("5 stars", "fr")).toBe("5 etoiles");
     expect(translateText("10:45:11 - Signed out.", "fr")).toBe("10:45:11 - Deconnecte.");
+    expect(translateText("Accept invitation to org LockStock", "fr")).toBe(
+      "Accepter l'invitation vers l'organisation LockStock"
+    );
   });
 
   it("keeps unknown text unchanged", () => {

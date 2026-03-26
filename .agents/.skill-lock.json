@@ -8,6 +8,30 @@
       "skillFolderHash": "",
       "installedAt": "2026-02-26T00:01:38.878Z",
       "updatedAt": "2026-02-26T00:02:35.961Z"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/anthropics/skills.git",
+      "skillFolderHash": "",
+      "installedAt": "2026-03-04T21:46:42.185Z",
+      "updatedAt": "2026-03-04T21:46:42.185Z"
+    },
+    "Agent Development": {
+      "source": "anthropics/claude-code",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/anthropics/claude-code.git",
+      "skillFolderHash": "",
+      "installedAt": "2026-03-04T21:47:51.725Z",
+      "updatedAt": "2026-03-04T21:47:51.725Z"
+    },
+    "MCP Integration": {
+      "source": "anthropics/claude-code",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/anthropics/claude-code.git",
+      "skillFolderHash": "",
+      "installedAt": "2026-03-04T22:04:06.189Z",
+      "updatedAt": "2026-03-04T22:04:06.189Z"
     }
   },
   "dismissed": {}

@@ -90,6 +90,21 @@ type OrganizationMembership = {
   };
 };
 
+type OrganizationMember = {
+  user_id: string;
+  role: "owner" | "manager" | "member" | "viewer";
+  created_at: string;
+};
+
+type PendingInvitation = {
+  id: string;
+  org_id: string;
+  role: "owner" | "manager" | "member" | "viewer";
+  expires_at: string;
+  created_at: string;
+  organization_name: string;
+};
+
 type ActivityEntry = {
   id: string;
   line: string;
@@ -111,8 +126,8 @@ const STORAGE_KEYS = {
   orgId: "lockstock.orgId"
 } as const;
 
-type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders";
-type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders";
+type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders" | "members";
+type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 type PurchaseMetaIcon = "lines" | "received" | "value";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
@@ -120,7 +135,8 @@ const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/materials", label: "Materials & Stock", icon: "materials" },
   { href: "/locations", label: "Locations", icon: "locations" },
   { href: "/vendors", label: "Vendors", icon: "vendors" },
-  { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" }
+  { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
+  { href: "/members", label: "Members", icon: "members" }
 ] as const;
 
 function NavItemIcon({ icon }: { icon: NavIcon }) {
@@ -152,6 +168,14 @@ function NavItemIcon({ icon }: { icon: NavIcon }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M16 20a4 4 0 0 0-8 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 8a4 4 0 0 0-3-3.9M17 11a2.5 2.5 0 1 0 0-5" />
+      </svg>
+    );
+  }
+
+  if (icon === "members") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 20a4 4 0 0 0-8 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 8a4 4 0 0 0-3-3.9M17 11a2.5 2.5 0 1 0 0-5M4 20a4 4 0 0 1 3-3.9M7 11a2.5 2.5 0 1 1 0-5" />
       </svg>
     );
   }
@@ -243,10 +267,13 @@ export function LockstockWorkbench() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [organizations, setOrganizations] = useState<OrganizationMembership[]>([]);
+  const [organizationMembers, setOrganizationMembers] = useState<OrganizationMember[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [stockHealth, setStockHealth] = useState<StockHealth | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [memberInviteEmail, setMemberInviteEmail] = useState("");
 
   const normalizedBaseUrl = useMemo(() => baseUrl.replace(/\/+$/, ""), [baseUrl]);
   const isOrgScopedReady = Boolean(accessToken && orgId);
@@ -258,6 +285,11 @@ export function LockstockWorkbench() {
     () => selectedPurchaseOrder?.lines.find((line) => line.id === receivePoLineId) ?? null,
     [selectedPurchaseOrder, receivePoLineId]
   );
+  const activeMembership = useMemo(
+    () => organizations.find((item) => item.organization.id === orgId) ?? null,
+    [organizations, orgId]
+  );
+  const canManageMembers = activeMembership?.role === "owner";
   const selectedReceiveMaterial = useMemo(
     () => (selectedReceiveLine ? materials.find((material) => material.id === selectedReceiveLine.material_id) ?? null : null),
     [materials, selectedReceiveLine]
@@ -348,6 +380,9 @@ export function LockstockWorkbench() {
     if (pathname === "/purchase-orders") {
       return { title: "Purchase Orders", subtitle: "Create, receive, and track purchase orders." };
     }
+    if (pathname === "/members") {
+      return { title: "Members", subtitle: "Manage organization members and invitations." };
+    }
     return { title: "Inventory Management", subtitle: "Manage your stock and track inventory levels." };
   }, [pathname]);
 
@@ -355,9 +390,11 @@ export function LockstockWorkbench() {
   const showMaterialSection = pathname === "/materials";
   const showSupplierSection = pathname === "/vendors";
   const showPurchaseOrderSection = pathname === "/purchase-orders";
+  const showMembersSection = pathname === "/members";
   const showSnapshotSection = pathname === "/inventory";
   const showAuthPanel = !signedInAs;
   const showOrgCreatePanel = !signedInAs;
+  const canUseMembersScreen = Boolean(accessToken);
 
   function applySessionState(session: { access_token: string; user: { email?: string | null } }) {
     setAccessToken(session.access_token || "");
@@ -545,6 +582,8 @@ export function LockstockWorkbench() {
   function clearWorkspaceData() {
     setOrgId("");
     setOrganizations([]);
+    setOrganizationMembers([]);
+    setPendingInvitations([]);
     setMaterials([]);
     setLocations([]);
     setSuppliers([]);
@@ -602,7 +641,7 @@ export function LockstockWorkbench() {
   async function apiRequest<T>(
     path: string,
     options?: {
-      method?: "GET" | "POST" | "PATCH";
+      method?: "GET" | "POST" | "PATCH" | "DELETE";
       body?: Record<string, unknown>;
       orgOverride?: string;
       requireOrg?: boolean;
@@ -649,6 +688,27 @@ export function LockstockWorkbench() {
     }
 
     return payload as T;
+  }
+
+  async function loadOrganizationMembers(targetOrgId?: string, tokenOverride?: string) {
+    const orgValue = targetOrgId ?? orgId;
+    if (!orgValue) {
+      return;
+    }
+
+    const response = await apiRequest<{ data: OrganizationMember[] }>(`/api/organizations/${orgValue}/members`, {
+      orgOverride: orgValue,
+      tokenOverride
+    });
+    setOrganizationMembers(response.data);
+  }
+
+  async function loadPendingInvitations(tokenOverride?: string) {
+    const response = await apiRequest<{ data: PendingInvitation[] }>("/api/invitations/pending", {
+      requireOrg: false,
+      tokenOverride
+    });
+    setPendingInvitations(response.data);
   }
 
   async function handleLogin() {
@@ -758,7 +818,11 @@ export function LockstockWorkbench() {
     return { count: response.data.length };
   }
 
-  async function refreshCoreData(targetOrgId?: string, tokenOverride?: string) {
+  async function refreshCoreData(
+    targetOrgId?: string,
+    tokenOverride?: string,
+    membershipRole?: OrganizationMembership["role"]
+  ) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
       addActivity("No active organization. Sign in again or sync workspace.");
@@ -774,6 +838,17 @@ export function LockstockWorkbench() {
 
     setLocations(locationsResult.data);
     setSuppliers(suppliersResult.data);
+
+    const resolvedRole =
+      membershipRole ?? organizations.find((membership) => membership.organization.id === orgValue)?.role ?? null;
+    if (resolvedRole === "owner") {
+      await loadOrganizationMembers(orgValue, tokenOverride);
+    } else {
+      setOrganizationMembers([]);
+    }
+
+    await loadPendingInvitations(tokenOverride);
+
     addActivity(
       `Loaded ${materialsResult.count} materials, ${locationsResult.data.length} locations, ${suppliersResult.data.length} suppliers, ${purchaseOrdersResult.count} purchase orders.`
     );
@@ -823,7 +898,7 @@ export function LockstockWorkbench() {
         addActivity(`Workspace ready: ${selectedMembership.organization.name} (${selectedMembership.role}).`);
       }
 
-      await refreshCoreData(selectedMembership.organization.id, effectiveToken);
+      await refreshCoreData(selectedMembership.organization.id, effectiveToken, selectedMembership.role);
     } catch (error) {
       const message = (error as Error).message;
       if (isAuthTokenError(message)) {
@@ -857,7 +932,7 @@ export function LockstockWorkbench() {
         requireOrg: false
       });
       setOrganizations(organizationsResponse.data);
-      await refreshCoreData(response.data.id);
+      await refreshCoreData(response.data.id, undefined, "owner");
     } catch (error) {
       const message = (error as Error).message;
       if (isAuthTokenError(message)) {
@@ -886,6 +961,98 @@ export function LockstockWorkbench() {
       await refreshCoreData();
     } catch (error) {
       addActivity(`Create location failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleInviteMemberByEmail() {
+    if (!orgId) {
+      addActivity("Invite failed: no active organization.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const email = memberInviteEmail.trim().toLowerCase();
+      const response = await apiRequest<{
+        data: {
+          email: string;
+          expires_in_days: number;
+          email_delivery: "sent" | "skipped" | "failed";
+          email_delivery_message: string | null;
+        };
+      }>(`/api/organizations/${orgId}/members`, {
+        method: "POST",
+        body: { email }
+      });
+      setMemberInviteEmail("");
+      await loadOrganizationMembers();
+      const deliveryMessage =
+        response.data.email_delivery === "sent"
+          ? "Invitation email sent."
+          : response.data.email_delivery === "skipped"
+            ? response.data.email_delivery_message ?? "Email delivery skipped."
+            : response.data.email_delivery_message ?? "Email delivery failed.";
+      addActivity(`Invitation created: ${response.data.email}`);
+      addActivity(deliveryMessage);
+    } catch (error) {
+      addActivity(`Invite failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAcceptInvitation(invitation: PendingInvitation) {
+    try {
+      setBusy(true);
+      const response = await apiRequest<{ data: { org_id: string; organization_name: string; membership_role: string } }>(
+        `/api/invitations/${invitation.id}/accept`,
+        {
+          method: "POST",
+          requireOrg: false
+        }
+      );
+      addActivity(`Invitation accepted: joined ${response.data.organization_name} as ${response.data.membership_role}.`);
+      await bootstrapOrganizationContext({ announce: true });
+    } catch (error) {
+      addActivity(`Accept invitation failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRejectInvitation(invitation: PendingInvitation) {
+    try {
+      setBusy(true);
+      const response = await apiRequest<{ data: { organization_name: string } }>(`/api/invitations/${invitation.id}/reject`, {
+        method: "POST",
+        requireOrg: false
+      });
+      addActivity(`Invitation rejected: ${response.data.organization_name}.`);
+      await loadPendingInvitations();
+    } catch (error) {
+      addActivity(`Reject invitation failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRemoveOrganizationMember(userId: string) {
+    if (!orgId) {
+      addActivity("Remove member failed: no active organization.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await apiRequest(`/api/organizations/${orgId}/members/${userId}`, {
+        method: "DELETE"
+      });
+      await loadOrganizationMembers();
+      addActivity(`Organization member removed: ${userId}`);
+    } catch (error) {
+      addActivity(`Remove member failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -1168,7 +1335,8 @@ export function LockstockWorkbench() {
                 const nextOrgId = event.target.value;
                 setOrgId(nextOrgId);
                 addActivity(`Switched organization to ${nextOrgId}.`);
-                void refreshCoreData(nextOrgId);
+                const nextMembership = organizations.find((item) => item.organization.id === nextOrgId);
+                void refreshCoreData(nextOrgId, undefined, nextMembership?.role);
               }}
             >
               {organizations.map((item) => (
@@ -1217,6 +1385,179 @@ export function LockstockWorkbench() {
           </div>
         </div>
       </section>
+      ) : null}
+
+      {showMembersSection && canUseMembersScreen ? (
+        <section className="card">
+          <div className="title-row">
+            <div>
+              <h3>Organization Members</h3>
+            </div>
+          </div>
+
+          <div className="title-row">
+            <div>
+              <h4>Pending Invitations</h4>
+            </div>
+            <div className="actions">
+              <button type="button" disabled={busy || !accessToken} onClick={() => loadPendingInvitations()}>
+                Refresh Invitations
+              </button>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <th>Organization</th>
+                  <th>Role</th>
+                  <th>Expires</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingInvitations.length === 0 ? (
+                  <tr>
+                    <td colSpan={4}>No pending invitations.</td>
+                  </tr>
+                ) : (
+                  pendingInvitations.map((invitation) => (
+                    <tr key={invitation.id}>
+                      <td>{invitation.organization_name}</td>
+                      <td>{invitation.role}</td>
+                      <td>{new Date(invitation.expires_at).toLocaleDateString()}</td>
+                      <td>
+                        <div className="actions">
+                          <button type="button" disabled={busy} onClick={() => handleAcceptInvitation(invitation)}>
+                            Accept invitation to org {invitation.organization_name}
+                          </button>
+                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRejectInvitation(invitation)}>
+                            Reject invitation to org {invitation.organization_name}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="title-row">
+            <div>
+              <h4>My Organization Memberships</h4>
+            </div>
+            <div className="actions">
+              <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
+                Refresh Organizations
+              </button>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <th>Organization</th>
+                  <th>Your Role</th>
+                  <th>Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {organizations.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>No organizations in workspace yet.</td>
+                  </tr>
+                ) : (
+                  organizations.map((item) => (
+                    <tr key={item.organization.id}>
+                      <td>{item.organization.name}</td>
+                      <td>{item.role}</td>
+                      <td>{item.organization.id === orgId ? "Current" : "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {!activeMembership ? <p className="subtle-line">No active organization membership found.</p> : null}
+
+          {activeMembership && !canManageMembers ? (
+            <p className="subtle-line">Only organization owner can manage members in this MVP.</p>
+          ) : null}
+
+          {canManageMembers ? (
+            <>
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>Invite by email</span>
+                  <input
+                    value={memberInviteEmail}
+                    onChange={(event) => setMemberInviteEmail(event.target.value)}
+                    placeholder="new.user@example.com"
+                    type="email"
+                  />
+                </label>
+                <div className="actions">
+                  <button type="button" disabled={busy || !memberInviteEmail.trim()} onClick={handleInviteMemberByEmail}>
+                    Send Invitation
+                  </button>
+                </div>
+              </div>
+
+              <div className="actions">
+                <button type="button" disabled={busy} onClick={() => loadOrganizationMembers()}>
+                  Refresh Members
+                </button>
+              </div>
+
+              <div className="table-wrap">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>User ID</th>
+                      <th>Role</th>
+                      <th>Joined</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {organizationMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={4}>No organization members found.</td>
+                      </tr>
+                    ) : (
+                      organizationMembers.map((member) => (
+                        <tr key={member.user_id}>
+                          <td>{member.user_id}</td>
+                          <td>{member.role}</td>
+                          <td>{new Date(member.created_at).toLocaleDateString()}</td>
+                          <td>
+                            {member.role === "owner" ? (
+                              <span className="subtle-line">owner protected</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ghost-btn"
+                                disabled={busy}
+                                onClick={() => handleRemoveOrganizationMember(member.user_id)}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+            </>
+          ) : null}
+        </section>
       ) : null}
 
       {showLocationSection ? (
