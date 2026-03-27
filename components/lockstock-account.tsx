@@ -11,14 +11,15 @@ type ActivityEntry = {
   line: string;
 };
 
-type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders";
+type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string }> = [
   { href: "/inventory", label: "Inventory" },
   { href: "/materials", label: "Materials & Stock" },
   { href: "/locations", label: "Locations" },
   { href: "/vendors", label: "Vendors" },
-  { href: "/purchase-orders", label: "Purchase Orders" }
+  { href: "/purchase-orders", label: "Purchase Orders" },
+  { href: "/members", label: "Members" }
 ];
 
 export function LockstockAccount() {

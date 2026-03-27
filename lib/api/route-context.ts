@@ -66,6 +66,12 @@ export function requireMinRole(currentRole: Role, minimumRole: Role) {
   }
 }
 
+export function requireExactRole(currentRole: Role, requiredRole: Role) {
+  if (currentRole !== requiredRole) {
+    throw new ApiError(403, `This action requires ${requiredRole} role.`);
+  }
+}
+
 export async function requireUserInOrg(
   supabase: ReturnType<typeof getSupabaseUserClient>,
   orgId: string,

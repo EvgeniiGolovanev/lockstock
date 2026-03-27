@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { buildSignUpPayload } from "@/lib/auth/signup";
 
 type AuthMode = "signin" | "signup";
 
@@ -146,16 +147,15 @@ export function LockstockLanding() {
         return;
       }
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            company
-          }
-        }
-      });
+      const { data, error: signUpError } = await supabase.auth.signUp(
+        buildSignUpPayload({
+          email,
+          password,
+          fullName,
+          company,
+          appOrigin: window.location.origin
+        })
+      );
       if (signUpError) {
         throw signUpError;
       }
