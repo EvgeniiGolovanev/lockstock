@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
+import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type ActivityEntry = {
@@ -36,6 +37,7 @@ export function LockstockAccount() {
   const [accountConfirmPassword, setAccountConfirmPassword] = useState("");
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
 
   function addActivity(message: string) {
     const stamp = new Date().toLocaleTimeString();
@@ -67,6 +69,7 @@ export function LockstockAccount() {
 
           if (!data.session) {
             setSignedInAs("");
+            setAuthResolved(true);
             return;
           }
 
@@ -76,12 +79,14 @@ export function LockstockAccount() {
               user_metadata: data.session.user.user_metadata as Record<string, unknown>
             }
           });
+          setAuthResolved(true);
         })
         .catch(() => {
           if (unmounted) {
             return;
           }
           setSignedInAs("");
+          setAuthResolved(true);
         });
 
       const authListener = supabase.auth.onAuthStateChange((event, session) => {
@@ -96,6 +101,7 @@ export function LockstockAccount() {
               user_metadata: session.user.user_metadata as Record<string, unknown>
             }
           });
+          setAuthResolved(true);
         }
 
         if (event === "SIGNED_OUT") {
@@ -107,12 +113,14 @@ export function LockstockAccount() {
           setAccountJobTitle("");
           setAccountNewPassword("");
           setAccountConfirmPassword("");
+          setAuthResolved(true);
         }
       });
 
       unsubscribe = () => authListener.data.subscription.unsubscribe();
     } catch {
       addActivity("Supabase browser auth is not configured.");
+      setAuthResolved(true);
     }
 
     return () => {
@@ -120,6 +128,18 @@ export function LockstockAccount() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const redirectPath = getSignedOutRedirectPath({
+      pathname,
+      isAuthenticated: Boolean(signedInAs),
+      authResolved
+    });
+
+    if (redirectPath) {
+      router.replace(redirectPath);
+    }
+  }, [authResolved, pathname, router, signedInAs]);
 
   async function handleSignOut() {
     try {
