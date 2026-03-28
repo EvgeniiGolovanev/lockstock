@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   currencySymbol,
@@ -213,6 +214,7 @@ function PurchaseOrderMetaIcon({ icon }: { icon: PurchaseMetaIcon }) {
 
 export function LockstockWorkbench() {
   const pathname = usePathname();
+  const router = useRouter();
   const [baseUrl, setBaseUrl] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [orgId, setOrgId] = useState("");
@@ -273,6 +275,7 @@ export function LockstockWorkbench() {
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
 
   const normalizedBaseUrl = useMemo(() => baseUrl.replace(/\/+$/, ""), [baseUrl]);
@@ -433,6 +436,7 @@ export function LockstockWorkbench() {
               clearWorkspaceData();
               addActivity("No active Supabase session. Cleared saved token.");
             }
+            setAuthResolved(true);
             return;
           }
           applySessionState({
@@ -441,6 +445,7 @@ export function LockstockWorkbench() {
               email: data.session.user.email
             }
           });
+          setAuthResolved(true);
         })
         .catch(() => {
           if (unmounted) {
@@ -448,6 +453,7 @@ export function LockstockWorkbench() {
           }
           setAccessToken("");
           setSignedInAs("");
+          setAuthResolved(true);
         });
 
       const authListener = supabase.auth.onAuthStateChange((event, session) => {
@@ -462,18 +468,21 @@ export function LockstockWorkbench() {
               email: session.user.email
             }
           });
+          setAuthResolved(true);
         }
 
         if (event === "SIGNED_OUT") {
           setAccessToken("");
           setSignedInAs("");
           clearWorkspaceData();
+          setAuthResolved(true);
         }
       });
 
       unsubscribe = () => authListener.data.subscription.unsubscribe();
     } catch {
       addActivity("Supabase browser auth is not configured.");
+      setAuthResolved(true);
     }
 
     return () => {
@@ -481,6 +490,18 @@ export function LockstockWorkbench() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const redirectPath = getSignedOutRedirectPath({
+      pathname,
+      isAuthenticated: Boolean(signedInAs),
+      authResolved
+    });
+
+    if (redirectPath) {
+      router.replace(redirectPath);
+    }
+  }, [authResolved, pathname, router, signedInAs]);
 
   useEffect(() => {
     if (baseUrl) {
@@ -729,6 +750,7 @@ export function LockstockWorkbench() {
 
       setAccessToken(data.session.access_token);
       setSignedInAs(data.user?.email ?? email);
+      setAuthResolved(true);
       setPassword("");
       addActivity(`Signed in as ${data.user?.email ?? email}.`);
     } catch (error) {
@@ -753,7 +775,9 @@ export function LockstockWorkbench() {
       setAccessToken("");
       setSignedInAs("");
       clearWorkspaceData();
+      setAuthResolved(true);
       addActivity("Signed out.");
+      router.replace("/");
     } catch (error) {
       addActivity(`Logout failed: ${(error as Error).message}`);
     } finally {
