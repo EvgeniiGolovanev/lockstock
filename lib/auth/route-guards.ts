@@ -6,6 +6,18 @@ type SignedOutRedirectInput = {
   authResolved: boolean;
 };
 
+type SignedOutPanelVisibilityInput = {
+  isAuthenticated: boolean;
+  authResolved: boolean;
+};
+
+export function shouldShowSignedOutPanels({
+  isAuthenticated,
+  authResolved
+}: SignedOutPanelVisibilityInput): boolean {
+  return authResolved && !isAuthenticated;
+}
+
 export function getSignedOutRedirectPath({
   pathname,
   isAuthenticated,
