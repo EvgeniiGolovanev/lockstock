@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
+import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   currencySymbol,
@@ -395,8 +395,12 @@ export function LockstockWorkbench() {
   const showPurchaseOrderSection = pathname === "/purchase-orders";
   const showMembersSection = pathname === "/members";
   const showSnapshotSection = pathname === "/inventory";
-  const showAuthPanel = !signedInAs;
-  const showOrgCreatePanel = !signedInAs;
+  const showSignedOutPanels = shouldShowSignedOutPanels({
+    isAuthenticated: Boolean(signedInAs),
+    authResolved
+  });
+  const showAuthPanel = showSignedOutPanels;
+  const showOrgCreatePanel = showSignedOutPanels;
   const canUseMembersScreen = Boolean(accessToken);
 
   function applySessionState(session: { access_token: string; user: { email?: string | null } }) {
@@ -1371,15 +1375,19 @@ export function LockstockWorkbench() {
             </select>
           </label>
         ) : null}
-        <label className="field">
-          <span>Access Token (Supabase JWT)</span>
-          <input
-            value={accessToken}
-            onChange={(event) => setAccessToken(event.target.value)}
-            placeholder="eyJ..."
-            type="password"
-          />
-        </label>
+          <label className="field">
+            <span>Access Token (Supabase JWT)</span>
+            <input
+              value={accessToken}
+              onChange={(event) => setAccessToken(event.target.value)}
+              placeholder="eyJ..."
+              autoCapitalize="none"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              type="text"
+            />
+          </label>
         <div className="actions">
           <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
             Sync Workspace

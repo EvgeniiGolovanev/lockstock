@@ -1,5 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
+import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
+
+describe("shouldShowSignedOutPanels", () => {
+  it("keeps signed-out auth panels hidden until auth resolution completes", () => {
+    expect(
+      shouldShowSignedOutPanels({
+        isAuthenticated: false,
+        authResolved: false
+      })
+    ).toBe(false);
+  });
+
+  it("shows signed-out auth panels only after auth resolution confirms the user is signed out", () => {
+    expect(
+      shouldShowSignedOutPanels({
+        isAuthenticated: false,
+        authResolved: true
+      })
+    ).toBe(true);
+  });
+
+  it("keeps signed-out auth panels hidden for authenticated users", () => {
+    expect(
+      shouldShowSignedOutPanels({
+        isAuthenticated: true,
+        authResolved: true
+      })
+    ).toBe(false);
+  });
+});
 
 describe("getSignedOutRedirectPath", () => {
   it("does not redirect before auth resolution completes", () => {
