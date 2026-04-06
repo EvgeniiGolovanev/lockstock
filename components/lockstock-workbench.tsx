@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
+import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   currencySymbol,
@@ -12,7 +13,6 @@ import {
   formatCurrencyTotals,
   groupLocationsByWarehouse,
   inventoryMetrics,
-  materialLocationSummary,
   normalizePurchaseOrderCurrency,
   normalizeStatus,
   purchaseOrderDraftSummary,
@@ -29,7 +29,10 @@ type Material = {
   id: string;
   sku: string;
   name: string;
+  description?: string | null;
   uom: string;
+  category?: string | null;
+  subcategory?: string | null;
   min_stock: number;
   total_quantity?: number;
   primary_location?: string | null;
@@ -81,6 +84,26 @@ type PurchaseOrder = {
 
 type PurchaseOrderFilterStatus = "all" | PurchaseOrder["status"];
 type MaterialsTab = "create" | "add-stock";
+type ManualMovementReason = "adjustment" | "transfer";
+type MovementReason = ManualMovementReason | "purchase_receive" | "transfer_in" | "transfer_out" | "correction";
+
+type MaterialMovement = {
+  id: string;
+  quantity_delta: number;
+  reason: MovementReason;
+  note?: string | null;
+  created_at: string;
+  material: {
+    sku: string;
+    name: string;
+    uom: string;
+    category?: string | null;
+  } | null;
+  location: {
+    code: string | null;
+    name: string;
+  } | null;
+};
 
 type OrganizationMembership = {
   role: "owner" | "manager" | "member" | "viewer";
@@ -119,6 +142,7 @@ type PaginationMeta = {
 };
 
 const MATERIALS_PAGE_SIZE = 25;
+const MOVEMENTS_PAGE_SIZE = 25;
 const PURCHASE_ORDERS_PAGE_SIZE = 20;
 
 const STORAGE_KEYS = {
@@ -227,7 +251,10 @@ export function LockstockWorkbench() {
   const [locationCode, setLocationCode] = useState("MAIN");
   const [materialSku, setMaterialSku] = useState("MAT-001");
   const [materialName, setMaterialName] = useState("Cement");
+  const [materialDescription, setMaterialDescription] = useState("");
   const [materialUom, setMaterialUom] = useState("bag");
+  const [materialCategory, setMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
+  const [materialSubcategory, setMaterialSubcategory] = useState(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
   const [materialMinStock, setMaterialMinStock] = useState(10);
   const [supplierName, setSupplierName] = useState("Acme Supply");
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
@@ -240,8 +267,11 @@ export function LockstockWorkbench() {
 
   const [movementMaterialId, setMovementMaterialId] = useState("");
   const [movementLocationId, setMovementLocationId] = useState("");
+  const [movementFromLocationId, setMovementFromLocationId] = useState("");
+  const [movementToLocationId, setMovementToLocationId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState(1);
-  const [movementReason, setMovementReason] = useState("adjustment");
+  const [movementReason, setMovementReason] = useState<ManualMovementReason>("adjustment");
+  const [movementComment, setMovementComment] = useState("");
   const [poSupplierId, setPoSupplierId] = useState("");
   const [poMaterialId, setPoMaterialId] = useState("");
   const [poQuantityOrdered, setPoQuantityOrdered] = useState(1);
@@ -258,6 +288,8 @@ export function LockstockWorkbench() {
   const [inventoryCategory, setInventoryCategory] = useState("all");
   const [materialPage, setMaterialPage] = useState(1);
   const [materialTotal, setMaterialTotal] = useState(0);
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementTotal, setMovementTotal] = useState(0);
   const [poFilterStatus, setPoFilterStatus] = useState<PurchaseOrderFilterStatus>("all");
   const [poFilterSupplierId, setPoFilterSupplierId] = useState("all");
   const [poFilterQuery, setPoFilterQuery] = useState("");
@@ -265,6 +297,7 @@ export function LockstockWorkbench() {
   const [poTotal, setPoTotal] = useState(0);
 
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [materialMovements, setMaterialMovements] = useState<MaterialMovement[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -301,12 +334,15 @@ export function LockstockWorkbench() {
     const categories = Array.from(new Set(materials.map((material) => material.uom || "Uncategorized")));
     return ["all", ...categories];
   }, [materials]);
+  const availableMaterialSubcategories = useMemo(
+    () => getMaterialSubcategories(materialCategory),
+    [materialCategory]
+  );
   const inventoryRows = useMemo(
     () => filterInventoryRows(materials, materialFilterQuery, inventoryCategory),
     [inventoryCategory, materialFilterQuery, materials]
   );
   const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
-  const materialLocationRows = useMemo(() => materialLocationSummary(materials, 6), [materials]);
   const parsedLocations = useMemo(() => toParsedLocationRows(locations), [locations]);
   const locationWarehouseGroups = useMemo(() => groupLocationsByWarehouse(locations), [locations]);
   const locationsInUseCount = useMemo(() => {
@@ -369,6 +405,7 @@ export function LockstockWorkbench() {
     return supplierRows.filter((row) => row.name.toLowerCase().includes(query));
   }, [supplierRows, supplierSearch]);
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
+  const movementTotalPages = Math.max(1, Math.ceil(movementTotal / MOVEMENTS_PAGE_SIZE));
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
     if (pathname === "/materials") {
@@ -543,6 +580,18 @@ export function LockstockWorkbench() {
   }, [isOrgScopedReady, normalizedBaseUrl, materialFilterQuery, materialPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
+  // loadMaterialMovements is intentionally excluded to avoid dependency churn on function identity.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (!showMaterialSection || !isOrgScopedReady || !normalizedBaseUrl) {
+      return;
+    }
+    void loadMaterialMovements().catch((error) => {
+      addActivity(`Loading material movements failed: ${(error as Error).message}`);
+    });
+  }, [showMaterialSection, isOrgScopedReady, normalizedBaseUrl, orgId, movementPage]);
+  /* eslint-enable react-hooks/exhaustive-deps */
+
   // loadPurchaseOrders is intentionally excluded to avoid dependency churn on function identity.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
@@ -568,10 +617,42 @@ export function LockstockWorkbench() {
   }, [locations, movementLocationId]);
 
   useEffect(() => {
+    if (!movementFromLocationId && locations[0]) {
+      setMovementFromLocationId(locations[0].id);
+    }
+  }, [locations, movementFromLocationId]);
+
+  useEffect(() => {
+    if (movementToLocationId) {
+      return;
+    }
+    const fallbackLocation = locations.find((location) => location.id !== movementFromLocationId) ?? locations[0];
+    if (fallbackLocation) {
+      setMovementToLocationId(fallbackLocation.id);
+    }
+  }, [locations, movementFromLocationId, movementToLocationId]);
+
+  useEffect(() => {
+    if (movementReason !== "transfer" || movementFromLocationId !== movementToLocationId) {
+      return;
+    }
+    const fallbackLocation = locations.find((location) => location.id !== movementFromLocationId);
+    if (fallbackLocation) {
+      setMovementToLocationId(fallbackLocation.id);
+    }
+  }, [locations, movementFromLocationId, movementReason, movementToLocationId]);
+
+  useEffect(() => {
     if (!poSupplierId && suppliers[0]) {
       setPoSupplierId(suppliers[0].id);
     }
   }, [poSupplierId, suppliers]);
+
+  useEffect(() => {
+    if (!availableMaterialSubcategories.includes(materialSubcategory)) {
+      setMaterialSubcategory(availableMaterialSubcategories[0] ?? "");
+    }
+  }, [availableMaterialSubcategories, materialSubcategory]);
 
   useEffect(() => {
     if (!poMaterialId && materials[0]) {
@@ -610,12 +691,15 @@ export function LockstockWorkbench() {
     setOrganizationMembers([]);
     setPendingInvitations([]);
     setMaterials([]);
+    setMaterialMovements([]);
     setLocations([]);
     setSuppliers([]);
     setPurchaseOrders([]);
     setMaterialTotal(0);
+    setMovementTotal(0);
     setPoTotal(0);
     setMaterialPage(1);
+    setMovementPage(1);
     setPoPage(1);
     setStockHealth(null);
     setLowStockCount(null);
@@ -631,6 +715,26 @@ export function LockstockWorkbench() {
 
   function getPoProgress(po: PurchaseOrder) {
     return purchaseOrderProgress(po);
+  }
+
+  function formatMovementReason(reason: MovementReason) {
+    if (reason === "purchase_receive") {
+      return "Purchase Receive";
+    }
+    if (reason === "transfer" || reason === "transfer_in" || reason === "transfer_out") {
+      return "Transfer";
+    }
+    if (reason === "correction") {
+      return "Correction";
+    }
+    return "Adjustment";
+  }
+
+  function formatMovementLocation(location: MaterialMovement["location"]) {
+    if (!location) {
+      return "-";
+    }
+    return location.code ? `${location.code} - ${location.name}` : location.name;
   }
 
   function handleAddPoDraftLine() {
@@ -813,6 +917,30 @@ export function LockstockWorkbench() {
     return { count: response.data.length };
   }
 
+  async function loadMaterialMovements(targetOrgId?: string, tokenOverride?: string) {
+    const orgValue = targetOrgId ?? orgId;
+    if (!orgValue) {
+      return { count: 0 };
+    }
+
+    const params = new URLSearchParams({
+      page: String(movementPage),
+      limit: String(MOVEMENTS_PAGE_SIZE)
+    });
+
+    const response = await apiRequest<{ data: MaterialMovement[]; meta?: PaginationMeta }>(
+      `/api/stock/movements?${params.toString()}`,
+      {
+        orgOverride: orgValue,
+        tokenOverride
+      }
+    );
+
+    setMaterialMovements(response.data);
+    setMovementTotal(response.meta?.total ?? response.data.length);
+    return { count: response.data.length };
+  }
+
   async function loadPurchaseOrders(targetOrgId?: string, tokenOverride?: string) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
@@ -857,8 +985,9 @@ export function LockstockWorkbench() {
       return;
     }
 
-    const [materialsResult, locationsResult, suppliersResult, purchaseOrdersResult] = await Promise.all([
+    const [materialsResult, movementsResult, locationsResult, suppliersResult, purchaseOrdersResult] = await Promise.all([
       loadMaterials(orgValue, tokenOverride),
+      loadMaterialMovements(orgValue, tokenOverride),
       apiRequest<{ data: Location[] }>("/api/locations", { orgOverride: orgValue, tokenOverride }),
       apiRequest<{ data: Supplier[] }>("/api/suppliers", { orgOverride: orgValue, tokenOverride }),
       loadPurchaseOrders(orgValue, tokenOverride)
@@ -878,7 +1007,7 @@ export function LockstockWorkbench() {
     await loadPendingInvitations(tokenOverride);
 
     addActivity(
-      `Loaded ${materialsResult.count} materials, ${locationsResult.data.length} locations, ${suppliersResult.data.length} suppliers, ${purchaseOrdersResult.count} purchase orders.`
+      `Loaded ${materialsResult.count} materials, ${movementsResult.count} movements, ${locationsResult.data.length} locations, ${suppliersResult.data.length} suppliers, ${purchaseOrdersResult.count} purchase orders.`
     );
   }
 
@@ -1094,7 +1223,10 @@ export function LockstockWorkbench() {
         body: {
           sku: materialSku,
           name: materialName,
+          description: materialDescription.trim() || undefined,
           uom: materialUom,
+          category: materialCategory,
+          subcategory: materialSubcategory,
           min_stock: Number(materialMinStock)
         }
       });
@@ -1221,18 +1353,56 @@ export function LockstockWorkbench() {
   }
 
   async function handleCreateMovement() {
+    const trimmedComment = movementComment.trim();
+
     try {
+      if (!movementMaterialId) {
+        addActivity("Stock movement failed: select a material.");
+        return;
+      }
+      if (movementReason === "transfer") {
+        if (!movementFromLocationId || !movementToLocationId) {
+          addActivity("Stock movement failed: select both transfer locations.");
+          return;
+        }
+        if (movementFromLocationId === movementToLocationId) {
+          addActivity("Stock movement failed: transfer locations must be different.");
+          return;
+        }
+        if (Number(movementQuantity) <= 0) {
+          addActivity("Stock movement failed: transfer quantity must be greater than zero.");
+          return;
+        }
+      } else if (!movementLocationId || Number(movementQuantity) === 0) {
+        addActivity("Stock movement failed: select a location and non-zero quantity.");
+        return;
+      }
+
       setBusy(true);
       await apiRequest("/api/stock/movements", {
         method: "POST",
-        body: {
-          material_id: movementMaterialId,
-          location_id: movementLocationId,
-          quantity_delta: Number(movementQuantity),
-          reason: movementReason
-        }
+        body:
+          movementReason === "transfer"
+            ? {
+                material_id: movementMaterialId,
+                from_location_id: movementFromLocationId,
+                to_location_id: movementToLocationId,
+                quantity: Math.abs(Number(movementQuantity)),
+                reason: movementReason,
+                note: trimmedComment || undefined
+              }
+            : {
+                material_id: movementMaterialId,
+                location_id: movementLocationId,
+                quantity_delta: Number(movementQuantity),
+                reason: movementReason,
+                note: trimmedComment || undefined
+              }
       });
       addActivity("Stock movement recorded.");
+      setMovementComment("");
+      setMovementQuantity(1);
+      await refreshCoreData();
     } catch (error) {
       addActivity(`Stock movement failed: ${(error as Error).message}`);
     } finally {
@@ -1697,24 +1867,23 @@ export function LockstockWorkbench() {
           <h3>Materials & Stock Management</h3>
           <p className="subtle-line">Create materials and add stock to specific locations.</p>
 
-          <div className="materials-layout">
-            <div className="materials-main">
-              <div className="materials-tabs">
-                <button
-                  type="button"
-                  className={`tab-btn ${materialsTab === "create" ? "tab-btn-active" : ""}`}
-                  onClick={() => setMaterialsTab("create")}
-                >
-                  Create Material
-                </button>
-                <button
-                  type="button"
-                  className={`tab-btn ${materialsTab === "add-stock" ? "tab-btn-active" : ""}`}
-                  onClick={() => setMaterialsTab("add-stock")}
-                >
-                  Add to Stock
-                </button>
-              </div>
+          <div className="materials-main">
+            <div className="materials-tabs">
+              <button
+                type="button"
+                className={`tab-btn ${materialsTab === "create" ? "tab-btn-active" : ""}`}
+                onClick={() => setMaterialsTab("create")}
+              >
+                Create Material
+              </button>
+              <button
+                type="button"
+                className={`tab-btn ${materialsTab === "add-stock" ? "tab-btn-active" : ""}`}
+                onClick={() => setMaterialsTab("add-stock")}
+              >
+                Add to Stock
+              </button>
+            </div>
 
               {materialsTab === "create" ? (
                 <div className="materials-form-wrap">
@@ -1728,6 +1897,29 @@ export function LockstockWorkbench() {
                       <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
                     </label>
                     <label className="field">
+                      <span>Category</span>
+                      <select
+                        value={materialCategory}
+                        onChange={(event) => setMaterialCategory(event.target.value as MaterialCategory)}
+                      >
+                        {MATERIAL_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Subcategory</span>
+                      <select value={materialSubcategory} onChange={(event) => setMaterialSubcategory(event.target.value)}>
+                        {availableMaterialSubcategories.map((subcategory) => (
+                          <option key={subcategory} value={subcategory}>
+                            {subcategory}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
                       <span>Unit</span>
                       <input value={materialUom} onChange={(event) => setMaterialUom(event.target.value)} placeholder="pcs, kg, m, box" />
                     </label>
@@ -1738,6 +1930,15 @@ export function LockstockWorkbench() {
                         min={0}
                         value={materialMinStock}
                         onChange={(event) => setMaterialMinStock(Number(event.target.value))}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Description</span>
+                      <textarea
+                        value={materialDescription}
+                        maxLength={256}
+                        rows={3}
+                        onChange={(event) => setMaterialDescription(event.target.value)}
                       />
                     </label>
                   </div>
@@ -1761,41 +1962,82 @@ export function LockstockWorkbench() {
                         ))}
                       </select>
                     </label>
+                    {movementReason === "transfer" ? (
+                      <>
+                        <label className="field">
+                          <span>Transfer out</span>
+                          <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
+                            <option value="">Select location</option>
+                            {locations.map((location) => (
+                              <option key={location.id} value={location.id}>
+                                {location.code ? `${location.code} - ` : ""}
+                                {location.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Transfer in</span>
+                          <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
+                            <option value="">Select location</option>
+                            {locations.map((location) => (
+                              <option key={location.id} value={location.id}>
+                                {location.code ? `${location.code} - ` : ""}
+                                {location.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </>
+                    ) : (
+                      <label className="field">
+                        <span>Location</span>
+                        <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
+                          <option value="">Select location</option>
+                          {locations.map((location) => (
+                            <option key={location.id} value={location.id}>
+                              {location.code ? `${location.code} - ` : ""}
+                              {location.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <label className="field">
-                      <span>Location</span>
-                      <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
-                        <option value="">Select location</option>
-                        {locations.map((location) => (
-                          <option key={location.id} value={location.id}>
-                            {location.code ? `${location.code} - ` : ""}
-                            {location.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Quantity Delta</span>
+                      <span>{movementReason === "transfer" ? "Quantity" : "Quantity Delta"}</span>
                       <input
                         type="number"
+                        min={movementReason === "transfer" ? 1 : undefined}
                         value={movementQuantity}
                         onChange={(event) => setMovementQuantity(Number(event.target.value))}
                       />
                     </label>
                     <label className="field">
                       <span>Reason</span>
-                      <select value={movementReason} onChange={(event) => setMovementReason(event.target.value)}>
+                      <select value={movementReason} onChange={(event) => setMovementReason(event.target.value as ManualMovementReason)}>
                         <option value="adjustment">Adjustment</option>
-                        <option value="transfer_in">Transfer In</option>
-                        <option value="transfer_out">Transfer Out</option>
-                        <option value="purchase_receive">Purchase Receive</option>
-                        <option value="correction">Correction</option>
+                        <option value="transfer">Transfer</option>
                       </select>
+                    </label>
+                    <label className="field">
+                      <span>Comments</span>
+                      <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
                     </label>
                   </div>
                   <div className="actions">
                     <button
                       type="button"
-                      disabled={busy || !isOrgScopedReady || !movementMaterialId || !movementLocationId}
+                      disabled={
+                        busy ||
+                        !isOrgScopedReady ||
+                        !movementMaterialId ||
+                        (movementReason === "transfer"
+                          ? !movementFromLocationId ||
+                            !movementToLocationId ||
+                            movementFromLocationId === movementToLocationId ||
+                            Number(movementQuantity) <= 0
+                          : !movementLocationId || Number(movementQuantity) === 0)
+                      }
                       onClick={handleCreateMovement}
                     >
                       Add to Stock
@@ -1803,87 +2045,46 @@ export function LockstockWorkbench() {
                   </div>
                 </div>
               )}
-            </div>
-
-            <aside className="materials-side">
-              <div className="side-card">
-                <h4>Materials Overview</h4>
-                <p>
-                  Total Materials <strong>{materials.length}</strong>
-                </p>
-                <p>
-                  In Stock <strong>{materials.filter((item) => Number(item.total_quantity ?? 0) > 0).length}</strong>
-                </p>
-                <p>
-                  Locations Used <strong>{materialLocationRows.filter((row) => row.location !== "Unassigned").length}</strong>
-                </p>
-              </div>
-              <div className="side-card">
-                <h4>Stock by Location</h4>
-                {materialLocationRows.length === 0 ? <p className="subtle-line">No materials yet.</p> : null}
-                {materialLocationRows.map((row) => (
-                  <div key={row.location} className="location-line">
-                    <span>{row.location}</span>
-                    <strong>{row.count}</strong>
-                  </div>
-                ))}
-              </div>
-            </aside>
-          </div>
+	          </div>
 
           <div className="materials-table-head">
-            <label className="field">
-              <span>Material Search</span>
-              <input
-                value={materialFilterQuery}
-                onChange={(event) => {
-                  setMaterialFilterQuery(event.target.value);
-                  setMaterialPage(1);
-                }}
-                placeholder="Filter by SKU or name"
-              />
-            </label>
             <div className="field">
-              <span>Material Page</span>
+              <span>Material movements</span>
               <p className="subtle-line">
-                Page {materialPage} / {materialTotalPages} ({materialTotal} total)
+                Page {movementPage} / {movementTotalPages} ({movementTotal} total)
               </p>
             </div>
           </div>
 
-          {materials.length === 0 ? (
-            <p>No materials on this page.</p>
+          {materialMovements.length === 0 ? (
+            <p>No material movements yet.</p>
           ) : (
             <div className="table-wrap">
               <table className="compact-table">
                 <thead>
                   <tr>
-                    <th>SKU</th>
-                    <th>Name</th>
-                    <th>Category</th>
-                    <th>Quantity</th>
-                    <th>Min Stock</th>
+                    <th>Date & Time</th>
+                    <th>Material</th>
                     <th>Location</th>
-                    <th>Status</th>
+                    <th>Quantity</th>
+                    <th>UoM</th>
+                    <th>Category</th>
+                    <th>Reason</th>
+                    <th>Comments</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {materials.map((material) => {
-                    const quantity = Number(material.total_quantity ?? 0);
-                    const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+                  {materialMovements.map((movement) => {
                     return (
-                      <tr key={material.id}>
-                        <td>{material.sku}</td>
-                        <td>{material.name}</td>
-                        <td>{material.uom}</td>
-                        <td>{quantity.toLocaleString()}</td>
-                        <td>{material.min_stock}</td>
-                        <td>{material.primary_location ?? "-"}</td>
-                        <td>
-                          <span className={`status-pill status-${status}`}>
-                            {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
-                          </span>
-                        </td>
+                      <tr key={movement.id}>
+                        <td>{new Date(movement.created_at).toLocaleString()}</td>
+                        <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
+                        <td>{formatMovementLocation(movement.location)}</td>
+                        <td>{Number(movement.quantity_delta).toLocaleString()}</td>
+                        <td>{movement.material?.uom ?? "-"}</td>
+                        <td>{movement.material?.category ?? "-"}</td>
+                        <td>{formatMovementReason(movement.reason)}</td>
+                        <td>{movement.note?.trim() ? movement.note : "-"}</td>
                       </tr>
                     );
                   })}
@@ -1892,15 +2093,15 @@ export function LockstockWorkbench() {
             </div>
           )}
           <div className="actions">
-            <button type="button" disabled={busy || materialPage <= 1} onClick={() => setMaterialPage((prev) => Math.max(1, prev - 1))}>
-              Previous Materials
+            <button type="button" disabled={busy || movementPage <= 1} onClick={() => setMovementPage((prev) => Math.max(1, prev - 1))}>
+              Previous
             </button>
             <button
               type="button"
-              disabled={busy || materialPage >= materialTotalPages}
-              onClick={() => setMaterialPage((prev) => Math.min(materialTotalPages, prev + 1))}
+              disabled={busy || movementPage >= movementTotalPages}
+              onClick={() => setMovementPage((prev) => Math.min(movementTotalPages, prev + 1))}
             >
-              Next Materials
+              Next
             </button>
           </div>
         </section>
@@ -2633,7 +2834,7 @@ export function LockstockWorkbench() {
                 <select value={inventoryCategory} onChange={(event) => setInventoryCategory(event.target.value)}>
                   {inventoryCategories.map((category) => (
                     <option key={category} value={category}>
-                      {category === "all" ? "All Categories" : category}
+                      {category === "all" ? "All UoM" : category}
                     </option>
                   ))}
                 </select>
@@ -2651,7 +2852,7 @@ export function LockstockWorkbench() {
                     <tr>
                       <th>Item Name</th>
                       <th>SKU</th>
-                      <th>Category</th>
+                      <th>Unit of Measure</th>
                       <th>Quantity</th>
                       <th>Price</th>
                       <th>Location</th>

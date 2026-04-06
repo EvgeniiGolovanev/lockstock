@@ -3,6 +3,9 @@ export type MaterialRow = {
   sku: string;
   name: string;
   uom: string;
+  category?: string | null;
+  subcategory?: string | null;
+  description?: string | null;
   min_stock: number;
   total_quantity?: number;
   primary_location?: string | null;
