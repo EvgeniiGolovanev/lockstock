@@ -91,4 +91,38 @@ describe("POST /api/materials auth and role enforcement", () => {
     expect(body.error).toContain("manager");
     expect(supabase.materialsTable.insert).not.toHaveBeenCalled();
   });
+
+  it("allows manager to create a material with category metadata", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    const supabase = createSupabaseForRole("manager");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/materials", {
+      method: "POST",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sku: "MAT-001",
+        name: "Cement",
+        description: "Gray cement for slab work",
+        uom: "bag",
+        category: "Structural & Building Materials",
+        subcategory: "Concrete & cement",
+        min_stock: 10
+      })
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(201);
+    expect(supabase.materialsTable.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        org_id: orgId,
+        created_by: "user-1",
+        description: "Gray cement for slab work",
+        category: "Structural & Building Materials",
+        subcategory: "Concrete & cement"
+      })
+    );
+  });
 });

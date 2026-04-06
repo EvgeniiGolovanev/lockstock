@@ -12,6 +12,17 @@ export class ApiError extends Error {
   }
 }
 
+type DatabaseLikeError = {
+  message: string;
+  details?: unknown;
+  hint?: unknown;
+  code?: unknown;
+};
+
+function isDatabaseLikeError(error: unknown): error is DatabaseLikeError {
+  return typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string";
+}
+
 export function handleApiError(error: unknown) {
   if (error instanceof ApiError) {
     return NextResponse.json(
@@ -30,6 +41,20 @@ export function handleApiError(error: unknown) {
         details: error.flatten()
       },
       { status: 400 }
+    );
+  }
+
+  if (isDatabaseLikeError(error)) {
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        error: error.message,
+        details: error.details ?? null,
+        hint: error.hint ?? null,
+        code: error.code ?? null
+      },
+      { status: 500 }
     );
   }
 
