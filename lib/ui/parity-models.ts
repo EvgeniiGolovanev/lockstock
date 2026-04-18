@@ -36,16 +36,23 @@ export type MaterialLocationSummary = {
   count: number;
 };
 
+export type LocationSkuAlertCount = {
+  lowStock: number;
+  outOfStock: number;
+};
+
 export type LocationRow = {
   id: string;
   name: string;
   code?: string | null;
+  address?: string | null;
 };
 
 export type ParsedLocationRow = {
   id: string;
   name: string;
   code?: string | null;
+  address?: string | null;
   warehouse: string;
   zone: string;
 };
@@ -328,6 +335,61 @@ export function materialLocationSummary(materials: MaterialRow[], max = 5): Mate
     .map(([location, count]) => ({ location, count }))
     .sort((a, b) => b.count - a.count || a.location.localeCompare(b.location))
     .slice(0, Math.max(1, max));
+}
+
+export function formatLocationLabel(location: Pick<LocationRow, "name" | "code">): string {
+  return `${location.code ? `${location.code} - ` : ""}${location.name}`;
+}
+
+export function buildLocationSkuAlertCounts(
+  locations: LocationRow[],
+  materials: MaterialRow[]
+): Record<string, LocationSkuAlertCount> {
+  const counts = Object.fromEntries(
+    locations.map((location) => [location.id, { lowStock: 0, outOfStock: 0 }])
+  ) as Record<string, LocationSkuAlertCount>;
+
+  const locationIdByLabel = new Map<string, string>();
+  for (const location of locations) {
+    locationIdByLabel.set(formatLocationLabel(location), location.id);
+    locationIdByLabel.set(location.name, location.id);
+  }
+
+  const seenLowStockByLocation = new Map<string, Set<string>>();
+  const seenOutOfStockByLocation = new Map<string, Set<string>>();
+
+  for (const material of materials) {
+    const rawLocation = material.primary_location?.trim();
+    if (!rawLocation) {
+      continue;
+    }
+
+    const locationId = locationIdByLabel.get(rawLocation);
+    if (!locationId) {
+      continue;
+    }
+
+    const skuKey = material.sku || material.id;
+    if (material.stock_status === "low-stock") {
+      const seen = seenLowStockByLocation.get(locationId) ?? new Set<string>();
+      if (!seen.has(skuKey)) {
+        seen.add(skuKey);
+        seenLowStockByLocation.set(locationId, seen);
+        counts[locationId].lowStock += 1;
+      }
+    }
+
+    if (material.stock_status === "out-of-stock") {
+      const seen = seenOutOfStockByLocation.get(locationId) ?? new Set<string>();
+      if (!seen.has(skuKey)) {
+        seen.add(skuKey);
+        seenOutOfStockByLocation.set(locationId, seen);
+        counts[locationId].outOfStock += 1;
+      }
+    }
+  }
+
+  return counts;
 }
 
 export function splitLocationName(name: string) {

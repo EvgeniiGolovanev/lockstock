@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
         org_id: orgId,
         name: payload.name,
         code: payload.code ?? null,
+        address: payload.address ? payload.address : null,
         is_active: payload.is_active
       })
       .select("*")
