@@ -65,6 +65,9 @@ export type LocationWarehouseGroup = {
 export type SupplierRow = {
   id: string;
   name: string;
+  vendor_number?: number | null;
+  phone?: string | null;
+  address?: string | null;
   lead_time_days: number;
 };
 
@@ -78,6 +81,9 @@ export type VendorMetrics = {
 export type SupplierOrderStatRow = {
   supplierId: string;
   name: string;
+  vendorNumber: number | null;
+  phone: string;
+  address: string;
   leadTimeDays: number;
   totalOrders: number;
   openOrders: number;
@@ -507,6 +513,9 @@ export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: Pur
     return {
       supplierId: supplier.id,
       name: supplier.name,
+      vendorNumber: supplier.vendor_number ?? null,
+      phone: supplier.phone?.trim() ?? "",
+      address: supplier.address?.trim() ?? "",
       leadTimeDays: Number(supplier.lead_time_days || 0),
       totalOrders: stats?.totalOrders ?? 0,
       openOrders: stats?.openOrders ?? 0,
@@ -527,6 +536,9 @@ export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: Pur
     .map((row) => ({
       supplierId: row.supplierId,
       name: row.name,
+      vendorNumber: null,
+      phone: "",
+      address: "",
       leadTimeDays: 0,
       totalOrders: row.totalOrders,
       openOrders: row.openOrders,

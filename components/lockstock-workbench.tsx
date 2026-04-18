@@ -7,6 +7,13 @@ import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
+  DEFAULT_PHONE_COUNTRY_CODE,
+  PHONE_COUNTRY_CODES,
+  buildPhoneNumber,
+  formatVendorNumber,
+  splitPhoneNumber
+} from "@/lib/ui/vendor-fields";
+import {
   buildLocationSkuAlertCounts,
   currencySymbol,
   filterInventoryRows,
@@ -20,8 +27,7 @@ import {
   type PurchaseOrderCurrency,
   purchaseOrderOverview,
   purchaseOrderProgress,
-  supplierOrderStats,
-  vendorMetrics
+  supplierOrderStats
 } from "@/lib/ui/parity-models";
 
 type Material = {
@@ -54,8 +60,12 @@ type StockHealth = {
 
 type Supplier = {
   id: string;
+  vendor_number: number | null;
   name: string;
+  phone?: string | null;
+  address?: string | null;
   lead_time_days: number;
+  created_at: string;
 };
 
 type PurchaseOrderLine = {
@@ -257,11 +267,16 @@ export function LockstockWorkbench() {
   const [materialCategory, setMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
   const [materialSubcategory, setMaterialSubcategory] = useState(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
   const [materialMinStock, setMaterialMinStock] = useState(10);
+  const [supplierVendorNumber, setSupplierVendorNumber] = useState<number | null>(null);
   const [supplierName, setSupplierName] = useState("Acme Supply");
+  const [supplierPhoneCountryCode, setSupplierPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
+  const [supplierPhoneNumber, setSupplierPhoneNumber] = useState("");
+  const [supplierAddress, setSupplierAddress] = useState("");
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
   const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("create");
@@ -391,14 +406,18 @@ export function LockstockWorkbench() {
     }
     return USD > 0 ? "$" : "€";
   }, [poOverview.totalValueByCurrency]);
-  const vendorKpis = useMemo(() => vendorMetrics(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
   const supplierRows = useMemo(() => supplierOrderStats(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
+  const supplierById = useMemo(() => new Map(suppliers.map((supplier) => [supplier.id, supplier])), [suppliers]);
   const filteredSupplierRows = useMemo(() => {
     const query = supplierSearch.trim().toLowerCase();
     if (!query) {
       return supplierRows;
     }
-    return supplierRows.filter((row) => row.name.toLowerCase().includes(query));
+    return supplierRows.filter((row) =>
+      [row.name, row.phone, row.address, formatVendorNumber(row.vendorNumber)]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query))
+    );
   }, [supplierRows, supplierSearch]);
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
   const movementTotalPages = Math.max(1, Math.ceil(movementTotal / MOVEMENTS_PAGE_SIZE));
@@ -761,6 +780,38 @@ export function LockstockWorkbench() {
     setPoDraftLines([]);
     setPoQuantityOrdered(1);
     setPoUnitPrice(0);
+  }
+
+  function resetSupplierForm() {
+    setEditingSupplierId(null);
+    setSupplierVendorNumber(null);
+    setSupplierName("Acme Supply");
+    setSupplierPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
+    setSupplierPhoneNumber("");
+    setSupplierAddress("");
+    setSupplierLeadTime(5);
+  }
+
+  function openCreateSupplierForm() {
+    resetSupplierForm();
+    setShowSupplierForm(true);
+  }
+
+  function openEditSupplierForm(supplier: Supplier) {
+    const { countryCode, localNumber } = splitPhoneNumber(supplier.phone);
+    setEditingSupplierId(supplier.id);
+    setSupplierVendorNumber(supplier.vendor_number ?? null);
+    setSupplierName(supplier.name);
+    setSupplierPhoneCountryCode(countryCode);
+    setSupplierPhoneNumber(localNumber);
+    setSupplierAddress(supplier.address ?? "");
+    setSupplierLeadTime(Number(supplier.lead_time_days || 0));
+    setShowSupplierForm(true);
+  }
+
+  function closeSupplierForm() {
+    setShowSupplierForm(false);
+    resetSupplierForm();
   }
 
   async function apiRequest<T>(
@@ -1236,21 +1287,38 @@ export function LockstockWorkbench() {
     }
   }
 
-  async function handleCreateSupplier() {
+  async function handleSaveSupplier() {
     try {
       setBusy(true);
-      await apiRequest("/api/suppliers", {
-        method: "POST",
-        body: {
-          name: supplierName,
-          lead_time_days: Number(supplierLeadTime)
-        }
-      });
-      addActivity("Supplier created.");
-      setShowSupplierForm(false);
+      const payload = {
+        name: supplierName,
+        phone: buildPhoneNumber(supplierPhoneCountryCode, supplierPhoneNumber),
+        address: supplierAddress.trim() || undefined,
+        lead_time_days: Number(supplierLeadTime)
+      };
+
+      if (editingSupplierId) {
+        await apiRequest(`/api/suppliers/${editingSupplierId}`, {
+          method: "PATCH",
+          body: payload
+        });
+        addActivity("Supplier updated.");
+      } else {
+        await apiRequest("/api/suppliers", {
+          method: "POST",
+          body: payload
+        });
+        addActivity("Supplier created.");
+      }
+
+      closeSupplierForm();
       await refreshCoreData();
     } catch (error) {
-      addActivity(`Create supplier failed: ${(error as Error).message}`);
+      addActivity(
+        editingSupplierId
+          ? `Update supplier failed: ${(error as Error).message}`
+          : `Create supplier failed: ${(error as Error).message}`
+      );
     } finally {
       setBusy(false);
     }
@@ -2093,95 +2161,121 @@ export function LockstockWorkbench() {
               <h3>Vendor Management</h3>
               <p className="subtle-line">Manage your material suppliers and vendors.</p>
             </div>
-            <button type="button" onClick={() => setShowSupplierForm(true)}>
+            <button type="button" onClick={openCreateSupplierForm}>
               Add Vendor
             </button>
-          </div>
-
-          <div className="kpi-grid kpi-grid-3">
-            <div className="kpi-card">
-              <p>Total Vendors</p>
-              <strong>{vendorKpis.totalSuppliers}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Average Lead Time</p>
-              <strong>{vendorKpis.averageLeadTimeDays}d</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Open Orders</p>
-              <strong>{vendorKpis.openOrders}</strong>
-            </div>
           </div>
 
           <div className="vendors-table-head">
             <label className="field">
               <span>Search Vendor</span>
-              <input
-                value={supplierSearch}
-                onChange={(event) => setSupplierSearch(event.target.value)}
-                placeholder="Filter by vendor name"
-              />
-            </label>
-          </div>
+                <input
+                  value={supplierSearch}
+                  onChange={(event) => setSupplierSearch(event.target.value)}
+                  placeholder="Filter by vendor name, ID, phone, or address"
+                />
+              </label>
+            </div>
 
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
+                  <th>Vendor ID</th>
                   <th>Vendor Name</th>
+                  <th>Phone</th>
+                  <th>Address</th>
                   <th>Lead Time (days)</th>
                   <th>Open POs</th>
                   <th>Received POs</th>
                   <th>Total POs</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSupplierRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>No suppliers created yet.</td>
+                    <td colSpan={9}>No suppliers created yet.</td>
                   </tr>
                 ) : (
-                  filteredSupplierRows.map((supplier) => (
-                    <tr key={supplier.supplierId}>
-                      <td>{supplier.name}</td>
-                      <td>{supplier.leadTimeDays}</td>
-                      <td>{supplier.openOrders}</td>
-                      <td>{supplier.receivedOrders}</td>
-                      <td>{supplier.totalOrders}</td>
-                    </tr>
-                  ))
+                  filteredSupplierRows.map((supplier) => {
+                    const editableSupplier = supplierById.get(supplier.supplierId);
+                    return (
+                      <tr key={supplier.supplierId}>
+                        <td className="mono-line">{formatVendorNumber(supplier.vendorNumber) || "-"}</td>
+                        <td>{supplier.name}</td>
+                        <td>{supplier.phone || "-"}</td>
+                        <td>{supplier.address || "-"}</td>
+                        <td>{supplier.leadTimeDays}</td>
+                        <td>{supplier.openOrders}</td>
+                        <td>{supplier.receivedOrders}</td>
+                        <td>{supplier.totalOrders}</td>
+                        <td>
+                          {editableSupplier ? (
+                            <button type="button" className="ghost-btn" onClick={() => openEditSupplierForm(editableSupplier)}>
+                              Edit
+                            </button>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
-          <div className="vendors-grid">
-            {filteredSupplierRows.slice(0, 6).map((supplier) => (
-              <article key={`card-${supplier.supplierId}`} className="vendor-card">
-                <h4>{supplier.name}</h4>
-                <p className="subtle-line">Lead Time: {supplier.leadTimeDays} days</p>
-                <div className="vendor-card-stats">
-                  <span>Open: {supplier.openOrders}</span>
-                  <span>Received: {supplier.receivedOrders}</span>
-                  <span>Total: {supplier.totalOrders}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-
           {showSupplierForm ? (
-            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add vendor">
+            <div
+              className="modal-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingSupplierId ? "Edit vendor" : "Add vendor"}
+            >
               <div className="modal-card">
                 <div className="title-row">
-                  <h4>Add Vendor</h4>
-                  <button type="button" className="ghost-btn" onClick={() => setShowSupplierForm(false)}>
+                  <h4>{editingSupplierId ? "Edit Vendor" : "Add Vendor"}</h4>
+                  <button type="button" className="ghost-btn" onClick={closeSupplierForm}>
                     Close
                   </button>
                 </div>
                 <div className="grid grid-2">
                   <label className="field">
+                    <span>Vendor ID</span>
+                    <input
+                      readOnly
+                      value={formatVendorNumber(supplierVendorNumber)}
+                      placeholder="Assigned automatically"
+                    />
+                    <p className="subtle-line">Assigned automatically and cannot be changed.</p>
+                  </label>
+                  <label className="field">
                     <span>Name</span>
                     <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
+                  </label>
+                  <label className="field field-span-2">
+                    <span>Phone</span>
+                    <div className="phone-input-row">
+                      <select
+                        value={supplierPhoneCountryCode}
+                        onChange={(event) => setSupplierPhoneCountryCode(event.target.value)}
+                      >
+                        {PHONE_COUNTRY_CODES.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={supplierPhoneNumber}
+                        onChange={(event) => setSupplierPhoneNumber(event.target.value)}
+                        placeholder="6 12 34 56 78"
+                      />
+                    </div>
                   </label>
                   <label className="field">
                     <span>Lead Time (days)</span>
@@ -2192,10 +2286,23 @@ export function LockstockWorkbench() {
                       onChange={(event) => setSupplierLeadTime(Number(event.target.value))}
                     />
                   </label>
+                  <label className="field field-span-2">
+                    <span>Address</span>
+                    <textarea
+                      maxLength={256}
+                      rows={3}
+                      value={supplierAddress}
+                      onChange={(event) => setSupplierAddress(event.target.value)}
+                    />
+                  </label>
                 </div>
                 <div className="actions">
-                  <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateSupplier}>
-                    Create Supplier
+                  <button
+                    type="button"
+                    disabled={busy || !isOrgScopedReady || !supplierName.trim()}
+                    onClick={handleSaveSupplier}
+                  >
+                    {editingSupplierId ? "Update Vendor" : "Create Supplier"}
                   </button>
                 </div>
               </div>

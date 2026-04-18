@@ -78,8 +78,22 @@ const purchaseOrders: PurchaseOrderRow[] = [
 ];
 
 const suppliers: SupplierRow[] = [
-  { id: "s1", name: "Alpha Supplies", lead_time_days: 7 },
-  { id: "s2", name: "Beta Trade", lead_time_days: 3 }
+  {
+    id: "s1",
+    name: "Alpha Supplies",
+    vendor_number: 1,
+    phone: "+33 6 12 34 56 78",
+    address: "12 Rue Alpha",
+    lead_time_days: 7
+  },
+  {
+    id: "s2",
+    name: "Beta Trade",
+    vendor_number: 2,
+    phone: "+1 415 555 0100",
+    address: "45 Market Street",
+    lead_time_days: 3
+  }
 ];
 
 describe("parity models", () => {
@@ -345,17 +359,26 @@ describe("parity models", () => {
 
     expect(rows[0]).toMatchObject({
       supplierId: "s1",
+      vendorNumber: 1,
       name: "Alpha Supplies",
+      phone: "+33 6 12 34 56 78",
+      address: "12 Rue Alpha",
       totalOrders: 2,
       openOrders: 1,
       receivedOrders: 1
     });
     expect(rows.find((row) => row.name === "Beta Trade")).toMatchObject({
+      vendorNumber: 2,
+      phone: "+1 415 555 0100",
+      address: "45 Market Street",
       totalOrders: 0,
       openOrders: 0,
       receivedOrders: 0
     });
     expect(rows.find((row) => row.name === "Unknown Vendor")).toMatchObject({
+      vendorNumber: null,
+      phone: "",
+      address: "",
       totalOrders: 1,
       openOrders: 1,
       receivedOrders: 0
