@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildLocationSkuAlertCounts,
   currencySymbol,
   filterInventoryRows,
   formatCurrencyAmount,
@@ -294,6 +295,30 @@ describe("parity models", () => {
     expect(groups[0].warehouse).toBe("Warehouse A");
     expect(groups[0].locations.map((location) => location.zone)).toEqual(["Zone 1", "Zone 2"]);
     expect(groups[1].warehouse).toBe("Warehouse B");
+  });
+
+  it("builds per-location low-stock and out-of-stock SKU counters", () => {
+    const counts = buildLocationSkuAlertCounts(
+      [
+        { id: "l1", name: "Main Warehouse", code: "MAIN" },
+        { id: "l2", name: "Overflow", code: null },
+        { id: "l3", name: "Remote", code: "REM" }
+      ],
+      [
+        { ...materials[0], id: "m10", sku: "SKU-1", primary_location: "MAIN - Main Warehouse", stock_status: "low-stock" },
+        { ...materials[0], id: "m11", sku: "SKU-2", primary_location: "MAIN - Main Warehouse", stock_status: "out-of-stock" },
+        { ...materials[0], id: "m12", sku: "SKU-3", primary_location: "Overflow", stock_status: "out-of-stock" },
+        { ...materials[0], id: "m13", sku: "SKU-3", primary_location: "Overflow", stock_status: "out-of-stock" },
+        { ...materials[0], id: "m14", sku: "SKU-4", primary_location: "REM - Remote", stock_status: "in-stock" },
+        { ...materials[0], id: "m15", sku: "SKU-5", primary_location: null, stock_status: "out-of-stock" }
+      ]
+    );
+
+    expect(counts).toEqual({
+      l1: { lowStock: 1, outOfStock: 1 },
+      l2: { lowStock: 0, outOfStock: 1 },
+      l3: { lowStock: 0, outOfStock: 0 }
+    });
   });
 
   it("computes vendor metrics", () => {

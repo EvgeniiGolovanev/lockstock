@@ -150,6 +150,7 @@ const FR_TRANSLATIONS: Record<string, string> = {
   "Add New Location": "Ajouter un nouvel emplacement",
   "Location Name": "Nom de l'emplacement",
   Code: "Code",
+  Address: "Adresse",
   "Create Location": "Creer l'emplacement",
   "Create Material": "Creer un materiau",
   "Add to Stock": "Ajouter au stock",

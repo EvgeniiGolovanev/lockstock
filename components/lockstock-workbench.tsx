@@ -7,11 +7,11 @@ import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
+  buildLocationSkuAlertCounts,
   currencySymbol,
   filterInventoryRows,
   formatCurrencyAmount,
   formatCurrencyTotals,
-  groupLocationsByWarehouse,
   inventoryMetrics,
   normalizePurchaseOrderCurrency,
   normalizeStatus,
@@ -21,7 +21,6 @@ import {
   purchaseOrderOverview,
   purchaseOrderProgress,
   supplierOrderStats,
-  toParsedLocationRows,
   vendorMetrics
 } from "@/lib/ui/parity-models";
 
@@ -43,6 +42,7 @@ type Location = {
   id: string;
   name: string;
   code: string | null;
+  address?: string | null;
 };
 
 type StockHealth = {
@@ -249,6 +249,7 @@ export function LockstockWorkbench() {
 
   const [locationName, setLocationName] = useState("Main Warehouse");
   const [locationCode, setLocationCode] = useState("MAIN");
+  const [locationAddress, setLocationAddress] = useState("");
   const [materialSku, setMaterialSku] = useState("MAT-001");
   const [materialName, setMaterialName] = useState("Cement");
   const [materialDescription, setMaterialDescription] = useState("");
@@ -343,12 +344,7 @@ export function LockstockWorkbench() {
     [inventoryCategory, materialFilterQuery, materials]
   );
   const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
-  const parsedLocations = useMemo(() => toParsedLocationRows(locations), [locations]);
-  const locationWarehouseGroups = useMemo(() => groupLocationsByWarehouse(locations), [locations]);
-  const locationsInUseCount = useMemo(() => {
-    const activeNames = new Set(materials.map((material) => material.primary_location).filter(Boolean));
-    return locations.filter((location) => activeNames.has(location.name)).length;
-  }, [locations, materials]);
+  const locationSkuAlertCounts = useMemo(() => buildLocationSkuAlertCounts(locations, materials), [locations, materials]);
   const priceByMaterial = useMemo(() => {
     const next = new Map<string, { unitPrice: number; currency: PurchaseOrderCurrency }>();
     for (const po of purchaseOrders) {
@@ -1110,7 +1106,8 @@ export function LockstockWorkbench() {
         method: "POST",
         body: {
           name: locationName,
-          code: locationCode
+          code: locationCode,
+          address: locationAddress
         }
       });
       addActivity("Location created.");
@@ -1774,62 +1771,35 @@ export function LockstockWorkbench() {
             </button>
           </div>
 
-          <div className="kpi-grid kpi-grid-3">
-            <div className="kpi-card">
-              <p>Total Locations</p>
-              <strong>{locations.length}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Warehouses</p>
-              <strong>{locationWarehouseGroups.length}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Locations In Use</p>
-              <strong>{locationsInUseCount}</strong>
-            </div>
-          </div>
-
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
                   <th>Location Name</th>
-                  <th>Warehouse</th>
-                  <th>Zone</th>
                   <th>Code</th>
+                  <th>Low stock</th>
+                  <th>Out of stock</th>
+                  <th>Address</th>
                 </tr>
               </thead>
               <tbody>
-                {parsedLocations.length === 0 ? (
+                {locations.length === 0 ? (
                   <tr>
-                    <td colSpan={4}>No locations created yet.</td>
+                    <td colSpan={5}>No locations created yet.</td>
                   </tr>
                 ) : (
-                  parsedLocations.map((location) => (
+                  locations.map((location) => (
                     <tr key={location.id}>
                       <td>{location.name}</td>
-                      <td>{location.warehouse}</td>
-                      <td>{location.zone}</td>
                       <td>{location.code ?? "-"}</td>
+                      <td>{locationSkuAlertCounts[location.id]?.lowStock ?? 0}</td>
+                      <td>{locationSkuAlertCounts[location.id]?.outOfStock ?? 0}</td>
+                      <td>{location.address?.trim() ? location.address : "-"}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="warehouse-grid">
-            {locationWarehouseGroups.map((group) => (
-              <article key={group.warehouse} className="warehouse-card">
-                <h4>{group.warehouse}</h4>
-                {group.locations.map((location) => (
-                  <div key={location.id} className="warehouse-row">
-                    <span>{location.zone}</span>
-                    <span className="subtle-line">{location.code ?? "-"}</span>
-                  </div>
-                ))}
-              </article>
-            ))}
           </div>
 
           {showLocationForm ? (
@@ -1851,6 +1821,15 @@ export function LockstockWorkbench() {
                     <input value={locationCode} onChange={(event) => setLocationCode(event.target.value)} />
                   </label>
                 </div>
+                <label className="field">
+                  <span>Address</span>
+                  <textarea
+                    value={locationAddress}
+                    maxLength={265}
+                    rows={3}
+                    onChange={(event) => setLocationAddress(event.target.value)}
+                  />
+                </label>
                 <div className="actions">
                   <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateLocation}>
                     Create Location
