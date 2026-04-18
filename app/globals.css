@@ -191,6 +191,10 @@ p {
   gap: 0.36rem;
 }
 
+.field-span-2 {
+  grid-column: 1 / -1;
+}
+
 .field span {
   font-size: 0.84rem;
   font-weight: 600;
@@ -224,6 +228,17 @@ textarea:focus {
 textarea {
   width: 100%;
   resize: vertical;
+}
+
+.phone-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.phone-input-row > * {
+  min-width: 0;
+  width: 100%;
 }
 
 input[readonly] {
@@ -373,10 +388,6 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.8rem;
-}
-
-.kpi-grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .kpi-card {
@@ -710,39 +721,6 @@ button:disabled {
   margin: 0.75rem 0 0;
   font-size: 0.83rem;
   color: #64748b;
-}
-
-.vendors-grid {
-  margin-top: 0.9rem;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.7rem;
-}
-
-.vendor-card {
-  border: 1px solid var(--ls-border);
-  border-radius: 12px;
-  background: #f9fbff;
-  padding: 0.75rem;
-}
-
-.vendor-card h4 {
-  margin: 0;
-}
-
-.vendor-card-stats {
-  margin-top: 0.55rem;
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-.vendor-card-stats span {
-  border: 1px solid #dbe4f3;
-  border-radius: 999px;
-  padding: 0.15rem 0.45rem;
-  font-size: 0.78rem;
-  color: #3b4f69;
 }
 
 .search-input-wrap {
@@ -1553,6 +1531,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .phone-input-row {
+    grid-template-columns: 1fr;
+  }
+
   .shell-nav {
     position: static;
   }
@@ -1669,10 +1651,6 @@ button:disabled {
   }
 
   .landing-footer-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .vendors-grid {
     grid-template-columns: 1fr;
   }
 

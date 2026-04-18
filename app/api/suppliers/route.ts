@@ -8,7 +8,12 @@ export async function GET(request: NextRequest) {
     const { orgId, supabase } = await requireRequestContext(request);
     const q = request.nextUrl.searchParams.get("q");
 
-    let query = supabase.from("suppliers").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
+    let query = supabase
+      .from("suppliers")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("vendor_number", { ascending: true })
+      .order("created_at", { ascending: true });
     if (q) {
       query = query.ilike("name", `%${q}%`);
     }
