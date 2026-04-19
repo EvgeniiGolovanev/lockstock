@@ -26,7 +26,7 @@ import {
   purchaseOrderLineRows,
   type PurchaseOrderCurrency,
   purchaseOrderOverview,
-  purchaseOrderProgress,
+  purchaseOrderTableSummary,
   supplierOrderStats
 } from "@/lib/ui/parity-models";
 
@@ -88,6 +88,10 @@ type PurchaseOrder = {
   po_number: string;
   status: "draft" | "sent" | "partial" | "received" | "cancelled";
   currency: PurchaseOrderCurrency;
+  expected_at?: string | null;
+  sent_at?: string | null;
+  received_at?: string | null;
+  created_at?: string;
   supplier: { id: string; name: string } | null;
   lines: PurchaseOrderLine[];
 };
@@ -163,7 +167,6 @@ const STORAGE_KEYS = {
 
 type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders" | "members";
 type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
-type PurchaseMetaIcon = "lines" | "received" | "value";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/inventory", label: "Inventory", icon: "inventory" },
@@ -218,30 +221,6 @@ function NavItemIcon({ icon }: { icon: NavIcon }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 7h2l2 9h10l2-7H8M9 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
-    </svg>
-  );
-}
-
-function PurchaseOrderMetaIcon({ icon }: { icon: PurchaseMetaIcon }) {
-  if (icon === "lines") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3Zm7 0v5h5M8 13h8M8 17h8" />
-      </svg>
-    );
-  }
-
-  if (icon === "received") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M8 9.2l8 3.6M8 13l3 1.3" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v18M16.5 7.5c0-1.9-1.9-3.5-4.5-3.5S7.5 5.6 7.5 7.5 9.4 11 12 11s4.5 1.6 4.5 3.5S14.6 18 12 18s-4.5-1.6-4.5-3.5" />
     </svg>
   );
 }
@@ -390,6 +369,12 @@ export function LockstockWorkbench() {
   const poSkuByMaterialId = useMemo(() => {
     return new Map(materials.map((material) => [material.id, material.sku]));
   }, [materials]);
+  const poTableRows = useMemo(() => {
+    return purchaseOrders.map((po) => ({
+      po,
+      summary: purchaseOrderTableSummary(po, poSkuByMaterialId)
+    }));
+  }, [purchaseOrders, poSkuByMaterialId]);
   const inventoryValueLabel = useMemo(() => formatCurrencyTotals(metrics.totalValueByCurrency), [metrics.totalValueByCurrency]);
   const inventoryValueBadge = useMemo(() => {
     const { EUR, USD } = metrics.totalValueByCurrency;
@@ -728,10 +713,6 @@ export function LockstockWorkbench() {
     return "LockStock Workspace";
   }
 
-  function getPoProgress(po: PurchaseOrder) {
-    return purchaseOrderProgress(po);
-  }
-
   function formatMovementReason(reason: MovementReason) {
     if (reason === "purchase_receive") {
       return "Purchase Receive";
@@ -750,6 +731,13 @@ export function LockstockWorkbench() {
       return "-";
     }
     return location.code ? `${location.code} - ${location.name}` : location.name;
+  }
+
+  function formatDateLabel(value?: string | null) {
+    if (!value) {
+      return "-";
+    }
+    return new Date(value).toLocaleDateString();
   }
 
   function handleAddPoDraftLine() {
@@ -2432,116 +2420,104 @@ export function LockstockWorkbench() {
                 <p>No purchase orders match these filters.</p>
               </div>
             ) : (
-              <div className="po-cards">
-                {purchaseOrders.map((po) => {
-                  const progress = getPoProgress(po);
-                  const lineRows = purchaseOrderLineRows(po, poSkuByMaterialId);
-                  const lineValue = lineRows.reduce((sum, line) => sum + line.lineTotal, 0);
-                  const poCurrency = normalizePurchaseOrderCurrency(po.currency);
-
-                  return (
-                    <article key={po.id} className={`po-card po-card-${po.status}`}>
-                      <div className="po-card-head">
-                        <div>
-                          <h4 className="po-card-title">{po.po_number}</h4>
-                          <p className="po-card-subtitle">{po.supplier?.name ?? "Unknown supplier"}</p>
-                        </div>
-                        <div className="po-card-head-right">
-                          <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
-                          {po.status === "draft" ? (
-                            <button
-                              type="button"
-                              disabled={busy}
-                              className="ghost-btn po-receive-btn"
-                              onClick={() => {
-                                void handleMarkPurchaseOrderSent(po.id, po.po_number);
-                              }}
-                            >
-                              Mark Sent
-                            </button>
-                          ) : po.status === "sent" || po.status === "partial" ? (
-                            <button
-                              type="button"
-                              disabled={busy || lineRows.length === 0}
-                              className="ghost-btn po-receive-btn"
-                              onClick={() => {
-                                setReceivePoId(po.id);
-                                setReceivePoLineId(po.lines[0]?.id ?? "");
-                                setShowPoReceiveForm(true);
-                              }}
-                            >
-                              Receive
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="po-meta-grid">
-                        <div className="po-meta-item">
-                          <span className="po-meta-icon" aria-hidden="true">
-                            <PurchaseOrderMetaIcon icon="lines" />
-                          </span>
-                          <div>
-                            <p className="po-meta-label">Lines</p>
-                            <p className="po-meta-value">{lineRows.length} material lines</p>
-                          </div>
-                        </div>
-                        <div className="po-meta-item">
-                          <span className="po-meta-icon" aria-hidden="true">
-                            <PurchaseOrderMetaIcon icon="received" />
-                          </span>
-                          <div>
-                            <p className="po-meta-label">Received Progress</p>
-                            <p className="po-meta-value">
-                              {progress.totalReceived}/{progress.totalOrdered} ({progress.percentage}%)
-                            </p>
-                            <div className="progress-track" aria-label="received progress">
-                              <span className="progress-fill" style={{ width: `${progress.percentage}%` }} />
+              <div className="table-wrap">
+                <table className="compact-table purchase-orders-table">
+                  <thead>
+                    <tr>
+                      <th>PO Number</th>
+                      <th>Supplier</th>
+                      <th>Status</th>
+                      <th>Lines</th>
+                      <th>Progress</th>
+                      <th>Total</th>
+                      <th>Expected</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {poTableRows.map(({ po, summary }) => {
+                      const canReceive = po.status === "sent" || po.status === "partial";
+                      return (
+                        <tr key={po.id}>
+                          <td>
+                            <div className="po-cell-main">{po.po_number}</div>
+                            <div className="po-cell-subtle">Created {formatDateLabel(po.created_at)}</div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">{summary.supplierLabel}</div>
+                            <div className="po-cell-subtle">{summary.linePreview}</div>
+                          </td>
+                          <td>
+                            <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
+                            <div className="po-cell-subtle">
+                              {po.received_at
+                                ? `Received ${formatDateLabel(po.received_at)}`
+                                : po.sent_at
+                                  ? `Sent ${formatDateLabel(po.sent_at)}`
+                                  : "Not sent"}
                             </div>
-                          </div>
-                        </div>
-                        <div className="po-meta-item">
-                          <span className="po-meta-icon" aria-hidden="true">
-                            <PurchaseOrderMetaIcon icon="value" />
-                          </span>
-                          <div>
-                            <p className="po-meta-label">Total Amount</p>
-                            <p className="po-meta-value po-meta-amount">{formatCurrencyAmount(lineValue, poCurrency)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {lineRows.length === 0 ? (
-                        <p className="po-line-empty">No lines on this purchase order yet.</p>
-                      ) : (
-                        <div className="po-lines-wrap">
-                          <table className="po-lines-table">
-                            <thead>
-                              <tr>
-                                <th>Material</th>
-                                <th>Ordered</th>
-                                <th>Received</th>
-                                <th>Unit Price</th>
-                                <th>Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {lineRows.map((line, index) => (
-                                <tr key={`${po.id}-${line.materialLabel}-${index}`}>
-                                  <td>{line.materialLabel}</td>
-                                  <td>{line.quantityOrdered}</td>
-                                  <td>{line.quantityReceived}</td>
-                                  <td>{formatCurrencyAmount(line.unitPrice, poCurrency)}</td>
-                                  <td>{formatCurrencyAmount(line.lineTotal, poCurrency)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
+                          </td>
+                          <td>
+                            <div className="po-cell-main">
+                              {summary.lineCount} {summary.lineCount === 1 ? "line" : "lines"}
+                            </div>
+                            <div className="po-cell-subtle">
+                              {summary.totalOrdered} ordered / {summary.totalReceived} received
+                            </div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">
+                              {summary.totalReceived}/{summary.totalOrdered} ({summary.progressPercentage}%)
+                            </div>
+                            <div className="progress-track" aria-label={`received progress for ${po.po_number}`}>
+                              <span className="progress-fill" style={{ width: `${summary.progressPercentage}%` }} />
+                            </div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">{formatCurrencyAmount(summary.totalAmount, summary.currency)}</div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">{formatDateLabel(po.expected_at)}</div>
+                            <div className="po-cell-subtle">
+                              {po.expected_at ? "Expected arrival" : "No expected date"}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="row-actions">
+                              {po.status === "draft" ? (
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  className="ghost-btn po-receive-btn"
+                                  onClick={() => {
+                                    void handleMarkPurchaseOrderSent(po.id, po.po_number);
+                                  }}
+                                >
+                                  Mark Sent
+                                </button>
+                              ) : null}
+                              {canReceive ? (
+                                <button
+                                  type="button"
+                                  disabled={busy || summary.lineCount === 0}
+                                  className="ghost-btn po-receive-btn"
+                                  onClick={() => {
+                                    setReceivePoId(po.id);
+                                    setReceivePoLineId(po.lines[0]?.id ?? "");
+                                    setShowPoReceiveForm(true);
+                                  }}
+                                >
+                                  Receive
+                                </button>
+                              ) : null}
+                              {po.status !== "draft" && !canReceive ? <span className="po-cell-subtle">No actions</span> : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
             <div className="actions">

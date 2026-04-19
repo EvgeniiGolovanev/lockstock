@@ -115,6 +115,17 @@ export type PurchaseOrderLineViewRow = {
   lineTotal: number;
 };
 
+export type PurchaseOrderTableSummary = {
+  supplierLabel: string;
+  lineCount: number;
+  linePreview: string;
+  totalOrdered: number;
+  totalReceived: number;
+  progressPercentage: number;
+  totalAmount: number;
+  currency: PurchaseOrderCurrency;
+};
+
 export type PurchaseOrderDraftLineInput = {
   material_id: string;
   quantity_ordered: number;
@@ -317,6 +328,25 @@ export function purchaseOrderLineRows(
       lineTotal: quantityOrdered * unitPrice
     };
   });
+}
+
+export function purchaseOrderTableSummary(
+  po: PurchaseOrderRow,
+  skuByMaterialId: Map<string, string>
+): PurchaseOrderTableSummary {
+  const progress = purchaseOrderProgress(po);
+  const lineRows = purchaseOrderLineRows(po, skuByMaterialId);
+
+  return {
+    supplierLabel: po.supplier?.name?.trim() || "Unknown supplier",
+    lineCount: lineRows.length,
+    linePreview: purchaseOrderLinePreview(po, skuByMaterialId, 1),
+    totalOrdered: progress.totalOrdered,
+    totalReceived: progress.totalReceived,
+    progressPercentage: progress.percentage,
+    totalAmount: lineRows.reduce((sum, line) => sum + line.lineTotal, 0),
+    currency: normalizePurchaseOrderCurrency(po.currency)
+  };
 }
 
 export function purchaseOrderDraftSummary(lines: PurchaseOrderDraftLineInput[]): PurchaseOrderDraftSummary {
