@@ -14,6 +14,7 @@ import {
   purchaseOrderLinePreview,
   purchaseOrderOverview,
   purchaseOrderProgress,
+  purchaseOrderTableSummary,
   normalizePurchaseOrderCurrency,
   splitLocationName,
   supplierOrderStats,
@@ -245,6 +246,48 @@ describe("parity models", () => {
         lineTotal: 300
       }
     ]);
+  });
+
+  it("builds purchase order table summary data", () => {
+    const skuByMaterial = new Map<string, string>([
+      ["m1", "TECH-001"],
+      ["m2", "FURN-023"]
+    ]);
+
+    expect(
+      purchaseOrderTableSummary(
+        {
+          id: "po-table",
+          supplier: { id: "s1", name: "Alpha Supplies" },
+          status: "partial",
+          currency: "USD",
+          lines: [
+            {
+              material_id: "m1",
+              quantity_ordered: 10,
+              quantity_received: 6,
+              unit_price: 4
+            },
+            {
+              material_id: "m2",
+              quantity_ordered: 3,
+              quantity_received: 3,
+              unit_price: 100
+            }
+          ]
+        },
+        skuByMaterial
+      )
+    ).toEqual({
+      supplierLabel: "Alpha Supplies",
+      lineCount: 2,
+      linePreview: "TECH-001 +1 more",
+      totalOrdered: 13,
+      totalReceived: 9,
+      progressPercentage: 69,
+      totalAmount: 340,
+      currency: "USD"
+    });
   });
 
   it("computes purchase order draft summary totals", () => {
