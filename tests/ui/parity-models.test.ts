@@ -14,6 +14,7 @@ import {
   purchaseOrderLinePreview,
   purchaseOrderOverview,
   purchaseOrderProgress,
+  purchaseOrderTableSummary,
   normalizePurchaseOrderCurrency,
   splitLocationName,
   supplierOrderStats,
@@ -78,8 +79,22 @@ const purchaseOrders: PurchaseOrderRow[] = [
 ];
 
 const suppliers: SupplierRow[] = [
-  { id: "s1", name: "Alpha Supplies", lead_time_days: 7 },
-  { id: "s2", name: "Beta Trade", lead_time_days: 3 }
+  {
+    id: "s1",
+    name: "Alpha Supplies",
+    vendor_number: 1,
+    phone: "+33 6 12 34 56 78",
+    address: "12 Rue Alpha",
+    lead_time_days: 7
+  },
+  {
+    id: "s2",
+    name: "Beta Trade",
+    vendor_number: 2,
+    phone: "+1 415 555 0100",
+    address: "45 Market Street",
+    lead_time_days: 3
+  }
 ];
 
 describe("parity models", () => {
@@ -233,6 +248,48 @@ describe("parity models", () => {
     ]);
   });
 
+  it("builds purchase order table summary data", () => {
+    const skuByMaterial = new Map<string, string>([
+      ["m1", "TECH-001"],
+      ["m2", "FURN-023"]
+    ]);
+
+    expect(
+      purchaseOrderTableSummary(
+        {
+          id: "po-table",
+          supplier: { id: "s1", name: "Alpha Supplies" },
+          status: "partial",
+          currency: "USD",
+          lines: [
+            {
+              material_id: "m1",
+              quantity_ordered: 10,
+              quantity_received: 6,
+              unit_price: 4
+            },
+            {
+              material_id: "m2",
+              quantity_ordered: 3,
+              quantity_received: 3,
+              unit_price: 100
+            }
+          ]
+        },
+        skuByMaterial
+      )
+    ).toEqual({
+      supplierLabel: "Alpha Supplies",
+      lineCount: 2,
+      linePreview: "TECH-001 +1 more",
+      totalOrdered: 13,
+      totalReceived: 9,
+      progressPercentage: 69,
+      totalAmount: 340,
+      currency: "USD"
+    });
+  });
+
   it("computes purchase order draft summary totals", () => {
     const summary = purchaseOrderDraftSummary([
       { material_id: "m1", quantity_ordered: 5, unit_price: 4 },
@@ -345,17 +402,26 @@ describe("parity models", () => {
 
     expect(rows[0]).toMatchObject({
       supplierId: "s1",
+      vendorNumber: 1,
       name: "Alpha Supplies",
+      phone: "+33 6 12 34 56 78",
+      address: "12 Rue Alpha",
       totalOrders: 2,
       openOrders: 1,
       receivedOrders: 1
     });
     expect(rows.find((row) => row.name === "Beta Trade")).toMatchObject({
+      vendorNumber: 2,
+      phone: "+1 415 555 0100",
+      address: "45 Market Street",
       totalOrders: 0,
       openOrders: 0,
       receivedOrders: 0
     });
     expect(rows.find((row) => row.name === "Unknown Vendor")).toMatchObject({
+      vendorNumber: null,
+      phone: "",
+      address: "",
       totalOrders: 1,
       openOrders: 1,
       receivedOrders: 0

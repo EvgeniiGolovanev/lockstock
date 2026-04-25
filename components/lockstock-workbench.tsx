@@ -7,6 +7,13 @@ import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
+  DEFAULT_PHONE_COUNTRY_CODE,
+  PHONE_COUNTRY_CODES,
+  buildPhoneNumber,
+  formatVendorNumber,
+  splitPhoneNumber
+} from "@/lib/ui/vendor-fields";
+import {
   buildLocationSkuAlertCounts,
   currencySymbol,
   filterInventoryRows,
@@ -16,12 +23,10 @@ import {
   normalizePurchaseOrderCurrency,
   normalizeStatus,
   purchaseOrderDraftSummary,
-  purchaseOrderLineRows,
   type PurchaseOrderCurrency,
   purchaseOrderOverview,
-  purchaseOrderProgress,
-  supplierOrderStats,
-  vendorMetrics
+  purchaseOrderTableSummary,
+  supplierOrderStats
 } from "@/lib/ui/parity-models";
 
 type Material = {
@@ -54,8 +59,12 @@ type StockHealth = {
 
 type Supplier = {
   id: string;
+  vendor_number: number | null;
   name: string;
+  phone?: string | null;
+  address?: string | null;
   lead_time_days: number;
+  created_at?: string;
 };
 
 type PurchaseOrderLine = {
@@ -78,6 +87,10 @@ type PurchaseOrder = {
   po_number: string;
   status: "draft" | "sent" | "partial" | "received" | "cancelled";
   currency: PurchaseOrderCurrency;
+  expected_at?: string | null;
+  sent_at?: string | null;
+  received_at?: string | null;
+  created_at?: string;
   supplier: { id: string; name: string } | null;
   lines: PurchaseOrderLine[];
 };
@@ -153,7 +166,6 @@ const STORAGE_KEYS = {
 
 type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders" | "members";
 type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
-type PurchaseMetaIcon = "lines" | "received" | "value";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/inventory", label: "Inventory", icon: "inventory" },
@@ -212,30 +224,6 @@ function NavItemIcon({ icon }: { icon: NavIcon }) {
   );
 }
 
-function PurchaseOrderMetaIcon({ icon }: { icon: PurchaseMetaIcon }) {
-  if (icon === "lines") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3Zm7 0v5h5M8 13h8M8 17h8" />
-      </svg>
-    );
-  }
-
-  if (icon === "received") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M8 9.2l8 3.6M8 13l3 1.3" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v18M16.5 7.5c0-1.9-1.9-3.5-4.5-3.5S7.5 5.6 7.5 7.5 9.4 11 12 11s4.5 1.6 4.5 3.5S14.6 18 12 18s-4.5-1.6-4.5-3.5" />
-    </svg>
-  );
-}
-
 export function LockstockWorkbench() {
   const pathname = usePathname();
   const router = useRouter();
@@ -257,11 +245,16 @@ export function LockstockWorkbench() {
   const [materialCategory, setMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
   const [materialSubcategory, setMaterialSubcategory] = useState(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
   const [materialMinStock, setMaterialMinStock] = useState(10);
+  const [supplierVendorNumber, setSupplierVendorNumber] = useState<number | null>(null);
   const [supplierName, setSupplierName] = useState("Acme Supply");
+  const [supplierPhoneCountryCode, setSupplierPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
+  const [supplierPhoneNumber, setSupplierPhoneNumber] = useState("");
+  const [supplierAddress, setSupplierAddress] = useState("");
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
   const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
   const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("create");
@@ -375,6 +368,12 @@ export function LockstockWorkbench() {
   const poSkuByMaterialId = useMemo(() => {
     return new Map(materials.map((material) => [material.id, material.sku]));
   }, [materials]);
+  const poTableRows = useMemo(() => {
+    return purchaseOrders.map((po) => ({
+      po,
+      summary: purchaseOrderTableSummary(po, poSkuByMaterialId)
+    }));
+  }, [purchaseOrders, poSkuByMaterialId]);
   const inventoryValueLabel = useMemo(() => formatCurrencyTotals(metrics.totalValueByCurrency), [metrics.totalValueByCurrency]);
   const inventoryValueBadge = useMemo(() => {
     const { EUR, USD } = metrics.totalValueByCurrency;
@@ -391,14 +390,18 @@ export function LockstockWorkbench() {
     }
     return USD > 0 ? "$" : "€";
   }, [poOverview.totalValueByCurrency]);
-  const vendorKpis = useMemo(() => vendorMetrics(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
   const supplierRows = useMemo(() => supplierOrderStats(suppliers, purchaseOrders), [suppliers, purchaseOrders]);
+  const supplierById = useMemo(() => new Map(suppliers.map((supplier) => [supplier.id, supplier])), [suppliers]);
   const filteredSupplierRows = useMemo(() => {
     const query = supplierSearch.trim().toLowerCase();
     if (!query) {
       return supplierRows;
     }
-    return supplierRows.filter((row) => row.name.toLowerCase().includes(query));
+    return supplierRows.filter((row) =>
+      [row.name, row.phone, row.address, formatVendorNumber(row.vendorNumber)]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query))
+    );
   }, [supplierRows, supplierSearch]);
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
   const movementTotalPages = Math.max(1, Math.ceil(movementTotal / MOVEMENTS_PAGE_SIZE));
@@ -709,10 +712,6 @@ export function LockstockWorkbench() {
     return "LockStock Workspace";
   }
 
-  function getPoProgress(po: PurchaseOrder) {
-    return purchaseOrderProgress(po);
-  }
-
   function formatMovementReason(reason: MovementReason) {
     if (reason === "purchase_receive") {
       return "Purchase Receive";
@@ -731,6 +730,45 @@ export function LockstockWorkbench() {
       return "-";
     }
     return location.code ? `${location.code} - ${location.name}` : location.name;
+  }
+
+  function formatDateLabel(value?: string | null) {
+    if (!value) {
+      return "-";
+    }
+    return new Date(value).toLocaleDateString();
+  }
+
+  function resetSupplierForm() {
+    setEditingSupplierId(null);
+    setSupplierVendorNumber(null);
+    setSupplierName("Acme Supply");
+    setSupplierPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
+    setSupplierPhoneNumber("");
+    setSupplierAddress("");
+    setSupplierLeadTime(5);
+  }
+
+  function openCreateSupplierForm() {
+    resetSupplierForm();
+    setShowSupplierForm(true);
+  }
+
+  function openEditSupplierForm(supplier: Supplier) {
+    const { countryCode, localNumber } = splitPhoneNumber(supplier.phone);
+    setEditingSupplierId(supplier.id);
+    setSupplierVendorNumber(supplier.vendor_number ?? null);
+    setSupplierName(supplier.name);
+    setSupplierPhoneCountryCode(countryCode);
+    setSupplierPhoneNumber(localNumber);
+    setSupplierAddress(supplier.address ?? "");
+    setSupplierLeadTime(Number(supplier.lead_time_days || 0));
+    setShowSupplierForm(true);
+  }
+
+  function closeSupplierForm() {
+    setShowSupplierForm(false);
+    resetSupplierForm();
   }
 
   function handleAddPoDraftLine() {
@@ -1239,18 +1277,30 @@ export function LockstockWorkbench() {
   async function handleCreateSupplier() {
     try {
       setBusy(true);
-      await apiRequest("/api/suppliers", {
-        method: "POST",
-        body: {
-          name: supplierName,
-          lead_time_days: Number(supplierLeadTime)
-        }
-      });
-      addActivity("Supplier created.");
-      setShowSupplierForm(false);
+      const payload = {
+        name: supplierName,
+        phone: buildPhoneNumber(supplierPhoneCountryCode, supplierPhoneNumber),
+        address: supplierAddress.trim() || undefined,
+        lead_time_days: Number(supplierLeadTime)
+      };
+
+      if (editingSupplierId) {
+        await apiRequest(`/api/suppliers/${editingSupplierId}`, {
+          method: "PATCH",
+          body: payload
+        });
+        addActivity("Supplier updated.");
+      } else {
+        await apiRequest("/api/suppliers", {
+          method: "POST",
+          body: payload
+        });
+        addActivity("Supplier created.");
+      }
+      closeSupplierForm();
       await refreshCoreData();
     } catch (error) {
-      addActivity(`Create supplier failed: ${(error as Error).message}`);
+      addActivity(`${editingSupplierId ? "Update" : "Create"} supplier failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -2093,24 +2143,9 @@ export function LockstockWorkbench() {
               <h3>Vendor Management</h3>
               <p className="subtle-line">Manage your material suppliers and vendors.</p>
             </div>
-            <button type="button" onClick={() => setShowSupplierForm(true)}>
+            <button type="button" onClick={openCreateSupplierForm}>
               Add Vendor
             </button>
-          </div>
-
-          <div className="kpi-grid kpi-grid-3">
-            <div className="kpi-card">
-              <p>Total Vendors</p>
-              <strong>{vendorKpis.totalSuppliers}</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Average Lead Time</p>
-              <strong>{vendorKpis.averageLeadTimeDays}d</strong>
-            </div>
-            <div className="kpi-card">
-              <p>Open Orders</p>
-              <strong>{vendorKpis.openOrders}</strong>
-            </div>
           </div>
 
           <div className="vendors-table-head">
@@ -2119,7 +2154,7 @@ export function LockstockWorkbench() {
               <input
                 value={supplierSearch}
                 onChange={(event) => setSupplierSearch(event.target.value)}
-                placeholder="Filter by vendor name"
+                placeholder="Filter by vendor name, ID, phone, or address"
               />
             </label>
           </div>
@@ -2128,60 +2163,101 @@ export function LockstockWorkbench() {
             <table className="compact-table">
               <thead>
                 <tr>
+                  <th>Vendor ID</th>
                   <th>Vendor Name</th>
+                  <th>Phone</th>
+                  <th>Address</th>
                   <th>Lead Time (days)</th>
                   <th>Open POs</th>
                   <th>Received POs</th>
                   <th>Total POs</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSupplierRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>No suppliers created yet.</td>
+                    <td colSpan={9}>No suppliers created yet.</td>
                   </tr>
                 ) : (
-                  filteredSupplierRows.map((supplier) => (
-                    <tr key={supplier.supplierId}>
-                      <td>{supplier.name}</td>
-                      <td>{supplier.leadTimeDays}</td>
-                      <td>{supplier.openOrders}</td>
-                      <td>{supplier.receivedOrders}</td>
-                      <td>{supplier.totalOrders}</td>
-                    </tr>
-                  ))
+                  filteredSupplierRows.map((supplier) => {
+                    const editableSupplier = supplierById.get(supplier.supplierId);
+                    return (
+                      <tr key={supplier.supplierId}>
+                        <td className="mono-line">{formatVendorNumber(supplier.vendorNumber) || "-"}</td>
+                        <td>{supplier.name}</td>
+                        <td>{supplier.phone || "-"}</td>
+                        <td>{supplier.address || "-"}</td>
+                        <td>{supplier.leadTimeDays}</td>
+                        <td>{supplier.openOrders}</td>
+                        <td>{supplier.receivedOrders}</td>
+                        <td>{supplier.totalOrders}</td>
+                        <td>
+                          {editableSupplier ? (
+                            <button type="button" className="ghost-btn" onClick={() => openEditSupplierForm(editableSupplier)}>
+                              Edit
+                            </button>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
-          <div className="vendors-grid">
-            {filteredSupplierRows.slice(0, 6).map((supplier) => (
-              <article key={`card-${supplier.supplierId}`} className="vendor-card">
-                <h4>{supplier.name}</h4>
-                <p className="subtle-line">Lead Time: {supplier.leadTimeDays} days</p>
-                <div className="vendor-card-stats">
-                  <span>Open: {supplier.openOrders}</span>
-                  <span>Received: {supplier.receivedOrders}</span>
-                  <span>Total: {supplier.totalOrders}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-
           {showSupplierForm ? (
-            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add vendor">
+            <div
+              className="modal-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingSupplierId ? "Edit vendor" : "Add vendor"}
+            >
               <div className="modal-card">
                 <div className="title-row">
-                  <h4>Add Vendor</h4>
-                  <button type="button" className="ghost-btn" onClick={() => setShowSupplierForm(false)}>
+                  <h4>{editingSupplierId ? "Edit Vendor" : "Add Vendor"}</h4>
+                  <button type="button" className="ghost-btn" onClick={closeSupplierForm}>
                     Close
                   </button>
                 </div>
                 <div className="grid grid-2">
                   <label className="field">
+                    <span>Vendor ID</span>
+                    <input
+                      readOnly
+                      value={formatVendorNumber(supplierVendorNumber)}
+                      placeholder="Assigned automatically"
+                    />
+                    <p className="subtle-line">Assigned automatically and cannot be changed.</p>
+                  </label>
+                  <label className="field">
                     <span>Name</span>
                     <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
+                  </label>
+                  <label className="field field-span-2">
+                    <span>Phone</span>
+                    <div className="phone-input-row">
+                      <select
+                        value={supplierPhoneCountryCode}
+                        onChange={(event) => setSupplierPhoneCountryCode(event.target.value)}
+                      >
+                        {PHONE_COUNTRY_CODES.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={supplierPhoneNumber}
+                        onChange={(event) => setSupplierPhoneNumber(event.target.value)}
+                        placeholder="6 12 34 56 78"
+                      />
+                    </div>
                   </label>
                   <label className="field">
                     <span>Lead Time (days)</span>
@@ -2192,10 +2268,23 @@ export function LockstockWorkbench() {
                       onChange={(event) => setSupplierLeadTime(Number(event.target.value))}
                     />
                   </label>
+                  <label className="field field-span-2">
+                    <span>Address</span>
+                    <textarea
+                      maxLength={256}
+                      rows={3}
+                      value={supplierAddress}
+                      onChange={(event) => setSupplierAddress(event.target.value)}
+                    />
+                  </label>
                 </div>
                 <div className="actions">
-                  <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateSupplier}>
-                    Create Supplier
+                  <button
+                    type="button"
+                    disabled={busy || !isOrgScopedReady || !supplierName.trim()}
+                    onClick={handleCreateSupplier}
+                  >
+                    {editingSupplierId ? "Update Supplier" : "Create Supplier"}
                   </button>
                 </div>
               </div>
@@ -2325,116 +2414,104 @@ export function LockstockWorkbench() {
                 <p>No purchase orders match these filters.</p>
               </div>
             ) : (
-              <div className="po-cards">
-                {purchaseOrders.map((po) => {
-                  const progress = getPoProgress(po);
-                  const lineRows = purchaseOrderLineRows(po, poSkuByMaterialId);
-                  const lineValue = lineRows.reduce((sum, line) => sum + line.lineTotal, 0);
-                  const poCurrency = normalizePurchaseOrderCurrency(po.currency);
-
-                  return (
-                    <article key={po.id} className={`po-card po-card-${po.status}`}>
-                      <div className="po-card-head">
-                        <div>
-                          <h4 className="po-card-title">{po.po_number}</h4>
-                          <p className="po-card-subtitle">{po.supplier?.name ?? "Unknown supplier"}</p>
-                        </div>
-                        <div className="po-card-head-right">
-                          <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
-                          {po.status === "draft" ? (
-                            <button
-                              type="button"
-                              disabled={busy}
-                              className="ghost-btn po-receive-btn"
-                              onClick={() => {
-                                void handleMarkPurchaseOrderSent(po.id, po.po_number);
-                              }}
-                            >
-                              Mark Sent
-                            </button>
-                          ) : po.status === "sent" || po.status === "partial" ? (
-                            <button
-                              type="button"
-                              disabled={busy || lineRows.length === 0}
-                              className="ghost-btn po-receive-btn"
-                              onClick={() => {
-                                setReceivePoId(po.id);
-                                setReceivePoLineId(po.lines[0]?.id ?? "");
-                                setShowPoReceiveForm(true);
-                              }}
-                            >
-                              Receive
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="po-meta-grid">
-                        <div className="po-meta-item">
-                          <span className="po-meta-icon" aria-hidden="true">
-                            <PurchaseOrderMetaIcon icon="lines" />
-                          </span>
-                          <div>
-                            <p className="po-meta-label">Lines</p>
-                            <p className="po-meta-value">{lineRows.length} material lines</p>
-                          </div>
-                        </div>
-                        <div className="po-meta-item">
-                          <span className="po-meta-icon" aria-hidden="true">
-                            <PurchaseOrderMetaIcon icon="received" />
-                          </span>
-                          <div>
-                            <p className="po-meta-label">Received Progress</p>
-                            <p className="po-meta-value">
-                              {progress.totalReceived}/{progress.totalOrdered} ({progress.percentage}%)
-                            </p>
-                            <div className="progress-track" aria-label="received progress">
-                              <span className="progress-fill" style={{ width: `${progress.percentage}%` }} />
+              <div className="table-wrap">
+                <table className="compact-table purchase-orders-table">
+                  <thead>
+                    <tr>
+                      <th>PO Number</th>
+                      <th>Supplier</th>
+                      <th>Status</th>
+                      <th>Lines</th>
+                      <th>Progress</th>
+                      <th>Total</th>
+                      <th>Expected</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {poTableRows.map(({ po, summary }) => {
+                      const canReceive = po.status === "sent" || po.status === "partial";
+                      return (
+                        <tr key={po.id}>
+                          <td>
+                            <div className="po-cell-main">{po.po_number}</div>
+                            <div className="po-cell-subtle">Created {formatDateLabel(po.created_at)}</div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">{summary.supplierLabel}</div>
+                            <div className="po-cell-subtle">{summary.linePreview}</div>
+                          </td>
+                          <td>
+                            <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
+                            <div className="po-cell-subtle">
+                              {po.received_at
+                                ? `Received ${formatDateLabel(po.received_at)}`
+                                : po.sent_at
+                                  ? `Sent ${formatDateLabel(po.sent_at)}`
+                                  : "Not sent"}
                             </div>
-                          </div>
-                        </div>
-                        <div className="po-meta-item">
-                          <span className="po-meta-icon" aria-hidden="true">
-                            <PurchaseOrderMetaIcon icon="value" />
-                          </span>
-                          <div>
-                            <p className="po-meta-label">Total Amount</p>
-                            <p className="po-meta-value po-meta-amount">{formatCurrencyAmount(lineValue, poCurrency)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {lineRows.length === 0 ? (
-                        <p className="po-line-empty">No lines on this purchase order yet.</p>
-                      ) : (
-                        <div className="po-lines-wrap">
-                          <table className="po-lines-table">
-                            <thead>
-                              <tr>
-                                <th>Material</th>
-                                <th>Ordered</th>
-                                <th>Received</th>
-                                <th>Unit Price</th>
-                                <th>Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {lineRows.map((line, index) => (
-                                <tr key={`${po.id}-${line.materialLabel}-${index}`}>
-                                  <td>{line.materialLabel}</td>
-                                  <td>{line.quantityOrdered}</td>
-                                  <td>{line.quantityReceived}</td>
-                                  <td>{formatCurrencyAmount(line.unitPrice, poCurrency)}</td>
-                                  <td>{formatCurrencyAmount(line.lineTotal, poCurrency)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
+                          </td>
+                          <td>
+                            <div className="po-cell-main">
+                              {summary.lineCount} {summary.lineCount === 1 ? "line" : "lines"}
+                            </div>
+                            <div className="po-cell-subtle">
+                              {summary.totalOrdered} ordered / {summary.totalReceived} received
+                            </div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">
+                              {summary.totalReceived}/{summary.totalOrdered} ({summary.progressPercentage}%)
+                            </div>
+                            <div className="progress-track" aria-label={`received progress for ${po.po_number}`}>
+                              <span className="progress-fill" style={{ width: `${summary.progressPercentage}%` }} />
+                            </div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">{formatCurrencyAmount(summary.totalAmount, summary.currency)}</div>
+                          </td>
+                          <td>
+                            <div className="po-cell-main">{formatDateLabel(po.expected_at)}</div>
+                            <div className="po-cell-subtle">
+                              {po.expected_at ? "Expected arrival" : "No expected date"}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="row-actions">
+                              {po.status === "draft" ? (
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  className="ghost-btn po-receive-btn"
+                                  onClick={() => {
+                                    void handleMarkPurchaseOrderSent(po.id, po.po_number);
+                                  }}
+                                >
+                                  Mark Sent
+                                </button>
+                              ) : null}
+                              {canReceive ? (
+                                <button
+                                  type="button"
+                                  disabled={busy || summary.lineCount === 0}
+                                  className="ghost-btn po-receive-btn"
+                                  onClick={() => {
+                                    setReceivePoId(po.id);
+                                    setReceivePoLineId(po.lines[0]?.id ?? "");
+                                    setShowPoReceiveForm(true);
+                                  }}
+                                >
+                                  Receive
+                                </button>
+                              ) : null}
+                              {po.status !== "draft" && !canReceive ? <span className="po-cell-subtle">No actions</span> : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
             <div className="actions">

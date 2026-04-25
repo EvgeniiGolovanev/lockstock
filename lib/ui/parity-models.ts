@@ -65,6 +65,9 @@ export type LocationWarehouseGroup = {
 export type SupplierRow = {
   id: string;
   name: string;
+  vendor_number?: number | null;
+  phone?: string | null;
+  address?: string | null;
   lead_time_days: number;
 };
 
@@ -78,6 +81,9 @@ export type VendorMetrics = {
 export type SupplierOrderStatRow = {
   supplierId: string;
   name: string;
+  vendorNumber: number | null;
+  phone: string;
+  address: string;
   leadTimeDays: number;
   totalOrders: number;
   openOrders: number;
@@ -107,6 +113,17 @@ export type PurchaseOrderLineViewRow = {
   quantityReceived: number;
   unitPrice: number;
   lineTotal: number;
+};
+
+export type PurchaseOrderTableSummary = {
+  supplierLabel: string;
+  lineCount: number;
+  linePreview: string;
+  totalOrdered: number;
+  totalReceived: number;
+  progressPercentage: number;
+  totalAmount: number;
+  currency: PurchaseOrderCurrency;
 };
 
 export type PurchaseOrderDraftLineInput = {
@@ -313,6 +330,25 @@ export function purchaseOrderLineRows(
   });
 }
 
+export function purchaseOrderTableSummary(
+  po: PurchaseOrderRow,
+  skuByMaterialId: Map<string, string>
+): PurchaseOrderTableSummary {
+  const progress = purchaseOrderProgress(po);
+  const lineRows = purchaseOrderLineRows(po, skuByMaterialId);
+
+  return {
+    supplierLabel: po.supplier?.name?.trim() || "Unknown",
+    lineCount: po.lines.length,
+    linePreview: purchaseOrderLinePreview(po, skuByMaterialId, 1),
+    totalOrdered: progress.totalOrdered,
+    totalReceived: progress.totalReceived,
+    progressPercentage: progress.percentage,
+    totalAmount: lineRows.reduce((sum, line) => sum + line.lineTotal, 0),
+    currency: normalizePurchaseOrderCurrency(po.currency)
+  };
+}
+
 export function purchaseOrderDraftSummary(lines: PurchaseOrderDraftLineInput[]): PurchaseOrderDraftSummary {
   return {
     lineCount: lines.length,
@@ -507,6 +543,9 @@ export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: Pur
     return {
       supplierId: supplier.id,
       name: supplier.name,
+      vendorNumber: supplier.vendor_number ?? null,
+      phone: supplier.phone?.trim() ?? "",
+      address: supplier.address?.trim() ?? "",
       leadTimeDays: Number(supplier.lead_time_days || 0),
       totalOrders: stats?.totalOrders ?? 0,
       openOrders: stats?.openOrders ?? 0,
@@ -527,6 +566,9 @@ export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: Pur
     .map((row) => ({
       supplierId: row.supplierId,
       name: row.name,
+      vendorNumber: null,
+      phone: "",
+      address: "",
       leadTimeDays: 0,
       totalOrders: row.totalOrders,
       openOrders: row.openOrders,
