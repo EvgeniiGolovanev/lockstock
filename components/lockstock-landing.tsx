@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildSignUpPayload } from "@/lib/auth/signup";
@@ -256,10 +257,12 @@ export function LockstockLanding() {
           </div>
 
           <div className="landing-image-wrap">
-            <img
+            <Image
               src="https://images.unsplash.com/photo-1768796373577-2e6e51351165?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
               alt="Warehouse inventory management"
               className="landing-image"
+              width={1080}
+              height={720}
             />
           </div>
         </div>
@@ -306,10 +309,12 @@ export function LockstockLanding() {
             </div>
           </div>
           <div className="landing-image-wrap">
-            <img
+            <Image
               src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
               alt="Inventory analytics dashboard"
               className="landing-image"
+              width={1080}
+              height={720}
             />
           </div>
         </div>

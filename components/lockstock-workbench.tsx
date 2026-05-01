@@ -23,7 +23,6 @@ import {
   normalizePurchaseOrderCurrency,
   normalizeStatus,
   purchaseOrderDraftSummary,
-  purchaseOrderLineRows,
   type PurchaseOrderCurrency,
   purchaseOrderOverview,
   purchaseOrderTableSummary,
