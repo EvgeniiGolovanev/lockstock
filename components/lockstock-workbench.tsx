@@ -129,6 +129,8 @@ type OrganizationMembership = {
 
 type OrganizationMember = {
   user_id: string;
+  email: string | null;
+  full_name: string | null;
   role: "owner" | "manager" | "member" | "viewer";
   created_at: string;
 };
@@ -136,7 +138,10 @@ type OrganizationMember = {
 type PendingInvitation = {
   id: string;
   org_id: string;
+  direction: "sent" | "received";
+  email: string;
   role: "owner" | "manager" | "member" | "viewer";
+  status: string;
   expires_at: string;
   created_at: string;
   organization_name: string;
@@ -233,7 +238,10 @@ export function LockstockWorkbench() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signedInAs, setSignedInAs] = useState("");
-  const [orgName, setOrgName] = useState("LockStock Workspace");
+  const [signedInFullName, setSignedInFullName] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [renamingOrgId, setRenamingOrgId] = useState("");
+  const [renameOrgName, setRenameOrgName] = useState("");
 
   const [locationName, setLocationName] = useState("Main Warehouse");
   const [locationCode, setLocationCode] = useState("MAIN");
@@ -304,6 +312,7 @@ export function LockstockWorkbench() {
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
+  const [memberInviteOrgId, setMemberInviteOrgId] = useState("");
 
   const normalizedBaseUrl = useMemo(() => baseUrl.replace(/\/+$/, ""), [baseUrl]);
   const isOrgScopedReady = Boolean(accessToken && orgId);
@@ -320,6 +329,7 @@ export function LockstockWorkbench() {
     [organizations, orgId]
   );
   const canManageMembers = activeMembership?.role === "owner";
+  const ownedGroups = useMemo(() => organizations.filter((item) => item.role === "owner"), [organizations]);
   const selectedReceiveMaterial = useMemo(
     () => (selectedReceiveLine ? materials.find((material) => material.id === selectedReceiveLine.material_id) ?? null : null),
     [materials, selectedReceiveLine]
@@ -420,7 +430,7 @@ export function LockstockWorkbench() {
       return { title: "Purchase Orders", subtitle: "Create, receive, and track purchase orders." };
     }
     if (pathname === "/members") {
-      return { title: "Members", subtitle: "Manage organization members and invitations." };
+      return { title: "Members", subtitle: "Manage group members and invitations." };
     }
     return { title: "Inventory Management", subtitle: "Manage your stock and track inventory levels." };
   }, [pathname]);
@@ -436,12 +446,17 @@ export function LockstockWorkbench() {
     authResolved
   });
   const showAuthPanel = showSignedOutPanels;
-  const showOrgCreatePanel = showSignedOutPanels;
   const canUseMembersScreen = Boolean(accessToken);
 
-  function applySessionState(session: { access_token: string; user: { email?: string | null } }) {
+  function applySessionState(session: {
+    access_token: string;
+    user: { email?: string | null; user_metadata?: Record<string, unknown> | null };
+  }) {
+    const fullName =
+      typeof session.user.user_metadata?.full_name === "string" ? session.user.user_metadata.full_name.trim() : "";
     setAccessToken(session.access_token || "");
     setSignedInAs(session.user.email ?? "");
+    setSignedInFullName(fullName);
     setEmail(session.user.email ?? "");
   }
 
@@ -473,6 +488,7 @@ export function LockstockWorkbench() {
             if (window.localStorage.getItem(STORAGE_KEYS.token)) {
               setAccessToken("");
               setSignedInAs("");
+              setSignedInFullName("");
               clearWorkspaceData();
               addActivity("No active Supabase session. Cleared saved token.");
             }
@@ -482,7 +498,8 @@ export function LockstockWorkbench() {
           applySessionState({
             access_token: data.session.access_token,
             user: {
-              email: data.session.user.email
+              email: data.session.user.email,
+              user_metadata: data.session.user.user_metadata
             }
           });
           setAuthResolved(true);
@@ -493,6 +510,7 @@ export function LockstockWorkbench() {
           }
           setAccessToken("");
           setSignedInAs("");
+          setSignedInFullName("");
           setAuthResolved(true);
         });
 
@@ -505,7 +523,8 @@ export function LockstockWorkbench() {
           applySessionState({
             access_token: session.access_token,
             user: {
-              email: session.user.email
+              email: session.user.email,
+              user_metadata: session.user.user_metadata
             }
           });
           setAuthResolved(true);
@@ -514,6 +533,7 @@ export function LockstockWorkbench() {
         if (event === "SIGNED_OUT") {
           setAccessToken("");
           setSignedInAs("");
+          setSignedInFullName("");
           clearWorkspaceData();
           setAuthResolved(true);
         }
@@ -604,6 +624,16 @@ export function LockstockWorkbench() {
   /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
+    const activeOwnedGroup = ownedGroups.find((item) => item.organization.id === orgId);
+    const selectedOwnedGroup = ownedGroups.find((item) => item.organization.id === memberInviteOrgId);
+    const nextInviteGroupId = selectedOwnedGroup?.organization.id ?? activeOwnedGroup?.organization.id ?? ownedGroups[0]?.organization.id ?? "";
+
+    if (nextInviteGroupId !== memberInviteOrgId) {
+      setMemberInviteOrgId(nextInviteGroupId);
+    }
+  }, [memberInviteOrgId, orgId, ownedGroups]);
+
+  useEffect(() => {
     if (!movementMaterialId && materials[0]) {
       setMovementMaterialId(materials[0].id);
     }
@@ -689,6 +719,7 @@ export function LockstockWorkbench() {
     setOrganizations([]);
     setOrganizationMembers([]);
     setPendingInvitations([]);
+    setMemberInviteOrgId("");
     setMaterials([]);
     setMaterialMovements([]);
     setLocations([]);
@@ -704,12 +735,16 @@ export function LockstockWorkbench() {
     setLowStockCount(null);
   }
 
-  function getDefaultOrganizationName() {
+  function getDefaultGroupName() {
+    if (signedInFullName.trim()) {
+      return `${signedInFullName.trim()}'s Group`;
+    }
+
     const source = signedInAs || email;
     if (source.includes("@")) {
-      return `${source.split("@")[0]} Workspace`;
+      return `${source.split("@")[0]}'s Group`;
     }
-    return "LockStock Workspace";
+    return "My Group";
   }
 
   function formatMovementReason(reason: MovementReason) {
@@ -737,6 +772,20 @@ export function LockstockWorkbench() {
       return "-";
     }
     return new Date(value).toLocaleDateString();
+  }
+
+  function formatPersonLabel(person: { full_name?: string | null; email?: string | null }) {
+    const fullName = person.full_name?.trim();
+    const personEmail = person.email?.trim();
+
+    if (fullName && personEmail) {
+      return `${fullName} (${personEmail})`;
+    }
+    return fullName || personEmail || "Name or email unavailable";
+  }
+
+  function formatGroupAccess(role: OrganizationMembership["role"]) {
+    return role === "owner" ? "Owner" : "Member";
   }
 
   function handleAddPoDraftLine() {
@@ -820,7 +869,7 @@ export function LockstockWorkbench() {
       throw new Error("Access token is required.");
     }
     if (requireOrg && !effectiveOrgId) {
-      throw new Error("Organization ID is required.");
+      throw new Error("Group ID is required.");
     }
     if (!normalizedBaseUrl) {
       throw new Error("Base URL is required.");
@@ -890,14 +939,20 @@ export function LockstockWorkbench() {
         throw new Error("No access token returned from Supabase.");
       }
 
-      setAccessToken(data.session.access_token);
-      setSignedInAs(data.user?.email ?? email);
+      applySessionState({
+        access_token: data.session.access_token,
+        user: {
+          email: data.session.user.email,
+          user_metadata: data.session.user.user_metadata
+        }
+      });
       setAuthResolved(true);
       setPassword("");
       addActivity(`Signed in as ${data.user?.email ?? email}.`);
     } catch (error) {
       setAccessToken("");
       setSignedInAs("");
+      setSignedInFullName("");
       clearWorkspaceData();
       addActivity(`Login failed: ${(error as Error).message}`);
     } finally {
@@ -916,6 +971,7 @@ export function LockstockWorkbench() {
 
       setAccessToken("");
       setSignedInAs("");
+      setSignedInFullName("");
       clearWorkspaceData();
       setAuthResolved(true);
       addActivity("Signed out.");
@@ -1015,7 +1071,7 @@ export function LockstockWorkbench() {
   ) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
-      addActivity("No active organization. Sign in again or sync workspace.");
+      addActivity("No active group. Sign in again or sync workspace.");
       return;
     }
 
@@ -1059,14 +1115,14 @@ export function LockstockWorkbench() {
       });
 
       if (organizationsResult.data.length === 0) {
-        const defaultOrgName = getDefaultOrganizationName();
+        const defaultOrgName = getDefaultGroupName();
         await apiRequest("/api/organizations", {
           method: "POST",
           requireOrg: false,
           tokenOverride: effectiveToken,
           body: { name: defaultOrgName }
         });
-        addActivity(`No organization found. Created "${defaultOrgName}".`);
+        addActivity(`No group found. Created "${defaultOrgName}".`);
         organizationsResult = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
           requireOrg: false,
           tokenOverride: effectiveToken
@@ -1074,7 +1130,7 @@ export function LockstockWorkbench() {
       }
 
       if (organizationsResult.data.length === 0) {
-        throw new Error("No organization available after bootstrap.");
+        throw new Error("No group available after bootstrap.");
       }
 
       setOrganizations(organizationsResult.data);
@@ -1095,6 +1151,7 @@ export function LockstockWorkbench() {
       if (isAuthTokenError(message)) {
         setAccessToken("");
         setSignedInAs("");
+        setSignedInFullName("");
         clearWorkspaceData();
       }
       addActivity(`Workspace bootstrap failed: ${message}`);
@@ -1110,7 +1167,7 @@ export function LockstockWorkbench() {
   async function handleCreateOrganization() {
     try {
       setBusy(true);
-      const nextOrgName = orgName.trim() || getDefaultOrganizationName();
+      const nextOrgName = orgName.trim() || getDefaultGroupName();
       const response = await apiRequest<{ data: { id: string } }>("/api/organizations", {
         method: "POST",
         requireOrg: false,
@@ -1118,7 +1175,8 @@ export function LockstockWorkbench() {
       });
 
       setOrgId(response.data.id);
-      addActivity(`Organization created: ${response.data.id}`);
+      setOrgName("");
+      addActivity(`Group created: ${nextOrgName}.`);
       const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
         requireOrg: false
       });
@@ -1129,9 +1187,89 @@ export function LockstockWorkbench() {
       if (isAuthTokenError(message)) {
         setAccessToken("");
         setSignedInAs("");
+        setSignedInFullName("");
         clearWorkspaceData();
       }
-      addActivity(`Create organization failed: ${message}`);
+      addActivity(`Create group failed: ${message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startRenameGroup(membership: OrganizationMembership) {
+    setRenamingOrgId(membership.organization.id);
+    setRenameOrgName(membership.organization.name);
+  }
+
+  async function handleRenameGroup() {
+    if (!renamingOrgId) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const nextName = renameOrgName.trim();
+      const response = await apiRequest<{ data: { id: string; name: string; created_at: string } }>(
+        `/api/organizations/${renamingOrgId}`,
+        {
+          method: "PATCH",
+          orgOverride: renamingOrgId,
+          body: { name: nextName }
+        }
+      );
+
+      setOrganizations((prev) =>
+        prev.map((membership) =>
+          membership.organization.id === response.data.id
+            ? { ...membership, organization: { ...membership.organization, name: response.data.name } }
+            : membership
+        )
+      );
+      setRenamingOrgId("");
+      setRenameOrgName("");
+      addActivity(`Group renamed: ${response.data.name}.`);
+    } catch (error) {
+      addActivity(`Rename group failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteGroup(membership: OrganizationMembership) {
+    const confirmed = window.confirm(`Delete group "${membership.organization.name}"? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await apiRequest(`/api/organizations/${membership.organization.id}`, {
+        method: "DELETE",
+        orgOverride: membership.organization.id
+      });
+
+      addActivity(`Group deleted: ${membership.organization.name}.`);
+      const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
+        requireOrg: false
+      });
+
+      if (organizationsResponse.data.length === 0) {
+        setOrgId("");
+        setOrganizations([]);
+        setOrganizationMembers([]);
+        await bootstrapOrganizationContext({ announce: true });
+        return;
+      }
+
+      setOrganizations(organizationsResponse.data);
+      const nextMembership =
+        organizationsResponse.data.find((item) => item.organization.id === orgId) ?? organizationsResponse.data[0];
+      if (nextMembership.organization.id !== orgId) {
+        setOrgId(nextMembership.organization.id);
+      }
+      await refreshCoreData(nextMembership.organization.id, undefined, nextMembership.role);
+    } catch (error) {
+      addActivity(`Delete group failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -1159,14 +1297,18 @@ export function LockstockWorkbench() {
   }
 
   async function handleInviteMemberByEmail() {
-    if (!orgId) {
-      addActivity("Invite failed: no active organization.");
+    if (!memberInviteOrgId) {
+      addActivity("Invite failed: select a group.");
       return;
     }
 
     try {
       setBusy(true);
       const email = memberInviteEmail.trim().toLowerCase();
+      const targetGroup = ownedGroups.find((item) => item.organization.id === memberInviteOrgId);
+      if (!targetGroup) {
+        throw new Error("Selected group is not available for invitations.");
+      }
       const response = await apiRequest<{
         data: {
           email: string;
@@ -1174,19 +1316,23 @@ export function LockstockWorkbench() {
           email_delivery: "sent" | "skipped" | "failed";
           email_delivery_message: string | null;
         };
-      }>(`/api/organizations/${orgId}/members`, {
+      }>(`/api/organizations/${memberInviteOrgId}/members`, {
         method: "POST",
+        orgOverride: memberInviteOrgId,
         body: { email }
       });
       setMemberInviteEmail("");
-      await loadOrganizationMembers();
+      if (memberInviteOrgId === orgId) {
+        await loadOrganizationMembers();
+      }
+      await loadPendingInvitations();
       const deliveryMessage =
         response.data.email_delivery === "sent"
           ? "Invitation email sent."
           : response.data.email_delivery === "skipped"
             ? response.data.email_delivery_message ?? "Email delivery skipped."
             : response.data.email_delivery_message ?? "Email delivery failed.";
-      addActivity(`Invitation created: ${response.data.email}`);
+      addActivity(`Invitation created for ${targetGroup.organization.name}: ${response.data.email}`);
       addActivity(deliveryMessage);
     } catch (error) {
       addActivity(`Invite failed: ${(error as Error).message}`);
@@ -1205,7 +1351,7 @@ export function LockstockWorkbench() {
           requireOrg: false
         }
       );
-      addActivity(`Invitation accepted: joined ${response.data.organization_name} as ${response.data.membership_role}.`);
+      addActivity(`Invitation accepted: joined group ${response.data.organization_name} as ${response.data.membership_role}.`);
       await bootstrapOrganizationContext({ announce: true });
     } catch (error) {
       addActivity(`Accept invitation failed: ${(error as Error).message}`);
@@ -1221,7 +1367,7 @@ export function LockstockWorkbench() {
         method: "POST",
         requireOrg: false
       });
-      addActivity(`Invitation rejected: ${response.data.organization_name}.`);
+      addActivity(`Invitation rejected: group ${response.data.organization_name}.`);
       await loadPendingInvitations();
     } catch (error) {
       addActivity(`Reject invitation failed: ${(error as Error).message}`);
@@ -1232,7 +1378,7 @@ export function LockstockWorkbench() {
 
   async function handleRemoveOrganizationMember(userId: string) {
     if (!orgId) {
-      addActivity("Remove member failed: no active organization.");
+      addActivity("Remove member failed: no active group.");
       return;
     }
 
@@ -1242,7 +1388,7 @@ export function LockstockWorkbench() {
         method: "DELETE"
       });
       await loadOrganizationMembers();
-      addActivity(`Organization member removed: ${userId}`);
+      addActivity("Group member removed.");
     } catch (error) {
       addActivity(`Remove member failed: ${(error as Error).message}`);
     } finally {
@@ -1538,14 +1684,14 @@ export function LockstockWorkbench() {
       {showAuthPanel ? (
         <section className="card">
         <h2>Access & Environment</h2>
-        <p>Sign in and the workspace will auto-bootstrap organization context.</p>
+        <p>Sign in and the workspace will auto-bootstrap group context.</p>
         <div className="grid grid-2">
           <label className="field">
             <span>Base URL</span>
             <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="http://localhost:3000" />
           </label>
           <label className="field">
-            <span>Active Organization ID</span>
+            <span>Active Group ID</span>
             <input value={orgId} readOnly placeholder="auto-selected" />
           </label>
         </div>
@@ -1578,14 +1724,14 @@ export function LockstockWorkbench() {
         {signedInAs ? <p>Signed in as: <strong>{signedInAs}</strong></p> : <p>Not signed in.</p>}
         {organizations.length > 0 ? (
           <label className="field">
-            <span>Organization Picker</span>
+            <span>Group Picker</span>
             <select
               value={orgId}
               onChange={(event) => {
                 const nextOrgId = event.target.value;
                 setOrgId(nextOrgId);
-                addActivity(`Switched organization to ${nextOrgId}.`);
                 const nextMembership = organizations.find((item) => item.organization.id === nextOrgId);
+                addActivity(`Switched group to ${nextMembership?.organization.name ?? "selected group"}.`);
                 void refreshCoreData(nextOrgId, undefined, nextMembership?.role);
               }}
             >
@@ -1624,34 +1770,194 @@ export function LockstockWorkbench() {
       </section>
       ) : null}
 
-      {showOrgCreatePanel ? (
-        <section className="card">
-        <h3>Create Organization</h3>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Name</span>
-            <input value={orgName} onChange={(event) => setOrgName(event.target.value)} />
-          </label>
-          <div className="actions">
-            <button type="button" disabled={busy || !accessToken} onClick={handleCreateOrganization}>
-              Create Org
-            </button>
-          </div>
-        </div>
-      </section>
-      ) : null}
-
       {showMembersSection && canUseMembersScreen ? (
         <section className="card">
           <div className="title-row">
             <div>
-              <h3>Organization Members</h3>
+              <h3>Groups & Members</h3>
+            </div>
+            <div className="actions">
+              <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
+                Refresh Groups
+              </button>
+              {canManageMembers ? (
+                <button type="button" disabled={busy} onClick={() => loadOrganizationMembers()}>
+                  Refresh Members
+                </button>
+              ) : null}
             </div>
           </div>
 
+          <div className="grid grid-2">
+            <label className="field">
+              <span>Create group</span>
+              <input
+                value={orgName}
+                onChange={(event) => setOrgName(event.target.value)}
+                placeholder={getDefaultGroupName()}
+              />
+            </label>
+            <div className="actions">
+              <button type="button" disabled={busy || !accessToken} onClick={handleCreateOrganization}>
+                Create Group
+              </button>
+            </div>
+          </div>
+
+          {renamingOrgId ? (
+            <div className="grid grid-2">
+              <label className="field">
+                <span>Rename group</span>
+                <input value={renameOrgName} onChange={(event) => setRenameOrgName(event.target.value)} />
+              </label>
+              <div className="actions">
+                <button type="button" disabled={busy || !renameOrgName.trim()} onClick={handleRenameGroup}>
+                  Save Group Name
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setRenamingOrgId("");
+                    setRenameOrgName("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {!activeMembership ? <p className="subtle-line">No active group membership found.</p> : null}
+
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <th>Group</th>
+                  <th>Member</th>
+                  <th>Your Access</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {organizations.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No groups in workspace yet.</td>
+                  </tr>
+                ) : (
+                  organizations.flatMap((item) => {
+                    const isActiveOrganization = item.organization.id === orgId;
+                    const groupAction =
+                      item.role === "owner" ? (
+                        <div className="actions">
+                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => startRenameGroup(item)}>
+                            Rename Group
+                          </button>
+                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleDeleteGroup(item)}>
+                            Delete Group
+                          </button>
+                        </div>
+                      ) : isActiveOrganization ? (
+                        "Current"
+                      ) : (
+                        "-"
+                      );
+                    const rows =
+                      isActiveOrganization && canManageMembers && organizationMembers.length > 0
+                        ? organizationMembers.map((member) => ({
+                            key: `${item.organization.id}-${member.user_id}`,
+                            organization: item.organization.name,
+                            member: formatPersonLabel(member),
+                            access: formatGroupAccess(item.role),
+                            role: member.role,
+                            joined: formatDateLabel(member.created_at),
+                            action:
+                              member.role === "owner" ? (
+                                groupAction
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="ghost-btn"
+                                  disabled={busy}
+                                  onClick={() => handleRemoveOrganizationMember(member.user_id)}
+                                >
+                                  Remove
+                                </button>
+                              )
+                          }))
+                        : [
+                            {
+                              key: item.organization.id,
+                              organization: item.organization.name,
+                              member: formatPersonLabel({ email: signedInAs || email }),
+                              access: formatGroupAccess(item.role),
+                              role: item.role,
+                              joined: formatDateLabel(item.organization.created_at),
+                              action: groupAction
+                            }
+                          ];
+
+                    return rows.map((row) => (
+                      <tr key={row.key}>
+                        <td>{row.organization}</td>
+                        <td>{row.member}</td>
+                        <td>{row.access}</td>
+                        <td>{row.role}</td>
+                        <td>{row.joined}</td>
+                        <td>{row.action}</td>
+                      </tr>
+                    ));
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {ownedGroups.length === 0 ? (
+            <p className="subtle-line">Only group owner can invite and manage members in this MVP.</p>
+          ) : null}
+
+          {ownedGroups.length > 0 ? (
+            <>
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>Invite to group</span>
+                  <select value={memberInviteOrgId} onChange={(event) => setMemberInviteOrgId(event.target.value)}>
+                    {ownedGroups.map((item) => (
+                      <option key={item.organization.id} value={item.organization.id}>
+                        {item.organization.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Invite by email</span>
+                  <input
+                    value={memberInviteEmail}
+                    onChange={(event) => setMemberInviteEmail(event.target.value)}
+                    placeholder="new.user@example.com"
+                    type="email"
+                  />
+                </label>
+                <div className="actions">
+                  <button type="button" disabled={busy || !memberInviteOrgId || !memberInviteEmail.trim()} onClick={handleInviteMemberByEmail}>
+                    Send Invitation
+                  </button>
+                </div>
+              </div>
+
+            </>
+          ) : null}
+
+          <div className="members-section-divider" />
+
           <div className="title-row">
             <div>
-              <h4>Pending Invitations</h4>
+              <h4>Invitations</h4>
             </div>
             <div className="actions">
               <button type="button" disabled={busy || !accessToken} onClick={() => loadPendingInvitations()}>
@@ -1664,7 +1970,9 @@ export function LockstockWorkbench() {
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Organization</th>
+                  <th>Direction</th>
+                  <th>Group</th>
+                  <th>Person</th>
                   <th>Role</th>
                   <th>Expires</th>
                   <th>Actions</th>
@@ -1673,23 +1981,29 @@ export function LockstockWorkbench() {
               <tbody>
                 {pendingInvitations.length === 0 ? (
                   <tr>
-                    <td colSpan={4}>No pending invitations.</td>
+                    <td colSpan={6}>No pending invitations.</td>
                   </tr>
                 ) : (
                   pendingInvitations.map((invitation) => (
                     <tr key={invitation.id}>
+                      <td>{invitation.direction === "sent" ? "Sent" : "Received"}</td>
                       <td>{invitation.organization_name}</td>
+                      <td>{invitation.email}</td>
                       <td>{invitation.role}</td>
-                      <td>{new Date(invitation.expires_at).toLocaleDateString()}</td>
+                      <td>{formatDateLabel(invitation.expires_at)}</td>
                       <td>
-                        <div className="actions">
-                          <button type="button" disabled={busy} onClick={() => handleAcceptInvitation(invitation)}>
-                            Accept invitation to org {invitation.organization_name}
-                          </button>
-                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRejectInvitation(invitation)}>
-                            Reject invitation to org {invitation.organization_name}
-                          </button>
-                        </div>
+                        {invitation.direction === "received" ? (
+                          <div className="actions">
+                            <button type="button" disabled={busy} onClick={() => handleAcceptInvitation(invitation)}>
+                              Accept
+                            </button>
+                            <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRejectInvitation(invitation)}>
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="subtle-line">{invitation.status}</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -1697,120 +2011,6 @@ export function LockstockWorkbench() {
               </tbody>
             </table>
           </div>
-
-          <div className="title-row">
-            <div>
-              <h4>My Organization Memberships</h4>
-            </div>
-            <div className="actions">
-              <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
-                Refresh Organizations
-              </button>
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            <table className="compact-table">
-              <thead>
-                <tr>
-                  <th>Organization</th>
-                  <th>Your Role</th>
-                  <th>Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {organizations.length === 0 ? (
-                  <tr>
-                    <td colSpan={3}>No organizations in workspace yet.</td>
-                  </tr>
-                ) : (
-                  organizations.map((item) => (
-                    <tr key={item.organization.id}>
-                      <td>{item.organization.name}</td>
-                      <td>{item.role}</td>
-                      <td>{item.organization.id === orgId ? "Current" : "-"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {!activeMembership ? <p className="subtle-line">No active organization membership found.</p> : null}
-
-          {activeMembership && !canManageMembers ? (
-            <p className="subtle-line">Only organization owner can manage members in this MVP.</p>
-          ) : null}
-
-          {canManageMembers ? (
-            <>
-              <div className="grid grid-2">
-                <label className="field">
-                  <span>Invite by email</span>
-                  <input
-                    value={memberInviteEmail}
-                    onChange={(event) => setMemberInviteEmail(event.target.value)}
-                    placeholder="new.user@example.com"
-                    type="email"
-                  />
-                </label>
-                <div className="actions">
-                  <button type="button" disabled={busy || !memberInviteEmail.trim()} onClick={handleInviteMemberByEmail}>
-                    Send Invitation
-                  </button>
-                </div>
-              </div>
-
-              <div className="actions">
-                <button type="button" disabled={busy} onClick={() => loadOrganizationMembers()}>
-                  Refresh Members
-                </button>
-              </div>
-
-              <div className="table-wrap">
-                <table className="compact-table">
-                  <thead>
-                    <tr>
-                      <th>User ID</th>
-                      <th>Role</th>
-                      <th>Joined</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {organizationMembers.length === 0 ? (
-                      <tr>
-                        <td colSpan={4}>No organization members found.</td>
-                      </tr>
-                    ) : (
-                      organizationMembers.map((member) => (
-                        <tr key={member.user_id}>
-                          <td>{member.user_id}</td>
-                          <td>{member.role}</td>
-                          <td>{new Date(member.created_at).toLocaleDateString()}</td>
-                          <td>
-                            {member.role === "owner" ? (
-                              <span className="subtle-line">owner protected</span>
-                            ) : (
-                              <button
-                                type="button"
-                                className="ghost-btn"
-                                disabled={busy}
-                                onClick={() => handleRemoveOrganizationMember(member.user_id)}
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-            </>
-          ) : null}
         </section>
       ) : null}
 
