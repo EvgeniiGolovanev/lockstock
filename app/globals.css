@@ -287,6 +287,11 @@ button:disabled {
   margin-top: 0.9rem;
 }
 
+.members-section-divider {
+  border-top: 1px solid var(--ls-border);
+  margin: 1.25rem 0 0.95rem;
+}
+
 .compact-table {
   width: 100%;
   border-collapse: collapse;

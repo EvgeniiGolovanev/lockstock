@@ -16,11 +16,11 @@ function requireMatchingOrgId(pathOrgId: string, contextOrgId: string) {
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id: orgIdFromPath } = await context.params;
-    const { orgId, role, supabase } = await requireRequestContext(request);
+    const { orgId, userId, role, supabase } = await requireRequestContext(request);
     requireMatchingOrgId(orgIdFromPath, orgId);
     requireExactRole(role, "owner");
 
-    const { data, error } = await supabase
+    const { data: members, error } = await supabase
       .from("org_users")
       .select("user_id,role,created_at")
       .eq("org_id", orgId)
@@ -30,7 +30,43 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       throw new ApiError(500, "Failed to load organization members.", error.message);
     }
 
-    return NextResponse.json({ data });
+    const { data: invitationIdentities, error: invitationIdentitiesError } = await supabase
+      .from("org_invitations")
+      .select("accepted_by,email,status")
+      .eq("org_id", orgId);
+
+    if (invitationIdentitiesError) {
+      throw new ApiError(500, "Failed to load member invitation identities.", invitationIdentitiesError.message);
+    }
+
+    const acceptedInvitationEmailByUserId = new Map<string, string>();
+    for (const invitation of invitationIdentities ?? []) {
+      if (invitation.status === "accepted" && invitation.accepted_by && invitation.email) {
+        acceptedInvitationEmailByUserId.set(invitation.accepted_by as string, invitation.email as string);
+      }
+    }
+
+    const { data: authUserData, error: authUserError } = await supabase.auth.getUser();
+    const callerEmail = authUserError ? null : (authUserData.user?.email ?? null);
+    const callerFullName =
+      authUserError || typeof authUserData.user?.user_metadata?.full_name !== "string"
+        ? null
+        : authUserData.user.user_metadata.full_name;
+
+    const enrichedMembers = (members ?? []).map((member) => {
+      const memberUserId = member.user_id as string;
+      const isCaller = memberUserId === userId;
+
+      return {
+        user_id: memberUserId,
+        email: isCaller ? callerEmail : acceptedInvitationEmailByUserId.get(memberUserId) ?? null,
+        full_name: isCaller ? callerFullName : null,
+        role: member.role,
+        created_at: member.created_at
+      };
+    });
+
+    return NextResponse.json({ data: enrichedMembers });
   } catch (error) {
     return handleApiError(error);
   }

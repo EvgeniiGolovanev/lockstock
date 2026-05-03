@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/organizations/[id]/members/route";
+import { GET, POST } from "@/app/api/organizations/[id]/members/route";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 import { sendTransactionalEmail } from "@/lib/api/mailer";
@@ -26,6 +26,21 @@ function createSupabaseForRole(role: Role) {
   const orgUsersTable = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue({
+      data: [
+        {
+          user_id: "owner-1",
+          role: "owner",
+          created_at: "2026-03-01T00:00:00Z"
+        },
+        {
+          user_id: "member-1",
+          role: "member",
+          created_at: "2026-03-02T00:00:00Z"
+        }
+      ],
+      error: null
+    }),
     maybeSingle: vi.fn().mockImplementation(async () => {
       orgUsersMaybeSingleCalls += 1;
       if (orgUsersMaybeSingleCalls === 1) {
@@ -42,6 +57,17 @@ function createSupabaseForRole(role: Role) {
   };
 
   const orgInvitationsTable = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockResolvedValue({
+      data: [
+        {
+          accepted_by: "member-1",
+          email: "member@example.com",
+          status: "accepted"
+        }
+      ],
+      error: null
+    }),
     update: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnThis(),
       in: vi.fn().mockResolvedValue({ error: null })
@@ -86,6 +112,39 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(sendTransactionalEmail).mockResolvedValue();
+  });
+
+  it("loads organization members with display identity fields", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("owner-1");
+    const supabase = createSupabaseForRole("owner");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
+      method: "GET",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token" }
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ id: orgId }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([
+      {
+        user_id: "owner-1",
+        email: "owner@example.com",
+        full_name: null,
+        role: "owner",
+        created_at: "2026-03-01T00:00:00Z"
+      },
+      {
+        user_id: "member-1",
+        email: "member@example.com",
+        full_name: null,
+        role: "member",
+        created_at: "2026-03-02T00:00:00Z"
+      }
+    ]);
   });
 
   it("returns 403 when caller is not owner", async () => {

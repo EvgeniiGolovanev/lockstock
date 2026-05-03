@@ -17,10 +17,14 @@ vi.mock("@/lib/api/auth", () => ({
 
 function createSupabaseForInvitations({
   invitationFound = true,
-  memberOrgIds = []
+  memberOrgIds = [],
+  memberships,
+  invitationRows
 }: {
   invitationFound?: boolean;
   memberOrgIds?: string[];
+  memberships?: Array<{ org_id: string; role: string }>;
+  invitationRows?: Array<Record<string, string>>;
 }) {
   const invitationRow = {
     id: "11111111-1111-4111-8111-111111111112",
@@ -32,12 +36,13 @@ function createSupabaseForInvitations({
     expires_at: "2026-03-11T00:00:00Z",
     created_at: "2026-03-04T00:00:00Z"
   };
+  const rows = invitationRows ?? [invitationRow];
 
   const orgInvitationsTable = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     gt: vi.fn().mockReturnThis(),
-    order: vi.fn().mockResolvedValue({ data: [invitationRow], error: null }),
+    order: vi.fn().mockResolvedValue({ data: rows, error: null }),
     maybeSingle: vi.fn().mockResolvedValue(invitationFound ? { data: invitationRow, error: null } : { data: null, error: null }),
     update: vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue({ error: null })
@@ -46,7 +51,7 @@ function createSupabaseForInvitations({
 
   const orgUsersMembershipSelectQuery = {
     eq: vi.fn().mockResolvedValue({
-      data: memberOrgIds.map((orgId) => ({ org_id: orgId })),
+      data: memberships ?? memberOrgIds.map((orgId) => ({ org_id: orgId, role: "member" })),
       error: null
     })
   };
@@ -149,6 +154,68 @@ describe("Invitation endpoints", () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0].id).toBe("11111111-1111-4111-8111-111111111112");
     expect(body.data[0].organization_name).toBe("Invited Org");
+    expect(body.data[0].direction).toBe("received");
+    expect(body.data[0].email).toBe("invitee@example.com");
+  });
+
+  it("combines received invitations with owner sent invitations", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("owner-user-id");
+    const ownedOrgId = "22222222-2222-4222-8222-222222222222";
+    const supabase = createSupabaseForInvitations({
+      memberships: [
+        { org_id: "11111111-1111-4111-8111-111111111111", role: "member" },
+        { org_id: ownedOrgId, role: "owner" }
+      ],
+      invitationRows: [
+        {
+          id: "received-invite",
+          org_id: "33333333-3333-4333-8333-333333333333",
+          org_name: "External Org",
+          role: "member",
+          email: "owner@example.com",
+          status: "pending",
+          expires_at: "2026-03-11T00:00:00Z",
+          created_at: "2026-03-04T00:00:00Z"
+        },
+        {
+          id: "sent-invite",
+          org_id: ownedOrgId,
+          org_name: "Owned Org",
+          role: "member",
+          email: "new.user@example.com",
+          status: "pending",
+          expires_at: "2026-03-12T00:00:00Z",
+          created_at: "2026-03-05T00:00:00Z"
+        },
+        {
+          id: "hidden-member-invite",
+          org_id: "11111111-1111-4111-8111-111111111111",
+          org_name: "Existing Org",
+          role: "member",
+          email: "owner@example.com",
+          status: "pending",
+          expires_at: "2026-03-13T00:00:00Z",
+          created_at: "2026-03-06T00:00:00Z"
+        }
+      ]
+    });
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/invitations/pending", {
+      method: "GET",
+      headers: { Authorization: "Bearer token" }
+    });
+
+    const response = await GET_PENDING(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toHaveLength(2);
+    expect(body.data.map((invitation: { id: string }) => invitation.id)).toEqual(["received-invite", "sent-invite"]);
+    expect(body.data[0].direction).toBe("received");
+    expect(body.data[1].direction).toBe("sent");
+    expect(body.data[1].email).toBe("new.user@example.com");
   });
 
   it("hides pending invitations for organizations user already belongs to", async () => {
