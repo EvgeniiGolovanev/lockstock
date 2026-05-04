@@ -6,11 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
-
-type ActivityEntry = {
-  id: string;
-  line: string;
-};
+import { useActivityLog } from "@/lib/ui/use-activity-log";
 
 type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 
@@ -28,6 +24,7 @@ export function LockstockAccount() {
   const router = useRouter();
 
   const [signedInAs, setSignedInAs] = useState("");
+  const { activity, addActivity } = useActivityLog(signedInAs);
   const [accountEmail, setAccountEmail] = useState("");
   const [accountFullName, setAccountFullName] = useState("");
   const [accountCompany, setAccountCompany] = useState("");
@@ -35,15 +32,8 @@ export function LockstockAccount() {
   const [accountJobTitle, setAccountJobTitle] = useState("");
   const [accountNewPassword, setAccountNewPassword] = useState("");
   const [accountConfirmPassword, setAccountConfirmPassword] = useState("");
-  const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
-
-  function addActivity(message: string) {
-    const stamp = new Date().toLocaleTimeString();
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    setActivity((prev) => [{ id, line: `${stamp} - ${message}` }, ...prev].slice(0, 10));
-  }
 
   function applySessionState(session: { user: { email?: string | null; user_metadata?: Record<string, unknown> } }) {
     setSignedInAs(session.user.email ?? "");
@@ -127,7 +117,7 @@ export function LockstockAccount() {
       unmounted = true;
       unsubscribe();
     };
-  }, []);
+  }, [addActivity]);
 
   useEffect(() => {
     const redirectPath = getSignedOutRedirectPath({
