@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { useActivityLog } from "@/lib/ui/use-activity-log";
 import {
   DEFAULT_PHONE_COUNTRY_CODE,
   PHONE_COUNTRY_CODES,
@@ -147,11 +148,6 @@ type PendingInvitation = {
   organization_name: string;
 };
 
-type ActivityEntry = {
-  id: string;
-  line: string;
-};
-
 type PaginationMeta = {
   page: number;
   limit: number;
@@ -238,6 +234,7 @@ export function LockstockWorkbench() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signedInAs, setSignedInAs] = useState("");
+  const { addActivity } = useActivityLog(signedInAs || email);
   const [signedInFullName, setSignedInFullName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [renamingOrgId, setRenamingOrgId] = useState("");
@@ -308,7 +305,6 @@ export function LockstockWorkbench() {
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [stockHealth, setStockHealth] = useState<StockHealth | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
-  const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
@@ -549,7 +545,7 @@ export function LockstockWorkbench() {
       unmounted = true;
       unsubscribe();
     };
-  }, []);
+  }, [addActivity]);
 
   useEffect(() => {
     const redirectPath = getSignedOutRedirectPath({
@@ -707,12 +703,6 @@ export function LockstockWorkbench() {
       setReceivePoLineId(lineId);
     }
   }, [selectedPurchaseOrder, receivePoLineId]);
-
-  function addActivity(message: string) {
-    const stamp = new Date().toLocaleTimeString();
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    setActivity((prev) => [{ id, line: `${stamp} - ${message}` }, ...prev].slice(0, 10));
-  }
 
   function clearWorkspaceData() {
     setOrgId("");
@@ -3180,15 +3170,6 @@ export function LockstockWorkbench() {
         </>
       ) : null}
 
-      <section className="card">
-        <h3>Activity</h3>
-        {activity.length === 0 ? <p>No activity yet.</p> : null}
-        {activity.map((item) => (
-          <p key={item.id} className="mono-line">
-            {item.line}
-          </p>
-        ))}
-      </section>
     </>
   );
 }
