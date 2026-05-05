@@ -3,7 +3,7 @@ import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
 const PUBLIC_API_PATHS = new Set(["/api/health"]);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!pathname.startsWith("/api/")) {
