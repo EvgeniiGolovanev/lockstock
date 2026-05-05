@@ -1,3 +1,5 @@
+import { formatNumberLabel } from "@/lib/ui/formatters";
+
 export type MaterialRow = {
   id: string;
   sku: string;
@@ -137,11 +139,6 @@ export type PurchaseOrderDraftSummary = {
   totalAmount: number;
 };
 
-const moneyFormatter = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
-
 function emptyCurrencyTotals(): CurrencyTotals {
   return {
     EUR: 0,
@@ -158,7 +155,10 @@ export function currencySymbol(currency: PurchaseOrderCurrency): string {
 }
 
 export function formatCurrencyAmount(amount: number, currency: PurchaseOrderCurrency): string {
-  return `${currencySymbol(currency)}${moneyFormatter.format(Number(amount || 0))}`;
+  return `${currencySymbol(currency)}${formatNumberLabel(Number(amount || 0), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
 }
 
 export function formatCurrencyTotals(totals: CurrencyTotals): string {
