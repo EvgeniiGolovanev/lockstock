@@ -114,18 +114,27 @@ describe("parity models", () => {
   });
 
   it("calculates inventory metrics", () => {
-    const metrics = inventoryMetrics(materials, purchaseOrders);
-    expect(metrics.totalItems).toBe(53);
+    const metrics = inventoryMetrics(
+      [...materials, { ...materials[0], id: "m4", sku: "TECH-001", total_quantity: 3 }],
+      purchaseOrders
+    );
+    expect(metrics.totalMaterials).toBe(3);
+    expect(metrics.totalItems).toBe(56);
     expect(metrics.lowStock).toBe(1);
     expect(metrics.outOfStock).toBe(1);
-    expect(metrics.totalValue).toBe(320);
+    expect(metrics.totalValue).toBe(980);
+    expect(metrics.totalValueByCurrency).toEqual({
+      EUR: 980,
+      USD: 0
+    });
   });
 
-  it("filters inventory rows by query and category", () => {
-    expect(filterInventoryRows(materials, "", "all")).toHaveLength(3);
-    expect(filterInventoryRows(materials, "wire", "all").map((row) => row.id)).toEqual(["m1"]);
-    expect(filterInventoryRows(materials, "", "Electronics").map((row) => row.id)).toEqual(["m1", "m3"]);
-    expect(filterInventoryRows(materials, "chair", "Electronics")).toHaveLength(0);
+  it("filters inventory rows by query, status, and location", () => {
+    expect(filterInventoryRows(materials, "", "all", "all")).toHaveLength(3);
+    expect(filterInventoryRows(materials, "wire", "all", "all").map((row) => row.id)).toEqual(["m1"]);
+    expect(filterInventoryRows(materials, "", "low-stock", "all").map((row) => row.id)).toEqual(["m2"]);
+    expect(filterInventoryRows(materials, "", "all", "Warehouse C").map((row) => row.id)).toEqual(["m3"]);
+    expect(filterInventoryRows(materials, "chair", "in-stock", "all")).toHaveLength(0);
   });
 
   it("computes purchase order progress", () => {

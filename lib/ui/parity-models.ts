@@ -191,11 +191,29 @@ export function normalizeStatus(
 }
 
 export function inventoryMetrics(materials: MaterialRow[], purchaseOrders: PurchaseOrderRow[]) {
+  const uniqueSkus = new Set(materials.map((material) => material.sku.trim()).filter(Boolean));
+  const priceByMaterialId = new Map<string, { unitPrice: number; currency: PurchaseOrderCurrency }>();
+  for (const po of purchaseOrders) {
+    const poCurrency = normalizePurchaseOrderCurrency(po.currency);
+    for (const line of po.lines) {
+      if (line.unit_price != null && !priceByMaterialId.has(line.material_id)) {
+        priceByMaterialId.set(line.material_id, {
+          unitPrice: Number(line.unit_price),
+          currency: poCurrency
+        });
+      }
+    }
+  }
+
   const totals = materials.reduce(
     (acc, material) => {
       const quantity = Number(material.total_quantity ?? 0);
       const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+      const materialPrice = priceByMaterialId.get(material.id);
       acc.totalItems += quantity;
+      if (materialPrice) {
+        acc.totalValueByCurrency[materialPrice.currency] += quantity * materialPrice.unitPrice;
+      }
       if (status === "low-stock") {
         acc.lowStock += 1;
       }
@@ -207,34 +225,34 @@ export function inventoryMetrics(materials: MaterialRow[], purchaseOrders: Purch
     {
       totalItems: 0,
       lowStock: 0,
-      outOfStock: 0
+      outOfStock: 0,
+      totalValueByCurrency: emptyCurrencyTotals()
     }
   );
 
-  const totalValueByCurrency = purchaseOrders.reduce<CurrencyTotals>((sum, po) => {
-    const poCurrency = normalizePurchaseOrderCurrency(po.currency);
-    const poValue = po.lines.reduce((lineSum, line) => {
-      return lineSum + Number(line.quantity_received || 0) * Number(line.unit_price || 0);
-    }, 0);
-    sum[poCurrency] += poValue;
-    return sum;
-  }, emptyCurrencyTotals());
-
-  const totalValue = totalValueByCurrency.EUR + totalValueByCurrency.USD;
+  const totalValue = totals.totalValueByCurrency.EUR + totals.totalValueByCurrency.USD;
 
   return {
+    totalMaterials: uniqueSkus.size,
     totalItems: totals.totalItems,
     lowStock: totals.lowStock,
     outOfStock: totals.outOfStock,
     totalValue,
-    totalValueByCurrency
+    totalValueByCurrency: totals.totalValueByCurrency
   };
 }
 
-export function filterInventoryRows(materials: MaterialRow[], query: string, category: string) {
+export function filterInventoryRows(materials: MaterialRow[], query: string, status: string, location: string) {
   const normalizedQuery = query.trim().toLowerCase();
   return materials.filter((material) => {
-    if (category !== "all" && material.uom !== category) {
+    const quantity = Number(material.total_quantity ?? 0);
+    const normalizedStatus = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+    const normalizedLocation = material.primary_location?.trim() || "Unassigned";
+
+    if (status !== "all" && normalizedStatus !== status) {
+      return false;
+    }
+    if (location !== "all" && normalizedLocation !== location) {
       return false;
     }
     if (!normalizedQuery) {

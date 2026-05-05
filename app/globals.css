@@ -456,7 +456,21 @@ button:disabled {
 .inventory-toolbar {
   display: grid;
   gap: 0.9rem;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 190px 220px;
+}
+
+.table-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.table-section-head h2 {
+  margin: 0;
+  color: var(--ls-ink);
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .materials-layout {
