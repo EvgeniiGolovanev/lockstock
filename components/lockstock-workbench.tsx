@@ -22,6 +22,7 @@ import {
 import {
   buildLocationSkuAlertCounts,
   currencySymbol,
+  expandInventoryRows,
   filterInventoryRows,
   formatCurrencyAmount,
   formatCurrencyTotals,
@@ -43,10 +44,18 @@ type Material = {
   uom: string;
   category?: string | null;
   subcategory?: string | null;
+  created_at?: string;
   min_stock: number;
   total_quantity?: number;
   primary_location?: string | null;
   stock_status?: "in-stock" | "low-stock" | "out-of-stock";
+  balances?: Array<{
+    quantity: number | string | null;
+    location?: {
+      code?: string | null;
+      name: string;
+    } | null;
+  }>;
 };
 
 type Location = {
@@ -102,7 +111,6 @@ type PurchaseOrder = {
 };
 
 type PurchaseOrderFilterStatus = "all" | PurchaseOrder["status"];
-type MaterialsTab = "create" | "add-stock";
 type ManualMovementReason = "adjustment" | "transfer";
 type MovementReason = ManualMovementReason | "purchase_receive" | "transfer_in" | "transfer_out" | "correction";
 
@@ -170,12 +178,13 @@ const STORAGE_KEYS = {
   orgId: "lockstock.orgId"
 } as const;
 
-type NavIcon = "inventory" | "materials" | "locations" | "vendors" | "purchase-orders" | "members";
-type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
+type NavIcon = "inventory" | "materials" | "stock-movements" | "locations" | "vendors" | "purchase-orders" | "members";
+type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/inventory", label: "Inventory", icon: "inventory" },
-  { href: "/materials", label: "Materials & Stock", icon: "materials" },
+  { href: "/materials", label: "Materials", icon: "materials" },
+  { href: "/stock-movements", label: "Stock Movements", icon: "stock-movements" },
   { href: "/locations", label: "Locations", icon: "locations" },
   { href: "/vendors", label: "Vendors", icon: "vendors" },
   { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
@@ -195,6 +204,14 @@ function NavItemIcon({ icon }: { icon: NavIcon }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 3 4 7.2 12 11.4 20 7.2 12 3Zm-8 9L12 16l8-4M4 16l8 4 8-4" />
+      </svg>
+    );
+  }
+
+  if (icon === "stock-movements") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3" />
       </svg>
     );
   }
@@ -227,6 +244,26 @@ function NavItemIcon({ icon }: { icon: NavIcon }) {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 7h2l2 9h10l2-7H8M9 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
     </svg>
+  );
+}
+
+function SearchFieldIcon() {
+  return (
+    <span className="search-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" />
+      </svg>
+    </span>
+  );
+}
+
+function SelectFieldIcon() {
+  return (
+    <span className="filter-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </span>
   );
 }
 
@@ -267,7 +304,6 @@ export function LockstockWorkbench() {
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
   const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
-  const [materialsTab, setMaterialsTab] = useState<MaterialsTab>("create");
 
   const [movementMaterialId, setMovementMaterialId] = useState("");
   const [movementLocationId, setMovementLocationId] = useState("");
@@ -289,6 +325,8 @@ export function LockstockWorkbench() {
   const [receiveLocationId, setReceiveLocationId] = useState("");
   const [receiveQuantity, setReceiveQuantity] = useState(1);
   const [materialFilterQuery, setMaterialFilterQuery] = useState("");
+  const [materialCategoryFilter, setMaterialCategoryFilter] = useState("all");
+  const [materialSubcategoryFilter, setMaterialSubcategoryFilter] = useState("all");
   const [inventoryStatus, setInventoryStatus] = useState("all");
   const [inventoryLocation, setInventoryLocation] = useState("all");
   const [materialPage, setMaterialPage] = useState(1);
@@ -337,17 +375,23 @@ export function LockstockWorkbench() {
     [materials, selectedReceiveLine]
   );
   const inventoryLocations = useMemo(() => {
-    const locationLabels = materials.map((material) => material.primary_location?.trim() || "Unassigned");
+    const locationLabels = expandInventoryRows(materials).map((material) => material.location_label);
     return ["all", ...Array.from(new Set(locationLabels)).sort((a, b) => a.localeCompare(b))];
   }, [materials]);
   const availableMaterialSubcategories = useMemo(
     () => getMaterialSubcategories(materialCategory),
     [materialCategory]
   );
-  const inventoryRows = useMemo(
-    () => filterInventoryRows(materials, materialFilterQuery, inventoryStatus, inventoryLocation),
-    [inventoryLocation, inventoryStatus, materialFilterQuery, materials]
-  );
+  const materialFilterSubcategories = useMemo(() => {
+    if (materialCategoryFilter === "all") {
+      return [];
+    }
+    return getMaterialSubcategories(materialCategoryFilter as MaterialCategory);
+  }, [materialCategoryFilter]);
+  const inventoryRows = useMemo(() => {
+    const expandedRows = expandInventoryRows(materials);
+    return filterInventoryRows(expandedRows, materialFilterQuery, inventoryStatus, inventoryLocation);
+  }, [inventoryLocation, inventoryStatus, materialFilterQuery, materials]);
   const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
   const locationSkuAlertCounts = useMemo(() => buildLocationSkuAlertCounts(locations, materials), [locations, materials]);
   const priceByMaterial = useMemo(() => {
@@ -420,7 +464,10 @@ export function LockstockWorkbench() {
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
     if (pathname === "/materials") {
-      return { title: "Materials & Stock", subtitle: "Manage materials and stock movements." };
+      return { title: "Materials", subtitle: "Create materials and manage the material catalog." };
+    }
+    if (pathname === "/stock-movements") {
+      return { title: "Stock Movements", subtitle: "Add stock and review material movement history." };
     }
     if (pathname === "/locations") {
       return { title: "Locations", subtitle: "Configure storage and fulfillment locations." };
@@ -439,6 +486,7 @@ export function LockstockWorkbench() {
 
   const showLocationSection = pathname === "/locations";
   const showMaterialSection = pathname === "/materials";
+  const showStockMovementsSection = pathname === "/stock-movements";
   const showSupplierSection = pathname === "/vendors";
   const showPurchaseOrderSection = pathname === "/purchase-orders";
   const showMembersSection = pathname === "/members";
@@ -598,19 +646,19 @@ export function LockstockWorkbench() {
     void loadMaterials().catch((error) => {
       addActivity(`Loading materials failed: ${(error as Error).message}`);
     });
-  }, [isOrgScopedReady, normalizedBaseUrl, materialFilterQuery, materialPage]);
+  }, [isOrgScopedReady, normalizedBaseUrl, materialFilterQuery, materialCategoryFilter, materialSubcategoryFilter, materialPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // loadMaterialMovements is intentionally excluded to avoid dependency churn on function identity.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (!showMaterialSection || !isOrgScopedReady || !normalizedBaseUrl) {
+    if (!showStockMovementsSection || !isOrgScopedReady || !normalizedBaseUrl) {
       return;
     }
     void loadMaterialMovements().catch((error) => {
       addActivity(`Loading material movements failed: ${(error as Error).message}`);
     });
-  }, [showMaterialSection, isOrgScopedReady, normalizedBaseUrl, orgId, movementPage]);
+  }, [showStockMovementsSection, isOrgScopedReady, normalizedBaseUrl, orgId, movementPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // loadPurchaseOrders is intentionally excluded to avoid dependency churn on function identity.
@@ -684,6 +732,12 @@ export function LockstockWorkbench() {
       setMaterialSubcategory(availableMaterialSubcategories[0] ?? "");
     }
   }, [availableMaterialSubcategories, materialSubcategory]);
+
+  useEffect(() => {
+    if (materialCategoryFilter === "all" || !materialFilterSubcategories.includes(materialSubcategoryFilter)) {
+      setMaterialSubcategoryFilter("all");
+    }
+  }, [materialCategoryFilter, materialFilterSubcategories, materialSubcategoryFilter]);
 
   useEffect(() => {
     if (!poMaterialId && materials[0]) {
@@ -986,8 +1040,14 @@ export function LockstockWorkbench() {
       page: String(materialPage),
       limit: String(MATERIALS_PAGE_SIZE)
     });
-    if (materialFilterQuery.trim()) {
+    if (materialFilterQuery.trim() && (showMaterialSection || showSnapshotSection)) {
       params.set("q", materialFilterQuery.trim());
+    }
+    if (showMaterialSection && materialCategoryFilter !== "all") {
+      params.set("category", materialCategoryFilter);
+    }
+    if (showMaterialSection && materialSubcategoryFilter !== "all") {
+      params.set("subcategory", materialSubcategoryFilter);
     }
 
     const response = await apiRequest<{ data: Material[]; meta?: PaginationMeta }>(`/api/materials?${params.toString()}`, {
@@ -2090,193 +2150,290 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showMaterialSection ? (
-        <section className="card">
-          <h3>Materials & Stock Management</h3>
-          <p className="subtle-line">Create materials and add stock to specific locations.</p>
+        <>
+          <section className="card">
+            <h3>Materials</h3>
+            <p className="subtle-line">Create materials and keep the material catalog searchable.</p>
+            <div className="materials-form-wrap">
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>SKU</span>
+                  <input value={materialSku} onChange={(event) => setMaterialSku(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Name</span>
+                  <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Category</span>
+                  <select value={materialCategory} onChange={(event) => setMaterialCategory(event.target.value as MaterialCategory)}>
+                    {MATERIAL_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Subcategory</span>
+                  <select value={materialSubcategory} onChange={(event) => setMaterialSubcategory(event.target.value)}>
+                    {availableMaterialSubcategories.map((subcategory) => (
+                      <option key={subcategory} value={subcategory}>
+                        {subcategory}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Unit</span>
+                  <input value={materialUom} onChange={(event) => setMaterialUom(event.target.value)} placeholder="pcs, kg, m, box" />
+                </label>
+                <label className="field">
+                  <span>Minimum Stock</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={materialMinStock}
+                    onChange={(event) => setMaterialMinStock(Number(event.target.value))}
+                  />
+                </label>
+                <label className="field">
+                  <span>Description</span>
+                  <textarea
+                    value={materialDescription}
+                    maxLength={256}
+                    rows={3}
+                    onChange={(event) => setMaterialDescription(event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="actions">
+                <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateMaterial}>
+                  Create Material
+                </button>
+              </div>
+            </div>
+          </section>
 
-          <div className="materials-main">
-            <div className="materials-tabs">
-              <button
-                type="button"
-                className={`tab-btn ${materialsTab === "create" ? "tab-btn-active" : ""}`}
-                onClick={() => setMaterialsTab("create")}
-              >
-                Create Material
+          <section className="card">
+            <div className="materials-table-head">
+              <div className="field">
+                <span>Materials</span>
+                <p className="subtle-line">
+                  Page {materialPage} / {materialTotalPages} ({materialTotal} total)
+                </p>
+              </div>
+            </div>
+            <div className="inventory-toolbar materials-toolbar">
+              <div className="search-input-wrap">
+                <SearchFieldIcon />
+                <input
+                  value={materialFilterQuery}
+                  onChange={(event) => {
+                    setMaterialFilterQuery(event.target.value);
+                    setMaterialPage(1);
+                  }}
+                  placeholder="Search by SKU or name..."
+                />
+              </div>
+              <div className="category-wrap">
+                <SelectFieldIcon />
+                <select
+                  value={materialCategoryFilter}
+                  onChange={(event) => {
+                    setMaterialCategoryFilter(event.target.value);
+                    setMaterialSubcategoryFilter("all");
+                    setMaterialPage(1);
+                  }}
+                >
+                  <option value="all">All Categories</option>
+                  {MATERIAL_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="category-wrap">
+                <SelectFieldIcon />
+                <select
+                  value={materialSubcategoryFilter}
+                  disabled={materialCategoryFilter === "all"}
+                  onChange={(event) => {
+                    setMaterialSubcategoryFilter(event.target.value);
+                    setMaterialPage(1);
+                  }}
+                >
+                  <option value="all">All Subcategories</option>
+                  {materialFilterSubcategories.map((subcategory) => (
+                    <option key={subcategory} value={subcategory}>
+                      {subcategory}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {materials.length === 0 ? (
+              <p>No materials match these filters.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Name</th>
+                      <th>Category</th>
+                      <th>Subcategory</th>
+                      <th>UoM</th>
+                      <th>Date and time of creation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {materials.map((material) => (
+                      <tr key={material.id}>
+                        <td>{material.sku}</td>
+                        <td>{material.name}</td>
+                        <td>{material.category || "-"}</td>
+                        <td>{material.subcategory || "-"}</td>
+                        <td>{material.uom}</td>
+                        <td>{material.created_at ? formatDateTimeLabel(material.created_at) : "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="actions">
+              <button type="button" disabled={busy || materialPage <= 1} onClick={() => setMaterialPage((prev) => Math.max(1, prev - 1))}>
+                Previous
               </button>
               <button
                 type="button"
-                className={`tab-btn ${materialsTab === "add-stock" ? "tab-btn-active" : ""}`}
-                onClick={() => setMaterialsTab("add-stock")}
+                disabled={busy || materialPage >= materialTotalPages}
+                onClick={() => setMaterialPage((prev) => Math.min(materialTotalPages, prev + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {showStockMovementsSection ? (
+        <section className="card">
+          <h3>Stock Movements</h3>
+          <p className="subtle-line">Add stock to locations and review material movement history.</p>
+          <div className="materials-form-wrap">
+            <div className="stock-movement-form-grid">
+              <div className="stock-movement-row stock-movement-row-top">
+                <label className="field">
+                  <span>Material</span>
+                  <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
+                    <option value="">Select material</option>
+                    {materials.map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.sku} - {material.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Reason</span>
+                  <select value={movementReason} onChange={(event) => setMovementReason(event.target.value as ManualMovementReason)}>
+                    <option value="adjustment">Adjustment</option>
+                    <option value="transfer">Transfer</option>
+                  </select>
+                </label>
+              </div>
+
+              {movementReason === "adjustment" ? (
+                <div className="stock-movement-row stock-movement-row-single">
+                  <label className="field">
+                    <span>Location</span>
+                    <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.code ? `${location.code} - ` : ""}
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <div className="stock-movement-row stock-movement-row-top">
+                  <label className="field">
+                    <span>Transfer out</span>
+                    <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.code ? `${location.code} - ` : ""}
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Transfer to</span>
+                    <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.code ? `${location.code} - ` : ""}
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              <div className="stock-movement-row stock-movement-row-single">
+                <label className="field">
+                  <span>{movementReason === "transfer" ? "Quantity" : "Quantity Delta"}</span>
+                  <input
+                    type="number"
+                    min={movementReason === "transfer" ? 1 : undefined}
+                    value={movementQuantity}
+                    onChange={(event) => setMovementQuantity(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+
+              <div className="stock-movement-row stock-movement-row-single">
+                <label className="field">
+                  <span>Comments</span>
+                  <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
+                </label>
+              </div>
+            </div>
+            <div className="actions">
+              <button
+                type="button"
+                disabled={
+                  busy ||
+                  !isOrgScopedReady ||
+                  !movementMaterialId ||
+                  (movementReason === "transfer"
+                    ? !movementFromLocationId ||
+                      !movementToLocationId ||
+                      movementFromLocationId === movementToLocationId ||
+                      Number(movementQuantity) <= 0
+                    : !movementLocationId || Number(movementQuantity) === 0)
+                }
+                onClick={handleCreateMovement}
               >
                 Add to Stock
               </button>
             </div>
-
-              {materialsTab === "create" ? (
-                <div className="materials-form-wrap">
-                  <div className="grid grid-2">
-                    <label className="field">
-                      <span>SKU</span>
-                      <input value={materialSku} onChange={(event) => setMaterialSku(event.target.value)} />
-                    </label>
-                    <label className="field">
-                      <span>Name</span>
-                      <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
-                    </label>
-                    <label className="field">
-                      <span>Category</span>
-                      <select
-                        value={materialCategory}
-                        onChange={(event) => setMaterialCategory(event.target.value as MaterialCategory)}
-                      >
-                        {MATERIAL_CATEGORIES.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Subcategory</span>
-                      <select value={materialSubcategory} onChange={(event) => setMaterialSubcategory(event.target.value)}>
-                        {availableMaterialSubcategories.map((subcategory) => (
-                          <option key={subcategory} value={subcategory}>
-                            {subcategory}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Unit</span>
-                      <input value={materialUom} onChange={(event) => setMaterialUom(event.target.value)} placeholder="pcs, kg, m, box" />
-                    </label>
-                    <label className="field">
-                      <span>Minimum Stock</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={materialMinStock}
-                        onChange={(event) => setMaterialMinStock(Number(event.target.value))}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Description</span>
-                      <textarea
-                        value={materialDescription}
-                        maxLength={256}
-                        rows={3}
-                        onChange={(event) => setMaterialDescription(event.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <div className="actions">
-                    <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateMaterial}>
-                      Create Material
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="materials-form-wrap">
-                  <div className="grid grid-2">
-                    <label className="field">
-                      <span>Material</span>
-                      <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
-                        <option value="">Select material</option>
-                        {materials.map((material) => (
-                          <option key={material.id} value={material.id}>
-                            {material.sku} - {material.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {movementReason === "transfer" ? (
-                      <>
-                        <label className="field">
-                          <span>Transfer out</span>
-                          <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
-                            <option value="">Select location</option>
-                            {locations.map((location) => (
-                              <option key={location.id} value={location.id}>
-                                {location.code ? `${location.code} - ` : ""}
-                                {location.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>Transfer in</span>
-                          <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
-                            <option value="">Select location</option>
-                            {locations.map((location) => (
-                              <option key={location.id} value={location.id}>
-                                {location.code ? `${location.code} - ` : ""}
-                                {location.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </>
-                    ) : (
-                      <label className="field">
-                        <span>Location</span>
-                        <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
-                          <option value="">Select location</option>
-                          {locations.map((location) => (
-                            <option key={location.id} value={location.id}>
-                              {location.code ? `${location.code} - ` : ""}
-                              {location.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    <label className="field">
-                      <span>{movementReason === "transfer" ? "Quantity" : "Quantity Delta"}</span>
-                      <input
-                        type="number"
-                        min={movementReason === "transfer" ? 1 : undefined}
-                        value={movementQuantity}
-                        onChange={(event) => setMovementQuantity(Number(event.target.value))}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Reason</span>
-                      <select value={movementReason} onChange={(event) => setMovementReason(event.target.value as ManualMovementReason)}>
-                        <option value="adjustment">Adjustment</option>
-                        <option value="transfer">Transfer</option>
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Comments</span>
-                      <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
-                    </label>
-                  </div>
-                  <div className="actions">
-                    <button
-                      type="button"
-                      disabled={
-                        busy ||
-                        !isOrgScopedReady ||
-                        !movementMaterialId ||
-                        (movementReason === "transfer"
-                          ? !movementFromLocationId ||
-                            !movementToLocationId ||
-                            movementFromLocationId === movementToLocationId ||
-                            Number(movementQuantity) <= 0
-                          : !movementLocationId || Number(movementQuantity) === 0)
-                      }
-                      onClick={handleCreateMovement}
-                    >
-                      Add to Stock
-                    </button>
-                  </div>
-                </div>
-              )}
-	          </div>
+          </div>
 
           <div className="materials-table-head">
             <div className="field">
-              <span>Material movements</span>
+              <span>Material Movements</span>
               <p className="subtle-line">
                 Page {movementPage} / {movementTotalPages} ({movementTotal} total)
               </p>
@@ -2301,20 +2458,18 @@ export function LockstockWorkbench() {
                   </tr>
                 </thead>
                 <tbody>
-                  {materialMovements.map((movement) => {
-                    return (
-                      <tr key={movement.id}>
-                        <td>{formatDateTimeLabel(movement.created_at)}</td>
-                        <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
-                        <td>{formatMovementLocation(movement.location)}</td>
-                        <td>{formatNumberLabel(Number(movement.quantity_delta))}</td>
-                        <td>{movement.material?.uom ?? "-"}</td>
-                        <td>{movement.material?.category ?? "-"}</td>
-                        <td>{formatMovementReason(movement.reason)}</td>
-                        <td>{movement.note?.trim() ? movement.note : "-"}</td>
-                      </tr>
-                    );
-                  })}
+                  {materialMovements.map((movement) => (
+                    <tr key={movement.id}>
+                      <td>{formatDateTimeLabel(movement.created_at)}</td>
+                      <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
+                      <td>{formatMovementLocation(movement.location)}</td>
+                      <td>{formatNumberLabel(Number(movement.quantity_delta))}</td>
+                      <td>{movement.material?.uom ?? "-"}</td>
+                      <td>{movement.material?.category ?? "-"}</td>
+                      <td>{formatMovementReason(movement.reason)}</td>
+                      <td>{movement.note?.trim() ? movement.note : "-"}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -2551,9 +2706,7 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="purchase-toolbar">
               <div className="search-input-wrap">
-                <span className="search-icon" aria-hidden="true">
-                  S
-                </span>
+                <SearchFieldIcon />
                 <input
                   value={poFilterQuery}
                   onChange={(event) => {
@@ -3069,9 +3222,7 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="inventory-toolbar">
               <div className="search-input-wrap">
-                <span className="search-icon" aria-hidden="true">
-                  ⌕
-                </span>
+                <SearchFieldIcon />
                 <input
                   value={materialFilterQuery}
                   onChange={(event) => {
@@ -3082,9 +3233,7 @@ export function LockstockWorkbench() {
                 />
               </div>
               <div className="category-wrap">
-                <span className="filter-icon" aria-hidden="true">
-                  ⌄
-                </span>
+                <SelectFieldIcon />
                 <select
                   value={inventoryStatus}
                   onChange={(event) => {
@@ -3099,9 +3248,7 @@ export function LockstockWorkbench() {
                 </select>
               </div>
               <div className="category-wrap">
-                <span className="filter-icon" aria-hidden="true">
-                  ⌄
-                </span>
+                <SelectFieldIcon />
                 <select
                   value={inventoryLocation}
                   onChange={(event) => {
@@ -3136,19 +3283,20 @@ export function LockstockWorkbench() {
                       <th>Subcategory</th>
                       <th>Quantity</th>
                       <th>UoM</th>
-                      <th>Price</th>
+                      <th>Price per unit</th>
+                      <th>Total</th>
                       <th>Location</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {inventoryRows.map((material) => {
-                      const quantity = Number(material.total_quantity ?? 0);
-                      const status = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
+                      const quantity = Number(material.location_quantity ?? 0);
+                      const status = normalizeStatus(undefined, quantity, Number(material.min_stock));
                       const materialPrice = priceByMaterial.get(material.id);
 
                       return (
-                        <tr key={material.id}>
+                        <tr key={material.inventory_row_id}>
                           <td>{material.sku}</td>
                           <td>{material.name}</td>
                           <td>{material.category || "-"}</td>
@@ -3160,7 +3308,12 @@ export function LockstockWorkbench() {
                               ? "-"
                               : formatCurrencyAmount(materialPrice.unitPrice, materialPrice.currency)}
                           </td>
-                          <td>{material.primary_location ?? "-"}</td>
+                          <td>
+                            {materialPrice == null
+                              ? "-"
+                              : formatCurrencyAmount(quantity * materialPrice.unitPrice, materialPrice.currency)}
+                          </td>
+                          <td>{material.location_label}</td>
                           <td>
                             <span className={`status-pill status-${status}`}>
                               {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}

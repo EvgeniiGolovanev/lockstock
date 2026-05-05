@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
   try {
     const { orgId, supabase } = await requireRequestContext(request);
     const q = request.nextUrl.searchParams.get("q")?.trim();
+    const category = request.nextUrl.searchParams.get("category")?.trim();
+    const subcategory = request.nextUrl.searchParams.get("subcategory")?.trim();
     const page = parsePositiveInt(request.nextUrl.searchParams.get("page"), 1);
     const limit = Math.min(parsePositiveInt(request.nextUrl.searchParams.get("limit"), DEFAULT_LIMIT), MAX_LIMIT);
     const from = (page - 1) * limit;
@@ -46,6 +48,12 @@ export async function GET(request: NextRequest) {
 
     if (q) {
       query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%`);
+    }
+    if (category) {
+      query = query.eq("category", category);
+    }
+    if (subcategory) {
+      query = query.eq("subcategory", subcategory);
     }
 
     const { data, error, count } = await query;

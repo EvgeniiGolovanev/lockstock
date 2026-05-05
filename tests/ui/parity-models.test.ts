@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildLocationSkuAlertCounts,
   currencySymbol,
+  expandInventoryRows,
   filterInventoryRows,
   formatCurrencyAmount,
   formatCurrencyTotals,
@@ -135,6 +136,31 @@ describe("parity models", () => {
     expect(filterInventoryRows(materials, "", "low-stock", "all").map((row) => row.id)).toEqual(["m2"]);
     expect(filterInventoryRows(materials, "", "all", "Warehouse C").map((row) => row.id)).toEqual(["m3"]);
     expect(filterInventoryRows(materials, "chair", "in-stock", "all")).toHaveLength(0);
+  });
+
+  it("expands inventory rows by positive location balances", () => {
+    const rows = expandInventoryRows([
+      {
+        ...materials[0],
+        id: "table-1",
+        sku: "MAT-005",
+        name: "Table",
+        min_stock: 1,
+        total_quantity: 3,
+        primary_location: "B12 - Block12",
+        balances: [
+          { quantity: 2, location: { code: "B12", name: "Block12" } },
+          { quantity: 1, location: { code: "MAIN", name: "Main Warehouse" } },
+          { quantity: 0, location: { code: "OLD", name: "Old Storage" } }
+        ]
+      }
+    ]);
+
+    expect(rows.map((row) => ({ quantity: row.location_quantity, location: row.location_label }))).toEqual([
+      { quantity: 2, location: "B12 - Block12" },
+      { quantity: 1, location: "MAIN - Main Warehouse" }
+    ]);
+    expect(filterInventoryRows(rows, "", "all", "MAIN - Main Warehouse").map((row) => row.location_quantity)).toEqual([1]);
   });
 
   it("computes purchase order progress", () => {
