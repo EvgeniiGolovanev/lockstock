@@ -12,6 +12,26 @@ export type MaterialRow = {
   total_quantity?: number;
   primary_location?: string | null;
   stock_status?: "in-stock" | "low-stock" | "out-of-stock";
+  balances?: MaterialBalanceRow[];
+};
+
+export type MaterialBalanceRow = {
+  quantity: number | string | null;
+  location?: {
+    code?: string | null;
+    name: string;
+  } | null;
+};
+
+export type InventoryDisplayRow = MaterialRow & {
+  inventory_row_id: string;
+  location_label: string;
+  location_quantity: number;
+};
+
+type MaybeInventoryDisplayRow = MaterialRow & {
+  location_label?: string;
+  location_quantity?: number;
 };
 
 export type PurchaseOrderLineRow = {
@@ -242,12 +262,13 @@ export function inventoryMetrics(materials: MaterialRow[], purchaseOrders: Purch
   };
 }
 
-export function filterInventoryRows(materials: MaterialRow[], query: string, status: string, location: string) {
+export function filterInventoryRows<T extends MaterialRow>(materials: T[], query: string, status: string, location: string): T[] {
   const normalizedQuery = query.trim().toLowerCase();
   return materials.filter((material) => {
-    const quantity = Number(material.total_quantity ?? 0);
+    const displayMaterial = material as MaybeInventoryDisplayRow;
+    const quantity = Number(displayMaterial.location_quantity ?? material.total_quantity ?? 0);
     const normalizedStatus = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
-    const normalizedLocation = material.primary_location?.trim() || "Unassigned";
+    const normalizedLocation = displayMaterial.location_label || material.primary_location?.trim() || "Unassigned";
 
     if (status !== "all" && normalizedStatus !== status) {
       return false;
@@ -262,6 +283,46 @@ export function filterInventoryRows(materials: MaterialRow[], query: string, sta
       material.name.toLowerCase().includes(normalizedQuery) ||
       material.sku.toLowerCase().includes(normalizedQuery)
     );
+  });
+}
+
+function formatBalanceLocation(balance: MaterialBalanceRow): string {
+  if (!balance.location) {
+    return "Unassigned";
+  }
+  return `${balance.location.code ? `${balance.location.code} - ` : ""}${balance.location.name}`;
+}
+
+export function expandInventoryRows(materials: MaterialRow[]): InventoryDisplayRow[] {
+  return materials.flatMap((material) => {
+    const positiveBalances = (material.balances ?? [])
+      .map((balance, index) => ({
+        index,
+        quantity: Number(balance.quantity ?? 0),
+        locationLabel: formatBalanceLocation(balance)
+      }))
+      .filter((balance) => balance.quantity > 0)
+      .sort((a, b) => a.locationLabel.localeCompare(b.locationLabel));
+
+    if (positiveBalances.length === 0) {
+      const quantity = Number(material.total_quantity ?? 0);
+      const locationLabel = material.primary_location?.trim() || "Unassigned";
+      return [
+        {
+          ...material,
+          inventory_row_id: `${material.id}:unassigned`,
+          location_label: locationLabel,
+          location_quantity: quantity
+        }
+      ];
+    }
+
+    return positiveBalances.map((balance) => ({
+      ...material,
+      inventory_row_id: `${material.id}:${balance.index}`,
+      location_label: balance.locationLabel,
+      location_quantity: balance.quantity
+    }));
   });
 }
 

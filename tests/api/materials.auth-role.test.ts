@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
-import { POST } from "@/app/api/materials/route";
+import { GET, POST } from "@/app/api/materials/route";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
@@ -29,7 +29,23 @@ function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") 
     })
   };
 
+  const materialListQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    range: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
+    then: vi.fn((resolve) =>
+      resolve({
+        data: [],
+        error: null,
+        count: 0
+      })
+    )
+  };
+
   const materialsTable = {
+    select: vi.fn().mockReturnValue(materialListQuery),
     insert: vi.fn().mockReturnValue(materialInsertQuery)
   };
 
@@ -43,7 +59,8 @@ function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") 
       }
       throw new Error(`Unexpected table access in test: ${table}`);
     }),
-    materialsTable
+    materialsTable,
+    materialListQuery
   };
 }
 
@@ -124,5 +141,28 @@ describe("POST /api/materials auth and role enforcement", () => {
         subcategory: "Concrete & cement"
       })
     );
+  });
+
+  it("applies material catalog search and category filters", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    const supabase = createSupabaseForRole("member");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest(
+      "http://localhost:3000/api/materials?q=cement&category=Structural%20%26%20Building%20Materials&subcategory=Concrete%20%26%20cement&page=2&limit=10",
+      {
+        headers: { "x-org-id": orgId, Authorization: "Bearer token" }
+      }
+    );
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(supabase.materialListQuery.or).toHaveBeenCalledWith("name.ilike.%cement%,sku.ilike.%cement%");
+    expect(supabase.materialListQuery.eq).toHaveBeenCalledWith("org_id", orgId);
+    expect(supabase.materialListQuery.eq).toHaveBeenCalledWith("category", "Structural & Building Materials");
+    expect(supabase.materialListQuery.eq).toHaveBeenCalledWith("subcategory", "Concrete & cement");
+    expect(supabase.materialListQuery.range).toHaveBeenCalledWith(10, 19);
   });
 });

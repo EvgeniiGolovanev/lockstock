@@ -8,11 +8,12 @@ import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
 
-type NavHref = "/inventory" | "/materials" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
+type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string }> = [
   { href: "/inventory", label: "Inventory" },
-  { href: "/materials", label: "Materials & Stock" },
+  { href: "/materials", label: "Materials" },
+  { href: "/stock-movements", label: "Stock Movements" },
   { href: "/locations", label: "Locations" },
   { href: "/vendors", label: "Vendors" },
   { href: "/purchase-orders", label: "Purchase Orders" },
