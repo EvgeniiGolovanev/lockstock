@@ -104,7 +104,7 @@ describe("parity models", () => {
     expect(normalizePurchaseOrderCurrency("bad")).toBe("EUR");
     expect(currencySymbol("EUR")).toBe("€");
     expect(currencySymbol("USD")).toBe("$");
-    expect(formatCurrencyAmount(1200.5, "EUR").startsWith("€")).toBe(true);
+    expect(formatCurrencyAmount(1200.5, "EUR")).toBe("€1 200.50");
   });
 
   it("normalizes stock status from quantity and threshold when status is missing", () => {

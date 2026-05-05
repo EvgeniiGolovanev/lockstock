@@ -6,6 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  formatDateLabel as formatUiDateLabel,
+  formatDateTimeLabel,
+  formatNumberLabel
+} from "@/lib/ui/formatters";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
 import {
   DEFAULT_PHONE_COUNTRY_CODE,
@@ -759,10 +764,7 @@ export function LockstockWorkbench() {
   }
 
   function formatDateLabel(value?: string | null) {
-    if (!value) {
-      return "-";
-    }
-    return new Date(value).toLocaleDateString();
+    return formatUiDateLabel(value);
   }
 
   function formatPersonLabel(person: { full_name?: string | null; email?: string | null }) {
@@ -2302,10 +2304,10 @@ export function LockstockWorkbench() {
                   {materialMovements.map((movement) => {
                     return (
                       <tr key={movement.id}>
-                        <td>{new Date(movement.created_at).toLocaleString()}</td>
+                        <td>{formatDateTimeLabel(movement.created_at)}</td>
                         <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
                         <td>{formatMovementLocation(movement.location)}</td>
-                        <td>{Number(movement.quantity_delta).toLocaleString()}</td>
+                        <td>{formatNumberLabel(Number(movement.quantity_delta))}</td>
                         <td>{movement.material?.uom ?? "-"}</td>
                         <td>{movement.material?.category ?? "-"}</td>
                         <td>{formatMovementReason(movement.reason)}</td>
@@ -3151,7 +3153,7 @@ export function LockstockWorkbench() {
                           <td>{material.name}</td>
                           <td>{material.category || "-"}</td>
                           <td>{material.subcategory || "-"}</td>
-                          <td>{quantity.toLocaleString()}</td>
+                          <td>{formatNumberLabel(quantity)}</td>
                           <td>{material.uom}</td>
                           <td>
                             {materialPrice == null
