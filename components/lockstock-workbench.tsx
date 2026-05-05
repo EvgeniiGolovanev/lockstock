@@ -284,7 +284,8 @@ export function LockstockWorkbench() {
   const [receiveLocationId, setReceiveLocationId] = useState("");
   const [receiveQuantity, setReceiveQuantity] = useState(1);
   const [materialFilterQuery, setMaterialFilterQuery] = useState("");
-  const [inventoryCategory, setInventoryCategory] = useState("all");
+  const [inventoryStatus, setInventoryStatus] = useState("all");
+  const [inventoryLocation, setInventoryLocation] = useState("all");
   const [materialPage, setMaterialPage] = useState(1);
   const [materialTotal, setMaterialTotal] = useState(0);
   const [movementPage, setMovementPage] = useState(1);
@@ -330,17 +331,17 @@ export function LockstockWorkbench() {
     () => (selectedReceiveLine ? materials.find((material) => material.id === selectedReceiveLine.material_id) ?? null : null),
     [materials, selectedReceiveLine]
   );
-  const inventoryCategories = useMemo(() => {
-    const categories = Array.from(new Set(materials.map((material) => material.uom || "Uncategorized")));
-    return ["all", ...categories];
+  const inventoryLocations = useMemo(() => {
+    const locationLabels = materials.map((material) => material.primary_location?.trim() || "Unassigned");
+    return ["all", ...Array.from(new Set(locationLabels)).sort((a, b) => a.localeCompare(b))];
   }, [materials]);
   const availableMaterialSubcategories = useMemo(
     () => getMaterialSubcategories(materialCategory),
     [materialCategory]
   );
   const inventoryRows = useMemo(
-    () => filterInventoryRows(materials, materialFilterQuery, inventoryCategory),
-    [inventoryCategory, materialFilterQuery, materials]
+    () => filterInventoryRows(materials, materialFilterQuery, inventoryStatus, inventoryLocation),
+    [inventoryLocation, inventoryStatus, materialFilterQuery, materials]
   );
   const metrics = useMemo(() => inventoryMetrics(materials, purchaseOrders), [materials, purchaseOrders]);
   const locationSkuAlertCounts = useMemo(() => buildLocationSkuAlertCounts(locations, materials), [locations, materials]);
@@ -3026,12 +3027,12 @@ export function LockstockWorkbench() {
             <div className="kpi-grid">
               <div className="kpi-card">
                 <div className="kpi-top">
-                  <p>Total Items</p>
+                  <p>Total Materials</p>
                   <span className="kpi-dot kpi-blue" aria-hidden="true">
                     ▣
                   </span>
                 </div>
-                <strong>{stockHealth?.total_quantity ?? metrics.totalItems}</strong>
+                <strong>{metrics.totalMaterials}</strong>
               </div>
               <div className="kpi-card">
                 <div className="kpi-top">
@@ -3082,10 +3083,33 @@ export function LockstockWorkbench() {
                 <span className="filter-icon" aria-hidden="true">
                   ⌄
                 </span>
-                <select value={inventoryCategory} onChange={(event) => setInventoryCategory(event.target.value)}>
-                  {inventoryCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category === "all" ? "All UoM" : category}
+                <select
+                  value={inventoryStatus}
+                  onChange={(event) => {
+                    setInventoryStatus(event.target.value);
+                    setMaterialPage(1);
+                  }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="in-stock">In Stock</option>
+                  <option value="low-stock">Low Stock</option>
+                  <option value="out-of-stock">Out of Stock</option>
+                </select>
+              </div>
+              <div className="category-wrap">
+                <span className="filter-icon" aria-hidden="true">
+                  ⌄
+                </span>
+                <select
+                  value={inventoryLocation}
+                  onChange={(event) => {
+                    setInventoryLocation(event.target.value);
+                    setMaterialPage(1);
+                  }}
+                >
+                  {inventoryLocations.map((location) => (
+                    <option key={location} value={location}>
+                      {location === "all" ? "All Locations" : location}
                     </option>
                   ))}
                 </select>
@@ -3094,6 +3118,9 @@ export function LockstockWorkbench() {
           </section>
 
           <section className="card">
+            <div className="table-section-head">
+              <h2>Inventory status</h2>
+            </div>
             {inventoryRows.length === 0 ? (
               <p>No inventory items match these filters.</p>
             ) : (
@@ -3101,14 +3128,15 @@ export function LockstockWorkbench() {
                 <table className="compact-table">
                   <thead>
                     <tr>
-                      <th>Item Name</th>
                       <th>SKU</th>
-                      <th>Unit of Measure</th>
+                      <th>Item Name</th>
+                      <th>Category</th>
+                      <th>Subcategory</th>
                       <th>Quantity</th>
+                      <th>UoM</th>
                       <th>Price</th>
                       <th>Location</th>
                       <th>Status</th>
-                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3119,10 +3147,12 @@ export function LockstockWorkbench() {
 
                       return (
                         <tr key={material.id}>
-                          <td>{material.name}</td>
                           <td>{material.sku}</td>
-                          <td>{material.uom}</td>
+                          <td>{material.name}</td>
+                          <td>{material.category || "-"}</td>
+                          <td>{material.subcategory || "-"}</td>
                           <td>{quantity.toLocaleString()}</td>
+                          <td>{material.uom}</td>
                           <td>
                             {materialPrice == null
                               ? "-"
@@ -3133,16 +3163,6 @@ export function LockstockWorkbench() {
                             <span className={`status-pill status-${status}`}>
                               {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
                             </span>
-                          </td>
-                          <td>
-                            <div className="row-actions">
-                              <button type="button" disabled className="icon-btn">
-                                ✎
-                              </button>
-                              <button type="button" disabled className="icon-btn danger">
-                                🗑
-                              </button>
-                            </div>
                           </td>
                         </tr>
                       );
