@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createLocationSchema } from "@/lib/validators/location";
+import { createLocationSchema, updateLocationSchema } from "@/lib/validators/location";
 
 describe("createLocationSchema", () => {
   it("accepts a trimmed address up to 265 characters", () => {
@@ -28,5 +28,19 @@ describe("createLocationSchema", () => {
         address: "A".repeat(266)
       })
     ).toThrow();
+  });
+});
+
+describe("updateLocationSchema", () => {
+  it("accepts partial active state updates", () => {
+    const parsed = updateLocationSchema.parse({
+      is_active: false
+    });
+
+    expect(parsed.is_active).toBe(false);
+  });
+
+  it("rejects empty updates", () => {
+    expect(() => updateLocationSchema.parse({})).toThrow();
   });
 });
