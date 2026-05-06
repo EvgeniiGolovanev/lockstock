@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildSignUpPayload } from "@/lib/auth/signup";
 
@@ -207,6 +208,7 @@ export function LockstockLanding() {
             <a href="#pricing">Pricing</a>
           </nav>
           <div className="landing-actions">
+            <LanguageSwitcher />
             {signedInAs ? (
               <>
                 <button type="button" className="ghost-btn" onClick={() => router.push("/account")}>

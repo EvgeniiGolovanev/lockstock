@@ -84,8 +84,9 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.25rem;
-  padding: 0.65rem 1rem;
+  gap: 0.65rem;
+  min-height: 3.75rem;
+  padding: 0.52rem 1rem;
   max-width: 1280px;
   margin: 0 auto;
   border-bottom: none;
@@ -113,33 +114,59 @@ p {
 
 .nav-links {
   display: flex;
-  gap: 0.4rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 0.1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.18rem;
+  border: 1px solid #e4eaf4;
+  border-radius: 10px;
+  background: #f8fafc;
 }
 
 .shell-user-actions {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
+  flex: 0 0 auto;
   margin-left: auto;
+  min-height: 2.3rem;
+  white-space: nowrap;
 }
 
 .nav-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: center;
+  gap: 0.32rem;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 2.05rem;
   text-decoration: none;
   color: #3f4e65;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 0.52rem 0.78rem;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 120ms ease;
+  border-radius: 8px;
+  padding: 0.38rem 0.36rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
   white-space: nowrap;
+}
+
+.shell-user-actions .nav-link {
+  flex: 0 0 auto;
+  min-height: 2.2rem;
+  padding: 0.43rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+.nav-link span:not(.nav-icon) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link:hover {
@@ -149,22 +176,23 @@ p {
 
 .nav-link-active {
   color: var(--ls-primary-ink);
-  background: var(--ls-primary-soft);
-  border-color: #cddcff;
-  font-weight: 600;
+  background: #ffffff;
+  border-color: #d9e5fb;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .nav-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .nav-icon svg {
-  width: 1rem;
-  height: 1rem;
+  width: 0.95rem;
+  height: 0.95rem;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -1050,9 +1078,9 @@ button:disabled {
 }
 
 .landing-header .landing-wrap {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   min-height: 4rem;
 }
@@ -1080,7 +1108,9 @@ button:disabled {
 .landing-nav {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 1.2rem;
+  min-width: 0;
 }
 
 .landing-nav a {
@@ -1095,7 +1125,9 @@ button:disabled {
 
 .landing-actions {
   display: inline-flex;
+  align-items: center;
   gap: 0.55rem;
+  white-space: nowrap;
 }
 
 .landing-hero {
@@ -1295,9 +1327,9 @@ button:disabled {
 
 /* Landing parity overrides */
 .landing-header-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   min-height: 4rem;
 }
@@ -1532,34 +1564,25 @@ button:disabled {
 }
 
 .locale-switcher {
-  position: fixed;
-  top: 0.7rem;
-  right: 0.8rem;
-  z-index: 90;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border: 1px solid #d6e0ee;
   border-radius: 999px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
-  padding: 0.25rem 0.35rem 0.25rem 0.55rem;
-}
-
-.locale-switcher-label {
-  color: #334155;
-  font-size: 0.8rem;
-  font-weight: 600;
+  box-shadow: none;
+  padding: 0.22rem;
 }
 
 .locale-switcher-actions {
   display: inline-flex;
+  align-items: center;
   gap: 0.22rem;
 }
 
 .locale-switcher-btn {
-  min-width: 2.15rem;
-  padding: 0.23rem 0.42rem;
+  min-width: 1.9rem;
+  min-height: 1.72rem;
+  padding: 0.2rem 0.34rem;
   font-size: 0.73rem;
   border-radius: 999px;
   background: #ffffff;
@@ -1571,6 +1594,81 @@ button:disabled {
   background: #1d4ed8;
   color: #ffffff;
   border-color: #1d4ed8;
+}
+
+@media (max-width: 1180px) {
+  .brand-wrap {
+    gap: 0.5rem;
+  }
+
+  .brand-mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .brand-wrap h2 {
+    font-size: 1.05rem;
+  }
+
+  .nav-link {
+    gap: 0.25rem;
+    padding-inline: 0.28rem;
+    font-size: 0.72rem;
+  }
+
+  .shell-user-actions .nav-link,
+  .shell-user-actions button {
+    padding-inline: 0.48rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 980px) {
+  .nav-links {
+    flex: 0 1 auto;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    width: 2.15rem;
+    padding-inline: 0;
+  }
+
+  .nav-link .nav-icon + span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 700px) {
+  .shell-top {
+    padding-inline: 0.55rem;
+  }
+
+  .brand-wrap h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .shell-user-actions {
+    gap: 0.25rem;
+  }
+
+  .shell-user-actions .nav-link {
+    padding-inline: 0.42rem;
+  }
+
+  .shell-user-actions button {
+    padding-inline: 0.42rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1592,17 +1690,17 @@ button:disabled {
   }
 
   .shell-top {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .nav-links {
-    width: 100%;
+    width: auto;
   }
 
   .shell-user-actions {
-    width: 100%;
-    justify-content: flex-start;
+    width: auto;
+    justify-content: flex-end;
   }
 
   .title-row {
@@ -1663,7 +1761,7 @@ button:disabled {
   }
 
   .landing-header .landing-wrap {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr auto;
     padding: 0.45rem 0;
   }
 
@@ -1673,6 +1771,7 @@ button:disabled {
 
   .landing-actions {
     width: 100%;
+    grid-column: 1 / -1;
   }
 
   .landing-actions button {
@@ -1713,8 +1812,6 @@ button:disabled {
   }
 
   .locale-switcher {
-    top: auto;
-    bottom: 0.75rem;
-    right: 0.75rem;
+    flex: 0 0 auto;
   }
 }

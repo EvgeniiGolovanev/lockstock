@@ -8,7 +8,6 @@ export function LanguageSwitcher() {
 
   return (
     <div className="locale-switcher" data-locale-ignore="true" aria-label={languageLabel}>
-      <span className="locale-switcher-label">{languageLabel}</span>
       <div className="locale-switcher-actions">
         <button
           type="button"
