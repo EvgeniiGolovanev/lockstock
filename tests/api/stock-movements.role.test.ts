@@ -21,11 +21,22 @@ function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") 
   };
 
   const rpc = vi.fn().mockResolvedValue({ data: "move-1", error: null });
+  const materialsQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { id: "2f208318-9607-4e8a-b061-fdf4ec4e8115", is_active: true },
+      error: null
+    })
+  };
 
   return {
     from: vi.fn((table: string) => {
       if (table === "org_users") {
         return orgUsersQuery;
+      }
+      if (table === "materials") {
+        return materialsQuery;
       }
       throw new Error(`Unexpected table access in test: ${table}`);
     }),

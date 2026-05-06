@@ -46,6 +46,7 @@ type Material = {
   subcategory?: string | null;
   created_at?: string;
   min_stock: number;
+  is_active: boolean;
   total_quantity?: number;
   primary_location?: string | null;
   stock_status?: "in-stock" | "low-stock" | "out-of-stock";
@@ -349,6 +350,7 @@ export function LockstockWorkbench() {
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [stockHealth, setStockHealth] = useState<StockHealth | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
+  const [pendingMaterialUsageChange, setPendingMaterialUsageChange] = useState<Material | null>(null);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
@@ -374,6 +376,7 @@ export function LockstockWorkbench() {
     () => (selectedReceiveLine ? materials.find((material) => material.id === selectedReceiveLine.material_id) ?? null : null),
     [materials, selectedReceiveLine]
   );
+  const activeMaterials = useMemo(() => materials.filter((material) => material.is_active !== false), [materials]);
   const inventoryLocations = useMemo(() => {
     const locationLabels = expandInventoryRows(materials).map((material) => material.location_label);
     return ["all", ...Array.from(new Set(locationLabels)).sort((a, b) => a.localeCompare(b))];
@@ -684,10 +687,12 @@ export function LockstockWorkbench() {
   }, [memberInviteOrgId, orgId, ownedGroups]);
 
   useEffect(() => {
-    if (!movementMaterialId && materials[0]) {
-      setMovementMaterialId(materials[0].id);
+    if (!movementMaterialId && activeMaterials[0]) {
+      setMovementMaterialId(activeMaterials[0].id);
+    } else if (movementMaterialId && !activeMaterials.some((material) => material.id === movementMaterialId)) {
+      setMovementMaterialId(activeMaterials[0]?.id ?? "");
     }
-  }, [movementMaterialId, materials]);
+  }, [activeMaterials, movementMaterialId]);
 
   useEffect(() => {
     if (!movementLocationId && locations[0]) {
@@ -740,10 +745,12 @@ export function LockstockWorkbench() {
   }, [materialCategoryFilter, materialFilterSubcategories, materialSubcategoryFilter]);
 
   useEffect(() => {
-    if (!poMaterialId && materials[0]) {
-      setPoMaterialId(materials[0].id);
+    if (!poMaterialId && activeMaterials[0]) {
+      setPoMaterialId(activeMaterials[0].id);
+    } else if (poMaterialId && !activeMaterials.some((material) => material.id === poMaterialId)) {
+      setPoMaterialId(activeMaterials[0]?.id ?? "");
     }
-  }, [materials, poMaterialId]);
+  }, [activeMaterials, poMaterialId]);
 
   useEffect(() => {
     if (!receiveLocationId && locations[0]) {
@@ -1468,6 +1475,36 @@ export function LockstockWorkbench() {
       await refreshCoreData();
     } catch (error) {
       addActivity(`Create material failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmMaterialUsageChange() {
+    if (!pendingMaterialUsageChange) {
+      return;
+    }
+
+    const nextIsActive = pendingMaterialUsageChange.is_active === false;
+
+    try {
+      setBusy(true);
+      await apiRequest(`/api/materials/${pendingMaterialUsageChange.id}`, {
+        method: "PATCH",
+        body: {
+          is_active: nextIsActive
+        }
+      });
+      addActivity(
+        `${pendingMaterialUsageChange.sku} ${nextIsActive ? "unblocked for usage" : "blocked for usage"}.`
+      );
+      setPendingMaterialUsageChange(null);
+      if (!nextIsActive) {
+        setPoDraftLines((prev) => prev.filter((line) => line.material_id !== pendingMaterialUsageChange.id));
+      }
+      await refreshCoreData();
+    } catch (error) {
+      addActivity(`Update material usage failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -2286,7 +2323,10 @@ export function LockstockWorkbench() {
                       <th>Category</th>
                       <th>Subcategory</th>
                       <th>UoM</th>
+                      <th>Minimum stock</th>
+                      <th>Status</th>
                       <th>Date and time of creation</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2297,7 +2337,19 @@ export function LockstockWorkbench() {
                         <td>{material.category || "-"}</td>
                         <td>{material.subcategory || "-"}</td>
                         <td>{material.uom}</td>
+                        <td>{formatNumberLabel(material.min_stock)}</td>
+                        <td>{material.is_active === false ? "Blocked" : "Active"}</td>
                         <td>{material.created_at ? formatDateTimeLabel(material.created_at) : "-"}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="ghost-btn"
+                            disabled={busy}
+                            onClick={() => setPendingMaterialUsageChange(material)}
+                          >
+                            {material.is_active === false ? "Unblock" : "Block"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2317,6 +2369,41 @@ export function LockstockWorkbench() {
               </button>
             </div>
           </section>
+          {pendingMaterialUsageChange ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm material usage change">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>{pendingMaterialUsageChange.is_active === false ? "Unblock material" : "Block material"}</h4>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setPendingMaterialUsageChange(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <p>
+                  {pendingMaterialUsageChange.is_active === false
+                    ? `Unblock ${pendingMaterialUsageChange.sku} - ${pendingMaterialUsageChange.name} for new usage?`
+                    : `Block ${pendingMaterialUsageChange.sku} - ${pendingMaterialUsageChange.name} from new usage?`}
+                </p>
+                <div className="actions">
+                  <button type="button" disabled={busy} onClick={confirmMaterialUsageChange}>
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setPendingMaterialUsageChange(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
 
@@ -2331,7 +2418,7 @@ export function LockstockWorkbench() {
                   <span>Material</span>
                   <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
                     <option value="">Select material</option>
-                    {materials.map((material) => (
+                    {activeMaterials.map((material) => (
                       <option key={material.id} value={material.id}>
                         {material.sku} - {material.name}
                       </option>
@@ -2940,7 +3027,7 @@ export function LockstockWorkbench() {
                         <span>Material</span>
                         <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
                           <option value="">Select material</option>
-                          {materials.map((material) => (
+                          {activeMaterials.map((material) => (
                             <option key={material.id} value={material.id}>
                               {material.sku} - {material.name}
                             </option>

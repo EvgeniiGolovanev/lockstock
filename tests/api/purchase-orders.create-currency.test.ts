@@ -40,9 +40,19 @@ function createSupabaseInsertHarness() {
   const poLinesInsert = vi.fn().mockReturnValue({
     select: poLinesInsertSelect
   });
+  const materialsIn = vi.fn().mockResolvedValue({
+    data: [{ id: "33333333-3333-4333-8333-333333333333" }],
+    error: null
+  });
+  const materialsEqIsActive = vi.fn().mockReturnValue({ in: materialsIn });
+  const materialsEqOrg = vi.fn().mockReturnValue({ eq: materialsEqIsActive });
+  const materialsSelect = vi.fn().mockReturnValue({ eq: materialsEqOrg });
 
   const supabase = {
     from: vi.fn((table: string) => {
+      if (table === "materials") {
+        return { select: materialsSelect };
+      }
       if (table === "purchase_orders") {
         return { insert: poInsert };
       }
@@ -135,5 +145,56 @@ describe("POST /api/purchase-orders currency persistence", () => {
       })
     );
     expect(body.data.currency).toBe("USD");
+  });
+
+  it("rejects purchase orders containing blocked materials", async () => {
+    const materialsIn = vi.fn().mockResolvedValue({
+      data: [],
+      error: null
+    });
+    const materialsEqIsActive = vi.fn().mockReturnValue({ in: materialsIn });
+    const materialsEqOrg = vi.fn().mockReturnValue({ eq: materialsEqIsActive });
+    const materialsSelect = vi.fn().mockReturnValue({ eq: materialsEqOrg });
+    const poInsert = vi.fn();
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "materials") {
+          return { select: materialsSelect };
+        }
+        if (table === "purchase_orders") {
+          return { insert: poInsert };
+        }
+        throw new Error(`Unexpected table in test: ${table}`);
+      })
+    };
+
+    vi.mocked(requireRequestContext).mockResolvedValue({
+      orgId: "11111111-1111-4111-8111-111111111111",
+      userId: "user-1",
+      role: "manager",
+      supabase
+    } as never);
+
+    const request = new NextRequest("http://localhost:3000/api/purchase-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        supplier_id: "22222222-2222-4222-8222-222222222222",
+        lines: [
+          {
+            material_id: "33333333-3333-4333-8333-333333333333",
+            quantity_ordered: 1,
+            unit_price: 12
+          }
+        ]
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("active materials");
+    expect(poInsert).not.toHaveBeenCalled();
   });
 });

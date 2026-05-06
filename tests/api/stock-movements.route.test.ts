@@ -9,7 +9,22 @@ vi.mock("@/lib/api/route-context", () => ({
 }));
 
 function createTransferSupabase() {
+  const materialQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { id: "22222222-2222-4222-8222-222222222222", is_active: true },
+      error: null
+    })
+  };
+
   return {
+    from: vi.fn((table: string) => {
+      if (table === "materials") {
+        return materialQuery;
+      }
+      throw new Error(`Unexpected table in test: ${table}`);
+    }),
     rpc: vi.fn().mockResolvedValue({
       data: ["move-out-1", "move-in-1"],
       error: null
@@ -89,6 +104,51 @@ describe("stock movement routes", () => {
       p_created_by: "user-1"
     });
     expect(body.data.movement_ids).toEqual(["move-out-1", "move-in-1"]);
+  });
+
+  it("rejects movement creation for blocked materials", async () => {
+    const materialQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { id: "22222222-2222-4222-8222-222222222222", is_active: false },
+        error: null
+      })
+    };
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "materials") {
+          return materialQuery;
+        }
+        throw new Error(`Unexpected table in test: ${table}`);
+      }),
+      rpc: vi.fn()
+    };
+
+    vi.mocked(requireRequestContext).mockResolvedValue({
+      orgId: "11111111-1111-4111-8111-111111111111",
+      userId: "user-1",
+      role: "member",
+      supabase
+    } as never);
+
+    const request = new NextRequest("http://localhost:3000/api/stock/movements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        material_id: "22222222-2222-4222-8222-222222222222",
+        location_id: "33333333-3333-4333-8333-333333333333",
+        quantity_delta: 5,
+        reason: "adjustment"
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("blocked");
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
   it("lists movement rows with pagination metadata", async () => {
