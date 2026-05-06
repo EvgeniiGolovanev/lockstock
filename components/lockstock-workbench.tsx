@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
+import { MATERIAL_UNITS, formatMaterialUnitLabel } from "@/lib/material-units";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   formatDateLabel as formatUiDateLabel,
@@ -292,7 +293,7 @@ export function LockstockWorkbench() {
   const [materialSku, setMaterialSku] = useState("MAT-001");
   const [materialName, setMaterialName] = useState("Cement");
   const [materialDescription, setMaterialDescription] = useState("");
-  const [materialUom, setMaterialUom] = useState("bag");
+  const [materialUom, setMaterialUom] = useState("BAG");
   const [materialCategory, setMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
   const [materialSubcategory, setMaterialSubcategory] = useState(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
   const [materialMinStock, setMaterialMinStock] = useState(10);
@@ -2441,7 +2442,13 @@ export function LockstockWorkbench() {
                 </label>
                 <label className="field">
                   <span>Unit</span>
-                  <input value={materialUom} onChange={(event) => setMaterialUom(event.target.value)} placeholder="pcs, kg, m, box" />
+                  <select value={materialUom} onChange={(event) => setMaterialUom(event.target.value)}>
+                    {MATERIAL_UNITS.map((unit) => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label className="field">
                   <span>Minimum Stock</span>
@@ -2554,7 +2561,7 @@ export function LockstockWorkbench() {
                         <td>{material.name}</td>
                         <td>{material.category || "-"}</td>
                         <td>{material.subcategory || "-"}</td>
-                        <td>{material.uom}</td>
+                        <td>{formatMaterialUnitLabel(material.uom)}</td>
                         <td>{formatNumberLabel(material.min_stock)}</td>
                         <td>{material.is_active === false ? "Blocked" : "Active"}</td>
                         <td>{material.created_at ? formatDateTimeLabel(material.created_at) : "-"}</td>
@@ -2769,7 +2776,7 @@ export function LockstockWorkbench() {
                       <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
                       <td>{formatMovementLocation(movement.location)}</td>
                       <td>{formatNumberLabel(Number(movement.quantity_delta))}</td>
-                      <td>{movement.material?.uom ?? "-"}</td>
+                      <td>{movement.material ? formatMaterialUnitLabel(movement.material.uom) : "-"}</td>
                       <td>{movement.material?.category ?? "-"}</td>
                       <td>{formatMovementReason(movement.reason)}</td>
                       <td>{movement.note?.trim() ? movement.note : "-"}</td>
