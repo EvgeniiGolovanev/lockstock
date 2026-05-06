@@ -308,6 +308,7 @@ export function LockstockWorkbench() {
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
   const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
+  const [selectedPoDetailsId, setSelectedPoDetailsId] = useState<string | null>(null);
 
   const [movementMaterialId, setMovementMaterialId] = useState("");
   const [movementLocationId, setMovementLocationId] = useState("");
@@ -356,6 +357,7 @@ export function LockstockWorkbench() {
   const [pendingMaterialUsageChange, setPendingMaterialUsageChange] = useState<Material | null>(null);
   const [pendingLocationUsageChange, setPendingLocationUsageChange] = useState<Location | null>(null);
   const [pendingSupplierUsageChange, setPendingSupplierUsageChange] = useState<Supplier | null>(null);
+  const [pendingCancelPo, setPendingCancelPo] = useState<PurchaseOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
@@ -440,6 +442,10 @@ export function LockstockWorkbench() {
       summary: purchaseOrderTableSummary(po, poSkuByMaterialId)
     }));
   }, [purchaseOrders, poSkuByMaterialId]);
+  const selectedPoDetails = useMemo(
+    () => purchaseOrders.find((po) => po.id === selectedPoDetailsId) ?? null,
+    [purchaseOrders, selectedPoDetailsId]
+  );
   const inventoryValueLabel = useMemo(() => formatCurrencyTotals(metrics.totalValueByCurrency), [metrics.totalValueByCurrency]);
   const inventoryValueBadge = useMemo(() => {
     const { EUR, USD } = metrics.totalValueByCurrency;
@@ -841,6 +847,28 @@ export function LockstockWorkbench() {
 
   function formatDateLabel(value?: string | null) {
     return formatUiDateLabel(value);
+  }
+
+  function formatPoStatusDetail(po: PurchaseOrder) {
+    if (po.received_at) {
+      return `Received ${formatDateLabel(po.received_at)}`;
+    }
+    if (po.sent_at) {
+      return `Sent ${formatDateLabel(po.sent_at)}`;
+    }
+    if (po.status === "sent") {
+      return "Sent";
+    }
+    if (po.status === "partial") {
+      return "Receiving started";
+    }
+    if (po.status === "received") {
+      return "Received";
+    }
+    if (po.status === "cancelled") {
+      return "Cancelled";
+    }
+    return "Not sent";
   }
 
   function formatPersonLabel(person: { full_name?: string | null; email?: string | null }) {
@@ -1720,6 +1748,30 @@ export function LockstockWorkbench() {
       return true;
     } catch (error) {
       addActivity(`Mark as sent failed: ${(error as Error).message}`);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCancelPurchaseOrder(po: PurchaseOrder) {
+    try {
+      setBusy(true);
+      await apiRequest(`/api/purchase-orders/${po.id}/status`, {
+        method: "PATCH",
+        body: {
+          status: "cancelled"
+        }
+      });
+      addActivity(`${po.po_number} cancelled.`);
+      setPendingCancelPo(null);
+      if (selectedPoDetailsId === po.id) {
+        setSelectedPoDetailsId(null);
+      }
+      await refreshCoreData();
+      return true;
+    } catch (error) {
+      addActivity(`Cancel purchase order failed: ${(error as Error).message}`);
       return false;
     } finally {
       setBusy(false);
@@ -3085,10 +3137,16 @@ export function LockstockWorkbench() {
                     </tr>
                   </thead>
                   <tbody>
-                    {poTableRows.map(({ po, summary }) => {
-                      const canReceive = po.status === "sent" || po.status === "partial";
-                      return (
-                        <tr key={po.id}>
+	                    {poTableRows.map(({ po, summary }) => {
+	                      const canReceive = po.status === "sent" || po.status === "partial";
+	                      const canCancel = po.status === "draft" || po.status === "sent" || po.status === "partial";
+	                      return (
+	                        <tr
+	                          key={po.id}
+	                          className="po-row"
+	                          title="Double-click to view all line items"
+	                          onDoubleClick={() => setSelectedPoDetailsId(po.id)}
+	                        >
                           <td>
                             <div className="po-cell-main">{po.po_number}</div>
                             <div className="po-cell-subtle">Created {formatDateLabel(po.created_at)}</div>
@@ -3098,15 +3156,9 @@ export function LockstockWorkbench() {
                             <div className="po-cell-subtle">{summary.linePreview}</div>
                           </td>
                           <td>
-                            <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
-                            <div className="po-cell-subtle">
-                              {po.received_at
-                                ? `Received ${formatDateLabel(po.received_at)}`
-                                : po.sent_at
-                                  ? `Sent ${formatDateLabel(po.sent_at)}`
-                                  : "Not sent"}
-                            </div>
-                          </td>
+	                            <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
+	                            <div className="po-cell-subtle">{formatPoStatusDetail(po)}</div>
+	                          </td>
                           <td>
                             <div className="po-cell-main">
                               {summary.lineCount} {summary.lineCount === 1 ? "line" : "lines"}
@@ -3132,8 +3184,8 @@ export function LockstockWorkbench() {
                               {po.expected_at ? "Expected arrival" : "No expected date"}
                             </div>
                           </td>
-                          <td>
-                            <div className="row-actions">
+	                          <td onDoubleClick={(event) => event.stopPropagation()}>
+	                            <div className="row-actions">
                               {po.status === "draft" ? (
                                 <button
                                   type="button"
@@ -3157,12 +3209,22 @@ export function LockstockWorkbench() {
                                     setShowPoReceiveForm(true);
                                   }}
                                 >
-                                  Receive
-                                </button>
-                              ) : null}
-                              {po.status !== "draft" && !canReceive ? <span className="po-cell-subtle">No actions</span> : null}
-                            </div>
-                          </td>
+	                                  Receive
+	                                </button>
+	                              ) : null}
+	                              {canCancel ? (
+	                                <button
+	                                  type="button"
+	                                  disabled={busy}
+	                                  className="ghost-btn danger-btn po-receive-btn"
+	                                  onClick={() => setPendingCancelPo(po)}
+	                                >
+	                                  Cancel
+	                                </button>
+	                              ) : null}
+	                              {!canCancel && !canReceive ? <span className="po-cell-subtle">No actions</span> : null}
+	                            </div>
+	                          </td>
                         </tr>
                       );
                     })}
@@ -3182,10 +3244,151 @@ export function LockstockWorkbench() {
                 Next
               </button>
             </div>
-          </section>
+	          </section>
 
-          {showPoCreateForm ? (
-            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create purchase order">
+	          {selectedPoDetails ? (
+	            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Purchase order ${selectedPoDetails.po_number}`}>
+	              <div className="modal-card po-modal-card">
+	                <div className="title-row po-modal-head">
+	                  <div>
+	                    <h4>{selectedPoDetails.po_number}</h4>
+	                    <p className="po-modal-subtitle">
+	                      {selectedPoDetails.supplier?.name ?? "Unknown supplier"} | {formatPoStatusDetail(selectedPoDetails)}
+	                    </p>
+	                  </div>
+	                  <button type="button" className="ghost-btn po-modal-close" onClick={() => setSelectedPoDetailsId(null)}>
+	                    x
+	                  </button>
+	                </div>
+	                <div className="po-modal-body">
+	                  {(() => {
+	                    const summary = purchaseOrderTableSummary(selectedPoDetails, poSkuByMaterialId);
+	                    return (
+	                      <>
+	                        <section className="po-modal-section">
+	                          <div className="po-detail-summary">
+	                            <div>
+	                              <p className="po-meta-label">Status</p>
+	                              <p className="po-meta-value">
+	                                <span className={`status-pill status-${selectedPoDetails.status}`}>
+	                                  {selectedPoDetails.status.toUpperCase()}
+	                                </span>
+	                              </p>
+	                            </div>
+		                            <div>
+		                              <p className="po-meta-label">Created</p>
+		                              <p className="po-meta-value">{formatDateLabel(selectedPoDetails.created_at)}</p>
+		                            </div>
+		                            <div>
+		                              <p className="po-meta-label">Sent</p>
+		                              <p className="po-meta-value">{formatDateLabel(selectedPoDetails.sent_at)}</p>
+		                            </div>
+		                            <div>
+		                              <p className="po-meta-label">Expected</p>
+		                              <p className="po-meta-value">{formatDateLabel(selectedPoDetails.expected_at)}</p>
+	                            </div>
+	                            <div>
+	                              <p className="po-meta-label">Total</p>
+	                              <p className="po-meta-value">
+	                                {formatCurrencyAmount(summary.totalAmount, summary.currency)}
+	                              </p>
+	                            </div>
+	                          </div>
+	                        </section>
+
+	                        <section className="po-modal-section">
+	                          <h5>Line Items</h5>
+	                          {selectedPoDetails.lines.length > 0 ? (
+	                            <div className="po-draft-lines-wrap">
+	                              <table className="po-lines-table">
+	                                <thead>
+		                                  <tr>
+		                                    <th>Material</th>
+		                                    <th>UoM</th>
+		                                    <th>Ordered</th>
+		                                    <th>Received</th>
+	                                    <th>Remaining</th>
+	                                    <th>Unit Price</th>
+	                                    <th>Total</th>
+	                                  </tr>
+	                                </thead>
+	                                <tbody>
+	                                  {selectedPoDetails.lines.map((line) => {
+	                                    const quantityOrdered = Number(line.quantity_ordered || 0);
+	                                    const quantityReceived = Number(line.quantity_received || 0);
+	                                    const unitPrice = Number(line.unit_price || 0);
+	                                    return (
+		                                      <tr key={line.id}>
+		                                        {(() => {
+		                                          const material = materials.find((item) => item.id === line.material_id);
+		                                          return (
+		                                            <>
+		                                              <td>{material ? `${material.sku} - ${material.name}` : line.material_id}</td>
+		                                              <td>{material?.uom ?? "-"}</td>
+		                                            </>
+		                                          );
+		                                        })()}
+		                                        <td>{quantityOrdered}</td>
+	                                        <td>{quantityReceived}</td>
+	                                        <td>{Math.max(0, quantityOrdered - quantityReceived)}</td>
+	                                        <td>{formatCurrencyAmount(unitPrice, summary.currency)}</td>
+	                                        <td>{formatCurrencyAmount(quantityOrdered * unitPrice, summary.currency)}</td>
+	                                      </tr>
+	                                    );
+	                                  })}
+	                                </tbody>
+	                              </table>
+	                            </div>
+	                          ) : (
+	                            <p className="po-line-empty">No line items found for this purchase order.</p>
+	                          )}
+	                        </section>
+	                      </>
+	                    );
+	                  })()}
+	                </div>
+	                <div className="actions po-modal-footer">
+	                  <button type="button" className="ghost-btn" disabled={busy} onClick={() => setSelectedPoDetailsId(null)}>
+	                    Close
+	                  </button>
+	                </div>
+	              </div>
+	            </div>
+	          ) : null}
+
+	          {pendingCancelPo ? (
+	            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm purchase order cancellation">
+	              <div className="modal-card">
+	                <div className="title-row">
+	                  <h4>Cancel Purchase Order</h4>
+	                  <button type="button" className="ghost-btn po-modal-close" onClick={() => setPendingCancelPo(null)}>
+	                    x
+	                  </button>
+	                </div>
+	                <p className="subtle-line">
+	                  Cancel {pendingCancelPo.po_number}? This will stop receiving against this purchase order.
+	                </p>
+	                <div className="actions">
+	                  <button type="button" className="ghost-btn" disabled={busy} onClick={() => setPendingCancelPo(null)}>
+	                    Keep PO
+	                  </button>
+	                  <button
+	                    type="button"
+	                    className="danger-btn"
+	                    disabled={busy}
+	                    onClick={() => {
+	                      void handleCancelPurchaseOrder(pendingCancelPo);
+	                    }}
+	                  >
+	                    Cancel PO
+	                  </button>
+	                </div>
+	              </div>
+	            </div>
+	          ) : null}
+
+	          {showPoCreateForm ? (
+	            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create purchase order">
               <div className="modal-card po-modal-card">
                 <div className="title-row po-modal-head">
                   <h4>Create Purchase Order</h4>
@@ -3241,17 +3444,17 @@ export function LockstockWorkbench() {
                   <section className="po-modal-section">
                     <h5>Add Items</h5>
                     <div className="po-item-grid">
-                      <label className="field">
-                        <span>Material</span>
-                        <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
-                          <option value="">Select material</option>
-                          {activeMaterials.map((material) => (
-                            <option key={material.id} value={material.id}>
-                              {material.sku} - {material.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+	                      <label className="field">
+	                        <span>Material</span>
+	                        <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
+	                          <option value="">Select material</option>
+	                          {activeMaterials.map((material) => (
+	                            <option key={material.id} value={material.id}>
+	                              {material.sku} - {material.name} ({material.uom})
+	                            </option>
+	                          ))}
+	                        </select>
+	                      </label>
                       <label className="field">
                         <span>Quantity</span>
                         <input
@@ -3287,11 +3490,12 @@ export function LockstockWorkbench() {
                       <div className="po-draft-lines-wrap">
                         <table className="po-lines-table">
                           <thead>
-                            <tr>
-                              <th>Material</th>
-                              <th>Quantity</th>
-                              <th>Unit Price</th>
-                              <th>Total</th>
+	                            <tr>
+	                              <th>Material</th>
+	                              <th>UoM</th>
+	                              <th>Quantity</th>
+	                              <th>Unit Price</th>
+	                              <th>Total</th>
                               <th>Action</th>
                             </tr>
                           </thead>
@@ -3300,9 +3504,10 @@ export function LockstockWorkbench() {
                               const material = materials.find((item) => item.id === line.material_id);
                               const lineTotal = Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
                               return (
-                                <tr key={line.id}>
-                                  <td>{material ? `${material.sku} - ${material.name}` : "Unknown material"}</td>
-                                  <td>{line.quantity_ordered}</td>
+	                                <tr key={line.id}>
+	                                  <td>{material ? `${material.sku} - ${material.name}` : "Unknown material"}</td>
+	                                  <td>{material?.uom ?? "-"}</td>
+	                                  <td>{line.quantity_ordered}</td>
                                   <td>{formatCurrencyAmount(Number(line.unit_price || 0), poCurrency)}</td>
                                   <td>{formatCurrencyAmount(lineTotal, poCurrency)}</td>
                                   <td>
@@ -3320,14 +3525,15 @@ export function LockstockWorkbench() {
                           </tbody>
                         </table>
                       </div>
-                    ) : (
-                      <p className="po-line-empty">No items added yet.</p>
-                    )}
+	                    ) : (
+	                      <p className="po-line-empty">No items added yet.</p>
+	                    )}
 
-                    <p className="po-draft-summary">
-                      {poDraftSummary.lineCount} item(s) - {formatCurrencyAmount(poDraftSummary.totalAmount, poCurrency)}
-                    </p>
-                  </section>
+	                    <p className="po-draft-summary">
+	                      {poDraftSummary.lineCount} {poDraftSummary.lineCount === 1 ? "material" : "materials"} -{" "}
+	                      {formatCurrencyAmount(poDraftSummary.totalAmount, poCurrency)}
+	                    </p>
+		                  </section>
                 </div>
                 <div className="actions po-modal-footer">
                   <button
