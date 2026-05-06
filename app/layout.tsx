@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
-import { LanguageSwitcher } from "@/components/language-switcher";
 
 export const metadata: Metadata = {
   title: "LockStock",
@@ -13,7 +12,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body suppressHydrationWarning>
         <LanguageProvider>
-          <LanguageSwitcher />
           {children}
         </LanguageProvider>
       </body>

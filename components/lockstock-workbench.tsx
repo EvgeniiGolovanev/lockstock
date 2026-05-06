@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { MATERIAL_UNITS, formatMaterialUnitLabel } from "@/lib/material-units";
@@ -182,7 +184,6 @@ const STORAGE_KEYS = {
   orgId: "lockstock.orgId"
 } as const;
 
-type NavIcon = "inventory" | "materials" | "stock-movements" | "locations" | "vendors" | "purchase-orders" | "members";
 type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
@@ -194,62 +195,6 @@ const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
   { href: "/members", label: "Members", icon: "members" }
 ] as const;
-
-function NavItemIcon({ icon }: { icon: NavIcon }) {
-  if (icon === "inventory") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 7h16M4 12h16M4 17h16M6 7V5h12v2M6 19v-2h12v2" />
-      </svg>
-    );
-  }
-
-  if (icon === "materials") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 3 4 7.2 12 11.4 20 7.2 12 3Zm-8 9L12 16l8-4M4 16l8 4 8-4" />
-      </svg>
-    );
-  }
-
-  if (icon === "stock-movements") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3" />
-      </svg>
-    );
-  }
-
-  if (icon === "locations") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 21s6-5.4 6-10.5A6 6 0 1 0 6 10.5C6 15.6 12 21 12 21Zm0-8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-      </svg>
-    );
-  }
-
-  if (icon === "vendors") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M16 20a4 4 0 0 0-8 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 8a4 4 0 0 0-3-3.9M17 11a2.5 2.5 0 1 0 0-5" />
-      </svg>
-    );
-  }
-
-  if (icon === "members") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M16 20a4 4 0 0 0-8 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 8a4 4 0 0 0-3-3.9M17 11a2.5 2.5 0 1 0 0-5M4 20a4 4 0 0 1 3-3.9M7 11a2.5 2.5 0 1 1 0-5" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 7h2l2 9h10l2-7H8M9 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
-    </svg>
-  );
-}
 
 function SearchFieldIcon() {
   return (
@@ -1894,7 +1839,13 @@ export function LockstockWorkbench() {
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`}>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-link ${active ? "nav-link-active" : ""}`}
+                  aria-label={item.label}
+                  title={item.label}
+                >
                   <span className="nav-icon" aria-hidden="true">
                     <NavItemIcon icon={item.icon} />
                   </span>
@@ -1904,6 +1855,7 @@ export function LockstockWorkbench() {
             })}
           </div>
           <div className="shell-user-actions">
+            <LanguageSwitcher />
             {signedInAs ? (
               <>
                 <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>

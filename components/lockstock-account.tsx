@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -31,14 +33,14 @@ type OrganizationMembership = {
   };
 };
 
-const NAV_ITEMS: Array<{ href: NavHref; label: string }> = [
-  { href: "/inventory", label: "Inventory" },
-  { href: "/materials", label: "Materials" },
-  { href: "/stock-movements", label: "Stock Movements" },
-  { href: "/locations", label: "Locations" },
-  { href: "/vendors", label: "Vendors" },
-  { href: "/purchase-orders", label: "Purchase Orders" },
-  { href: "/members", label: "Members" }
+const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
+  { href: "/inventory", label: "Inventory", icon: "inventory" },
+  { href: "/materials", label: "Materials", icon: "materials" },
+  { href: "/stock-movements", label: "Stock Movements", icon: "stock-movements" },
+  { href: "/locations", label: "Locations", icon: "locations" },
+  { href: "/vendors", label: "Vendors", icon: "vendors" },
+  { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
+  { href: "/members", label: "Members", icon: "members" }
 ];
 
 const STORAGE_KEYS = {
@@ -405,13 +407,23 @@ export function LockstockAccount() {
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`}>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-link ${active ? "nav-link-active" : ""}`}
+                  aria-label={item.label}
+                  title={item.label}
+                >
+                  <span className="nav-icon" aria-hidden="true">
+                    <NavItemIcon icon={item.icon} />
+                  </span>
                   <span>{item.label}</span>
                 </Link>
               );
             })}
           </div>
           <div className="shell-user-actions">
+            <LanguageSwitcher />
             {signedInAs ? (
               <>
                 <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
