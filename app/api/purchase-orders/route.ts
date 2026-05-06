@@ -99,6 +99,22 @@ export async function POST(request: NextRequest) {
       throw new ApiError(400, "Purchase orders can only use active materials.");
     }
 
+    const { data: activeSupplier, error: activeSupplierError } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("id", payload.supplier_id)
+      .eq("org_id", orgId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (activeSupplierError) {
+      throw activeSupplierError;
+    }
+
+    if (!activeSupplier) {
+      throw new ApiError(400, "Purchase orders can only use active suppliers.");
+    }
+
     const { data: po, error: poError } = await supabase
       .from("purchase_orders")
       .insert({

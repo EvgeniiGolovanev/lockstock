@@ -81,6 +81,7 @@ type Supplier = {
   phone?: string | null;
   address?: string | null;
   lead_time_days: number;
+  is_active: boolean;
   created_at: string;
 };
 
@@ -354,6 +355,7 @@ export function LockstockWorkbench() {
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [pendingMaterialUsageChange, setPendingMaterialUsageChange] = useState<Material | null>(null);
   const [pendingLocationUsageChange, setPendingLocationUsageChange] = useState<Location | null>(null);
+  const [pendingSupplierUsageChange, setPendingSupplierUsageChange] = useState<Supplier | null>(null);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
@@ -381,6 +383,7 @@ export function LockstockWorkbench() {
   );
   const activeMaterials = useMemo(() => materials.filter((material) => material.is_active !== false), [materials]);
   const activeLocations = useMemo(() => locations.filter((location) => location.is_active !== false), [locations]);
+  const activeSuppliers = useMemo(() => suppliers.filter((supplier) => supplier.is_active !== false), [suppliers]);
   const inventoryLocations = useMemo(() => {
     const locationLabels = expandInventoryRows(materials).map((material) => material.location_label);
     return ["all", ...Array.from(new Set(locationLabels)).sort((a, b) => a.localeCompare(b))];
@@ -1430,6 +1433,36 @@ export function LockstockWorkbench() {
       await refreshCoreData();
     } catch (error) {
       addActivity(`Update location usage failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmSupplierUsageChange() {
+    if (!pendingSupplierUsageChange) {
+      return;
+    }
+
+    const nextIsActive = pendingSupplierUsageChange.is_active === false;
+
+    try {
+      setBusy(true);
+      await apiRequest(`/api/suppliers/${pendingSupplierUsageChange.id}`, {
+        method: "PATCH",
+        body: {
+          is_active: nextIsActive
+        }
+      });
+      addActivity(
+        `${pendingSupplierUsageChange.name} ${nextIsActive ? "unblocked for usage" : "blocked for usage"}.`
+      );
+      setPendingSupplierUsageChange(null);
+      if (poSupplierId === pendingSupplierUsageChange.id && !nextIsActive) {
+        setPoSupplierId("");
+      }
+      await refreshCoreData();
+    } catch (error) {
+      addActivity(`Update vendor usage failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -2741,6 +2774,7 @@ export function LockstockWorkbench() {
                   <th>Phone</th>
                   <th>Address</th>
                   <th>Lead Time (days)</th>
+                  <th>Status</th>
                   <th>Open POs</th>
                   <th>Received POs</th>
                   <th>Total POs</th>
@@ -2750,7 +2784,7 @@ export function LockstockWorkbench() {
               <tbody>
                 {filteredSupplierRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>No suppliers created yet.</td>
+                    <td colSpan={10}>No suppliers created yet.</td>
                   </tr>
                 ) : (
                   filteredSupplierRows.map((supplier) => {
@@ -2762,14 +2796,29 @@ export function LockstockWorkbench() {
                         <td>{supplier.phone || "-"}</td>
                         <td>{supplier.address || "-"}</td>
                         <td>{supplier.leadTimeDays}</td>
+                        <td>
+                          <span className={`status-pill ${supplier.isActive ? "status-received" : "status-cancelled"}`}>
+                            {supplier.isActive ? "Active" : "Blocked"}
+                          </span>
+                        </td>
                         <td>{supplier.openOrders}</td>
                         <td>{supplier.receivedOrders}</td>
                         <td>{supplier.totalOrders}</td>
                         <td>
                           {editableSupplier ? (
-                            <button type="button" className="ghost-btn" onClick={() => openEditSupplierForm(editableSupplier)}>
-                              Edit
-                            </button>
+                            <div className="actions">
+                              <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditSupplierForm(editableSupplier)}>
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost-btn"
+                                disabled={busy}
+                                onClick={() => setPendingSupplierUsageChange(editableSupplier)}
+                              >
+                                {editableSupplier.is_active === false ? "Unblock" : "Block"}
+                              </button>
+                            </div>
                           ) : (
                             "-"
                           )}
@@ -2858,6 +2907,42 @@ export function LockstockWorkbench() {
                     onClick={handleSaveSupplier}
                   >
                     {editingSupplierId ? "Update Vendor" : "Create Supplier"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {pendingSupplierUsageChange ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm vendor usage change">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>{pendingSupplierUsageChange.is_active === false ? "Unblock vendor" : "Block vendor"}</h4>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setPendingSupplierUsageChange(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <p>
+                  {pendingSupplierUsageChange.is_active === false
+                    ? `Unblock ${pendingSupplierUsageChange.name} for new usage?`
+                    : `Block ${pendingSupplierUsageChange.name} from new usage?`}
+                </p>
+                <div className="actions">
+                  <button type="button" disabled={busy} onClick={confirmSupplierUsageChange}>
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setPendingSupplierUsageChange(null)}
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -3123,7 +3208,7 @@ export function LockstockWorkbench() {
                         <span>Supplier</span>
                         <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
                           <option value="">Select supplier</option>
-                          {suppliers.map((supplier) => (
+                          {activeSuppliers.map((supplier) => (
                             <option key={supplier.id} value={supplier.id}>
                               {supplier.name}
                             </option>
