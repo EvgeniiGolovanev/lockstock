@@ -24,4 +24,6 @@ const supplierSchema = z.object({
 });
 
 export const createSupplierSchema = supplierSchema;
-export const updateSupplierSchema = supplierSchema;
+export const updateSupplierSchema = supplierSchema.partial().refine((value) => Object.keys(value).length > 0, {
+  message: "At least one supplier field is required."
+});

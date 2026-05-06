@@ -91,6 +91,7 @@ export type SupplierRow = {
   phone?: string | null;
   address?: string | null;
   lead_time_days: number;
+  is_active?: boolean;
 };
 
 export type VendorMetrics = {
@@ -107,6 +108,7 @@ export type SupplierOrderStatRow = {
   phone: string;
   address: string;
   leadTimeDays: number;
+  isActive: boolean;
   totalOrders: number;
   openOrders: number;
   receivedOrders: number;
@@ -626,6 +628,7 @@ export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: Pur
       phone: supplier.phone?.trim() ?? "",
       address: supplier.address?.trim() ?? "",
       leadTimeDays: Number(supplier.lead_time_days || 0),
+      isActive: supplier.is_active !== false,
       totalOrders: stats?.totalOrders ?? 0,
       openOrders: stats?.openOrders ?? 0,
       receivedOrders: stats?.receivedOrders ?? 0
@@ -649,6 +652,7 @@ export function supplierOrderStats(suppliers: SupplierRow[], purchaseOrders: Pur
       phone: "",
       address: "",
       leadTimeDays: 0,
+      isActive: true,
       totalOrders: row.totalOrders,
       openOrders: row.openOrders,
       receivedOrders: row.receivedOrders

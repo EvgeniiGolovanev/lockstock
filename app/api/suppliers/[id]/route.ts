@@ -10,21 +10,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const { id } = await context.params;
     const payload = updateSupplierSchema.parse(await request.json());
 
-    const { data: existingSupplier, error: existingSupplierError } = await supabase
-      .from("suppliers")
-      .select("id")
-      .eq("id", id)
-      .eq("org_id", orgId)
-      .maybeSingle();
-
-    if (existingSupplierError) {
-      throw existingSupplierError;
-    }
-
-    if (!existingSupplier) {
-      throw new ApiError(404, "Supplier not found.");
-    }
-
     const { data, error } = await supabase
       .from("suppliers")
       .update({
@@ -34,10 +19,14 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       .eq("id", id)
       .eq("org_id", orgId)
       .select("*")
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw error;
+    }
+
+    if (!data) {
+      throw new ApiError(404, "Supplier not found.");
     }
 
     return NextResponse.json({ data });
