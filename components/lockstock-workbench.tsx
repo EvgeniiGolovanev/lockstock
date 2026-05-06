@@ -64,6 +64,7 @@ type Location = {
   name: string;
   code: string | null;
   address?: string | null;
+  is_active: boolean;
 };
 
 type StockHealth = {
@@ -286,6 +287,7 @@ export function LockstockWorkbench() {
   const [locationName, setLocationName] = useState("Main Warehouse");
   const [locationCode, setLocationCode] = useState("MAIN");
   const [locationAddress, setLocationAddress] = useState("");
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [materialSku, setMaterialSku] = useState("MAT-001");
   const [materialName, setMaterialName] = useState("Cement");
   const [materialDescription, setMaterialDescription] = useState("");
@@ -351,6 +353,7 @@ export function LockstockWorkbench() {
   const [stockHealth, setStockHealth] = useState<StockHealth | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [pendingMaterialUsageChange, setPendingMaterialUsageChange] = useState<Material | null>(null);
+  const [pendingLocationUsageChange, setPendingLocationUsageChange] = useState<Location | null>(null);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
@@ -377,6 +380,7 @@ export function LockstockWorkbench() {
     [materials, selectedReceiveLine]
   );
   const activeMaterials = useMemo(() => materials.filter((material) => material.is_active !== false), [materials]);
+  const activeLocations = useMemo(() => locations.filter((location) => location.is_active !== false), [locations]);
   const inventoryLocations = useMemo(() => {
     const locationLabels = expandInventoryRows(materials).map((material) => material.location_label);
     return ["all", ...Array.from(new Set(locationLabels)).sort((a, b) => a.localeCompare(b))];
@@ -695,36 +699,42 @@ export function LockstockWorkbench() {
   }, [activeMaterials, movementMaterialId]);
 
   useEffect(() => {
-    if (!movementLocationId && locations[0]) {
-      setMovementLocationId(locations[0].id);
+    if (!movementLocationId && activeLocations[0]) {
+      setMovementLocationId(activeLocations[0].id);
+    } else if (movementLocationId && !activeLocations.some((location) => location.id === movementLocationId)) {
+      setMovementLocationId(activeLocations[0]?.id ?? "");
     }
-  }, [locations, movementLocationId]);
+  }, [activeLocations, movementLocationId]);
 
   useEffect(() => {
-    if (!movementFromLocationId && locations[0]) {
-      setMovementFromLocationId(locations[0].id);
+    if (!movementFromLocationId && activeLocations[0]) {
+      setMovementFromLocationId(activeLocations[0].id);
+    } else if (movementFromLocationId && !activeLocations.some((location) => location.id === movementFromLocationId)) {
+      setMovementFromLocationId(activeLocations[0]?.id ?? "");
     }
-  }, [locations, movementFromLocationId]);
+  }, [activeLocations, movementFromLocationId]);
 
   useEffect(() => {
-    if (movementToLocationId) {
+    if (movementToLocationId && activeLocations.some((location) => location.id === movementToLocationId)) {
       return;
     }
-    const fallbackLocation = locations.find((location) => location.id !== movementFromLocationId) ?? locations[0];
+    const fallbackLocation = activeLocations.find((location) => location.id !== movementFromLocationId) ?? activeLocations[0];
     if (fallbackLocation) {
       setMovementToLocationId(fallbackLocation.id);
+    } else if (movementToLocationId) {
+      setMovementToLocationId("");
     }
-  }, [locations, movementFromLocationId, movementToLocationId]);
+  }, [activeLocations, movementFromLocationId, movementToLocationId]);
 
   useEffect(() => {
     if (movementReason !== "transfer" || movementFromLocationId !== movementToLocationId) {
       return;
     }
-    const fallbackLocation = locations.find((location) => location.id !== movementFromLocationId);
+    const fallbackLocation = activeLocations.find((location) => location.id !== movementFromLocationId);
     if (fallbackLocation) {
       setMovementToLocationId(fallbackLocation.id);
     }
-  }, [locations, movementFromLocationId, movementReason, movementToLocationId]);
+  }, [activeLocations, movementFromLocationId, movementReason, movementToLocationId]);
 
   useEffect(() => {
     if (!poSupplierId && suppliers[0]) {
@@ -753,10 +763,12 @@ export function LockstockWorkbench() {
   }, [activeMaterials, poMaterialId]);
 
   useEffect(() => {
-    if (!receiveLocationId && locations[0]) {
-      setReceiveLocationId(locations[0].id);
+    if (!receiveLocationId && activeLocations[0]) {
+      setReceiveLocationId(activeLocations[0].id);
+    } else if (receiveLocationId && !activeLocations.some((location) => location.id === receiveLocationId)) {
+      setReceiveLocationId(activeLocations[0]?.id ?? "");
     }
-  }, [locations, receiveLocationId]);
+  }, [activeLocations, receiveLocationId]);
 
   useEffect(() => {
     if (!receivePoId && purchaseOrders[0]) {
@@ -880,6 +892,31 @@ export function LockstockWorkbench() {
     setSupplierPhoneNumber("");
     setSupplierAddress("");
     setSupplierLeadTime(5);
+  }
+
+  function resetLocationForm() {
+    setEditingLocationId(null);
+    setLocationName("Main Warehouse");
+    setLocationCode("MAIN");
+    setLocationAddress("");
+  }
+
+  function openCreateLocationForm() {
+    resetLocationForm();
+    setShowLocationForm(true);
+  }
+
+  function openEditLocationForm(location: Location) {
+    setEditingLocationId(location.id);
+    setLocationName(location.name);
+    setLocationCode(location.code ?? "");
+    setLocationAddress(location.address ?? "");
+    setShowLocationForm(true);
+  }
+
+  function closeLocationForm() {
+    setShowLocationForm(false);
+    resetLocationForm();
   }
 
   function openCreateSupplierForm() {
@@ -1335,22 +1372,64 @@ export function LockstockWorkbench() {
     }
   }
 
-  async function handleCreateLocation() {
+  async function handleSaveLocation() {
     try {
       setBusy(true);
-      await apiRequest("/api/locations", {
-        method: "POST",
-        body: {
-          name: locationName,
-          code: locationCode,
-          address: locationAddress
-        }
-      });
-      addActivity("Location created.");
-      setShowLocationForm(false);
+      const payload = {
+        name: locationName,
+        code: locationCode,
+        address: locationAddress
+      };
+
+      if (editingLocationId) {
+        await apiRequest(`/api/locations/${editingLocationId}`, {
+          method: "PATCH",
+          body: payload
+        });
+        addActivity("Location updated.");
+      } else {
+        await apiRequest("/api/locations", {
+          method: "POST",
+          body: payload
+        });
+        addActivity("Location created.");
+      }
+
+      closeLocationForm();
       await refreshCoreData();
     } catch (error) {
-      addActivity(`Create location failed: ${(error as Error).message}`);
+      addActivity(
+        editingLocationId
+          ? `Update location failed: ${(error as Error).message}`
+          : `Create location failed: ${(error as Error).message}`
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmLocationUsageChange() {
+    if (!pendingLocationUsageChange) {
+      return;
+    }
+
+    const nextIsActive = pendingLocationUsageChange.is_active === false;
+
+    try {
+      setBusy(true);
+      await apiRequest(`/api/locations/${pendingLocationUsageChange.id}`, {
+        method: "PATCH",
+        body: {
+          is_active: nextIsActive
+        }
+      });
+      addActivity(
+        `${pendingLocationUsageChange.name} ${nextIsActive ? "unblocked for usage" : "blocked for usage"}.`
+      );
+      setPendingLocationUsageChange(null);
+      await refreshCoreData();
+    } catch (error) {
+      addActivity(`Update location usage failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -2111,7 +2190,7 @@ export function LockstockWorkbench() {
               <h3>Location Management</h3>
               <p className="subtle-line">Create and manage warehouse locations.</p>
             </div>
-            <button type="button" onClick={() => setShowLocationForm(true)}>
+            <button type="button" onClick={openCreateLocationForm}>
               Add Location
             </button>
           </div>
@@ -2120,26 +2199,44 @@ export function LockstockWorkbench() {
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Location Name</th>
                   <th>Code</th>
+                  <th>Name</th>
+                  <th>Address</th>
+                  <th>Status</th>
                   <th>Low stock</th>
                   <th>Out of stock</th>
-                  <th>Address</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {locations.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>No locations created yet.</td>
+                    <td colSpan={7}>No locations created yet.</td>
                   </tr>
                 ) : (
                   locations.map((location) => (
                     <tr key={location.id}>
-                      <td>{location.name}</td>
                       <td>{location.code ?? "-"}</td>
+                      <td>{location.name}</td>
+                      <td>{location.address?.trim() ? location.address : "-"}</td>
+                      <td>{location.is_active === false ? "Blocked" : "Active"}</td>
                       <td>{locationSkuAlertCounts[location.id]?.lowStock ?? 0}</td>
                       <td>{locationSkuAlertCounts[location.id]?.outOfStock ?? 0}</td>
-                      <td>{location.address?.trim() ? location.address : "-"}</td>
+                      <td>
+                        <div className="actions">
+                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditLocationForm(location)}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-btn"
+                            disabled={busy}
+                            onClick={() => setPendingLocationUsageChange(location)}
+                          >
+                            {location.is_active === false ? "Unblock" : "Block"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -2148,11 +2245,11 @@ export function LockstockWorkbench() {
           </div>
 
           {showLocationForm ? (
-            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add location">
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingLocationId ? "Edit location" : "Add location"}>
               <div className="modal-card">
                 <div className="title-row">
-                  <h4>Add New Location</h4>
-                  <button type="button" className="ghost-btn" onClick={() => setShowLocationForm(false)}>
+                  <h4>{editingLocationId ? "Edit Location" : "Add New Location"}</h4>
+                  <button type="button" className="ghost-btn" onClick={closeLocationForm}>
                     Close
                   </button>
                 </div>
@@ -2176,8 +2273,44 @@ export function LockstockWorkbench() {
                   />
                 </label>
                 <div className="actions">
-                  <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateLocation}>
-                    Create Location
+                  <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleSaveLocation}>
+                    {editingLocationId ? "Save Location" : "Create Location"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {pendingLocationUsageChange ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm location usage change">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>{pendingLocationUsageChange.is_active === false ? "Unblock location" : "Block location"}</h4>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setPendingLocationUsageChange(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <p>
+                  {pendingLocationUsageChange.is_active === false
+                    ? `Unblock ${pendingLocationUsageChange.name} for new usage?`
+                    : `Block ${pendingLocationUsageChange.name} from new usage?`}
+                </p>
+                <div className="actions">
+                  <button type="button" disabled={busy} onClick={confirmLocationUsageChange}>
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setPendingLocationUsageChange(null)}
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -2440,7 +2573,7 @@ export function LockstockWorkbench() {
                     <span>Location</span>
                     <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
                       <option value="">Select location</option>
-                      {locations.map((location) => (
+                      {activeLocations.map((location) => (
                         <option key={location.id} value={location.id}>
                           {location.code ? `${location.code} - ` : ""}
                           {location.name}
@@ -2455,7 +2588,7 @@ export function LockstockWorkbench() {
                     <span>Transfer out</span>
                     <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
                       <option value="">Select location</option>
-                      {locations.map((location) => (
+                      {activeLocations.map((location) => (
                         <option key={location.id} value={location.id}>
                           {location.code ? `${location.code} - ` : ""}
                           {location.name}
@@ -2467,7 +2600,7 @@ export function LockstockWorkbench() {
                     <span>Transfer to</span>
                     <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
                       <option value="">Select location</option>
-                      {locations.map((location) => (
+                      {activeLocations.map((location) => (
                         <option key={location.id} value={location.id}>
                           {location.code ? `${location.code} - ` : ""}
                           {location.name}
@@ -3184,7 +3317,7 @@ export function LockstockWorkbench() {
                         <span>Location</span>
                         <select value={receiveLocationId} onChange={(event) => setReceiveLocationId(event.target.value)}>
                           <option value="">Select location</option>
-                          {locations.map((location) => (
+                          {activeLocations.map((location) => (
                             <option key={location.id} value={location.id}>
                               {location.code ? `${location.code} - ` : ""}
                               {location.name}

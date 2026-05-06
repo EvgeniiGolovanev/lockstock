@@ -6,3 +6,7 @@ export const createLocationSchema = z.object({
   address: z.string().trim().max(265).optional(),
   is_active: z.boolean().default(true)
 });
+
+export const updateLocationSchema = createLocationSchema.partial().refine((value) => Object.keys(value).length > 0, {
+  message: "At least one location field is required."
+});
