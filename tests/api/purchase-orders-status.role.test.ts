@@ -34,7 +34,7 @@ function createSupabaseForStatus(role: Role, currentStatus: Status = "draft") {
 
   const poUpdateResult = {
     single: vi.fn().mockResolvedValue({
-      data: { id: "po-1", po_number: "PO-1", status: "sent" },
+      data: { id: "po-1", po_number: "PO-1", status: "sent", sent_at: "2026-04-29T10:00:00.000Z" },
       error: null
     })
   };
@@ -146,5 +146,53 @@ describe("PATCH /api/purchase-orders/[id]/status role and transition enforcement
     expect(response.status).toBe(200);
     expect(body.data.status).toBe("sent");
     expect(supabase.purchaseOrdersTable.update).toHaveBeenCalledOnce();
+    expect(supabase.purchaseOrdersTable.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "sent",
+        sent_at: expect.any(String)
+      })
+    );
+  });
+
+  it("allows manager to cancel a sent purchase order", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    const supabase = createSupabaseForStatus("manager", "sent");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/purchase-orders/po-1/status", {
+      method: "PATCH",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cancelled" })
+    });
+
+    const response = await PATCH(request, { params: Promise.resolve({ id: "po-1" }) });
+
+    expect(response.status).toBe(200);
+    expect(supabase.purchaseOrdersTable.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "cancelled"
+      })
+    );
+  });
+
+  it("rejects cancelling a received purchase order", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    const supabase = createSupabaseForStatus("manager", "received");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/purchase-orders/po-1/status", {
+      method: "PATCH",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cancelled" })
+    });
+
+    const response = await PATCH(request, { params: Promise.resolve({ id: "po-1" }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("Invalid status transition");
+    expect(supabase.purchaseOrdersTable.update).not.toHaveBeenCalled();
   });
 });

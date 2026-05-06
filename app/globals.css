@@ -640,6 +640,25 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.purchase-orders-table .po-row {
+  cursor: pointer;
+}
+
+.purchase-orders-table .po-row:hover td {
+  background: #fbfdff;
+}
+
+.danger-btn {
+  background: #fff5f6;
+  border-color: #f1b8c0;
+  color: #b42335;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: #ffe9ec;
+  border-color: #e18a98;
+}
+
 .po-lines-wrap {
   margin-top: 0.75rem;
   border: 1px solid #e6ebf4;
@@ -810,6 +829,12 @@ button:disabled {
   font-size: 1.12rem;
 }
 
+.po-modal-subtitle {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
 .po-modal-close {
   min-width: 2rem;
   width: 2rem;
@@ -851,11 +876,13 @@ button:disabled {
 }
 
 .po-item-action {
+  align-self: end;
   margin-top: 0;
 }
 
 .po-item-action button {
   width: 100%;
+  min-height: 2.55rem;
 }
 
 .po-draft-lines-wrap {
@@ -892,7 +919,14 @@ button:disabled {
   gap: 0.65rem;
 }
 
-.po-receive-summary > div {
+.po-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.po-receive-summary > div,
+.po-detail-summary > div {
   border: 1px solid #e7ecf5;
   border-radius: 10px;
   background: #ffffff;
@@ -1567,7 +1601,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .po-receive-summary {
+  .po-receive-summary,
+  .po-detail-summary {
     grid-template-columns: 1fr;
   }
 

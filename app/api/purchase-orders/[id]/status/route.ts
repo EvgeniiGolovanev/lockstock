@@ -25,19 +25,34 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       throw new ApiError(404, "Purchase order not found.");
     }
 
-    if (po.status !== "draft" || payload.status !== "sent") {
+    const canMarkSent = po.status === "draft" && payload.status === "sent";
+    const canCancel =
+      payload.status === "cancelled" &&
+      (po.status === "draft" || po.status === "sent" || po.status === "partial");
+
+    if (!canMarkSent && !canCancel) {
       throw new ApiError(400, `Invalid status transition: ${po.status} -> ${payload.status}.`);
     }
 
+    const now = new Date().toISOString();
+    const updatePayload =
+      payload.status === "sent"
+        ? {
+            status: payload.status,
+            sent_at: now,
+            updated_at: now
+          }
+        : {
+            status: payload.status,
+            updated_at: now
+          };
+
     const { data: updated, error: updateError } = await supabase
       .from("purchase_orders")
-      .update({
-        status: payload.status,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq("id", purchaseOrderId)
       .eq("org_id", orgId)
-      .select("id,po_number,status")
+      .select("id,po_number,status,sent_at")
       .single();
 
     if (updateError) {

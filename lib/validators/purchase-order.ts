@@ -30,5 +30,5 @@ export const receivePurchaseOrderSchema = z.object({
 });
 
 export const transitionPurchaseOrderStatusSchema = z.object({
-  status: z.literal("sent")
+  status: z.enum(["sent", "cancelled"])
 });
