@@ -6,9 +6,30 @@ import { usePathname, useRouter } from "next/navigation";
 import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { summarizeAuditMetadata } from "@/lib/ui/audit-log";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
 
 type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
+type OrgRole = "owner" | "manager" | "member" | "viewer";
+
+type AuditLogEntry = {
+  id: string;
+  actor_user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_label: string | null;
+  message: string;
+  metadata: unknown;
+  created_at: string;
+};
+
+type OrganizationMembership = {
+  role: OrgRole;
+  organization: {
+    id: string;
+    name: string;
+  };
+};
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string }> = [
   { href: "/inventory", label: "Inventory" },
@@ -20,12 +41,37 @@ const NAV_ITEMS: Array<{ href: NavHref; label: string }> = [
   { href: "/members", label: "Members" }
 ];
 
+const STORAGE_KEYS = {
+  orgId: "lockstock.orgId"
+} as const;
+
+function todayDateInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgoDateInputValue(days: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatAuditDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function canExportAuditLog(role: OrgRole | "") {
+  return role === "owner" || role === "manager";
+}
+
 export function LockstockAccount() {
   const pathname = usePathname();
   const router = useRouter();
 
   const [signedInAs, setSignedInAs] = useState("");
-  const { activity, addActivity } = useActivityLog(signedInAs);
+  const { addActivity } = useActivityLog(signedInAs);
   const [accountEmail, setAccountEmail] = useState("");
   const [accountFullName, setAccountFullName] = useState("");
   const [accountCompany, setAccountCompany] = useState("");
@@ -35,9 +81,20 @@ export function LockstockAccount() {
   const [accountConfirmPassword, setAccountConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const [activeOrgId, setActiveOrgId] = useState("");
+  const [activeOrgRole, setActiveOrgRole] = useState<OrgRole | "">("");
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [auditStatus, setAuditStatus] = useState("");
+  const [auditExportFrom, setAuditExportFrom] = useState(daysAgoDateInputValue(7));
+  const [auditExportTo, setAuditExportTo] = useState(todayDateInputValue());
 
-  function applySessionState(session: { user: { email?: string | null; user_metadata?: Record<string, unknown> } }) {
+  function applySessionState(session: {
+    access_token?: string;
+    user: { email?: string | null; user_metadata?: Record<string, unknown> };
+  }) {
     setSignedInAs(session.user.email ?? "");
+    setAccessToken(session.access_token ?? "");
     setAccountEmail(session.user.email ?? "");
     setAccountFullName(metadataValue(session.user.user_metadata, "full_name"));
     setAccountCompany(metadataValue(session.user.user_metadata, "company"));
@@ -65,6 +122,7 @@ export function LockstockAccount() {
           }
 
           applySessionState({
+            access_token: data.session.access_token,
             user: {
               email: data.session.user.email,
               user_metadata: data.session.user.user_metadata as Record<string, unknown>
@@ -87,6 +145,7 @@ export function LockstockAccount() {
 
         if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") && session) {
           applySessionState({
+            access_token: session.access_token,
             user: {
               email: session.user.email,
               user_metadata: session.user.user_metadata as Record<string, unknown>
@@ -97,6 +156,10 @@ export function LockstockAccount() {
 
         if (event === "SIGNED_OUT") {
           setSignedInAs("");
+          setAccessToken("");
+          setActiveOrgId("");
+          setActiveOrgRole("");
+          setAuditLog([]);
           setAccountEmail("");
           setAccountFullName("");
           setAccountCompany("");
@@ -119,6 +182,60 @@ export function LockstockAccount() {
       unsubscribe();
     };
   }, [addActivity]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    setActiveOrgId(window.localStorage.getItem(STORAGE_KEYS.orgId) ?? "");
+  }, [signedInAs]);
+
+  useEffect(() => {
+    if (!accessToken || !activeOrgId) {
+      setAuditLog([]);
+      setActiveOrgRole("");
+      setAuditStatus(accessToken ? "Open a group workspace before viewing the audit log." : "");
+      return;
+    }
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      "x-org-id": activeOrgId
+    };
+
+    async function loadAuditContext() {
+      try {
+        setAuditStatus("Loading audit log...");
+        const [auditResponse, organizationsResponse] = await Promise.all([
+          fetch("/api/audit-log", { headers }),
+          fetch("/api/organizations", {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          })
+        ]);
+
+        if (!auditResponse.ok) {
+          const body = await auditResponse.json().catch(() => ({ error: "Failed to load audit log." }));
+          throw new Error(body.error ?? "Failed to load audit log.");
+        }
+
+        const auditBody = (await auditResponse.json()) as { data: AuditLogEntry[] };
+        setAuditLog(auditBody.data ?? []);
+
+        if (organizationsResponse.ok) {
+          const organizationsBody = (await organizationsResponse.json()) as { data: OrganizationMembership[] };
+          const membership = organizationsBody.data.find((item) => item.organization.id === activeOrgId);
+          setActiveOrgRole(membership?.role ?? "");
+        }
+
+        setAuditStatus("");
+      } catch (error) {
+        setAuditStatus((error as Error).message);
+      }
+    }
+
+    void loadAuditContext();
+  }, [accessToken, activeOrgId]);
 
   useEffect(() => {
     const redirectPath = getSignedOutRedirectPath({
@@ -226,6 +343,49 @@ export function LockstockAccount() {
       addActivity("Password updated.");
     } catch (error) {
       addActivity(`Update password failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDownloadAuditLog() {
+    try {
+      if (!accessToken || !activeOrgId) {
+        setAuditStatus("Select an active group before exporting the audit log.");
+        return;
+      }
+
+      setBusy(true);
+      setAuditStatus("Preparing audit export...");
+      const params = new URLSearchParams({
+        format: "csv",
+        from: auditExportFrom,
+        to: auditExportTo
+      });
+      const response = await fetch(`/api/audit-log?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "x-org-id": activeOrgId
+        }
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: "Audit export failed." }));
+        throw new Error(body.error ?? "Audit export failed.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audit-log-${auditExportFrom}-${auditExportTo}.csv`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setAuditStatus("");
+    } catch (error) {
+      setAuditStatus((error as Error).message);
     } finally {
       setBusy(false);
     }
@@ -367,14 +527,49 @@ export function LockstockAccount() {
         )}
       </section>
 
-      <section className="card">
-        <h3>Activity</h3>
-        {activity.length === 0 ? <p>No activity yet.</p> : null}
-        {activity.map((item) => (
-          <p key={item.id} className="mono-line">
-            {item.line}
-          </p>
-        ))}
+      <section className="card audit-card">
+        <div className="title-row">
+          <div>
+            <h3>Activity Log</h3>
+            <p>Latest 20 recorded changes for the active group.</p>
+          </div>
+        </div>
+
+        {canExportAuditLog(activeOrgRole) ? (
+          <div className="audit-export-row">
+            <label className="field">
+              <span>From</span>
+              <input type="date" value={auditExportFrom} onChange={(event) => setAuditExportFrom(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>To</span>
+              <input type="date" value={auditExportTo} onChange={(event) => setAuditExportTo(event.target.value)} />
+            </label>
+            <button type="button" disabled={busy || !auditExportFrom || !auditExportTo} onClick={handleDownloadAuditLog}>
+              Download CSV
+            </button>
+          </div>
+        ) : null}
+
+        {auditStatus ? <p className="subtle-line">{auditStatus}</p> : null}
+        {!auditStatus && auditLog.length === 0 ? <p>No recorded changes yet.</p> : null}
+        <div className="audit-log-list">
+          {auditLog.map((item) => (
+            <article key={item.id} className="audit-log-row">
+              <time>{formatAuditDate(item.created_at)}</time>
+              <div>
+                <p>{item.message}</p>
+                {summarizeAuditMetadata(item.metadata).map((detail) => (
+                  <small key={detail}>{detail}</small>
+                ))}
+              </div>
+              <span>
+                {item.entity_type.replaceAll("_", " ")}
+                {item.entity_label ? ` - ${item.entity_label}` : ""}
+              </span>
+            </article>
+          ))}
+        </div>
       </section>
     </>
   );
