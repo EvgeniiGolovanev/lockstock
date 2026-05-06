@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleApiError } from "@/lib/api/errors";
+import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createPurchaseOrderSchema } from "@/lib/validators/purchase-order";
 
@@ -81,6 +81,23 @@ export async function POST(request: NextRequest) {
     requireMinRole(role, "manager");
     const payload = createPurchaseOrderSchema.parse(await request.json());
     const poNumber = payload.po_number ?? makePoNumber();
+    const materialIds = Array.from(new Set(payload.lines.map((line) => line.material_id)));
+
+    const { data: activeMaterials, error: activeMaterialsError } = await supabase
+      .from("materials")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("is_active", true)
+      .in("id", materialIds);
+
+    if (activeMaterialsError) {
+      throw activeMaterialsError;
+    }
+
+    const activeMaterialIds = new Set((activeMaterials ?? []).map((material) => material.id));
+    if (materialIds.some((materialId) => !activeMaterialIds.has(materialId))) {
+      throw new ApiError(400, "Purchase orders can only use active materials.");
+    }
 
     const { data: po, error: poError } = await supabase
       .from("purchase_orders")

@@ -21,3 +21,7 @@ export const createMaterialSchema = z
       });
     }
   });
+
+export const updateMaterialUsageSchema = z.object({
+  is_active: z.boolean()
+});

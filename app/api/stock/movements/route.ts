@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleApiError } from "@/lib/api/errors";
+import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createStockMovementSchema } from "@/lib/validators/stock";
 
@@ -59,6 +59,23 @@ export async function POST(request: NextRequest) {
     const { orgId, userId, role, supabase } = await requireRequestContext(request);
     requireMinRole(role, "member");
     const payload = createStockMovementSchema.parse(await request.json());
+
+    const { data: material, error: materialError } = await supabase
+      .from("materials")
+      .select("id,is_active")
+      .eq("id", payload.material_id)
+      .eq("org_id", orgId)
+      .maybeSingle();
+
+    if (materialError) {
+      throw materialError;
+    }
+    if (!material) {
+      throw new ApiError(404, "Material not found.");
+    }
+    if (material.is_active === false) {
+      throw new ApiError(400, "Material is blocked for usage.");
+    }
 
     if (payload.reason === "transfer") {
       const { data, error } = await supabase.rpc("create_stock_transfer", {
