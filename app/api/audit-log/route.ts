@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
-import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
+import { hasMinRole, requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 
 const LATEST_LIMIT = 20;
 const MAX_EXPORT_DAYS = 366;
@@ -62,11 +62,11 @@ function toCsv(rows: AuditLogRow[]) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { orgId, role, supabase } = await requireRequestContext(request);
+    const { orgId, userId, role, supabase } = await requireRequestContext(request);
     const format = request.nextUrl.searchParams.get("format");
 
     if (format === "csv") {
-      requireMinRole(role, "manager");
+      requireMinRole(role, "member");
 
       const fromValue = request.nextUrl.searchParams.get("from");
       const toValue = request.nextUrl.searchParams.get("to");
@@ -83,10 +83,16 @@ export async function GET(request: NextRequest) {
         throw new ApiError(400, `Export range cannot exceed ${MAX_EXPORT_DAYS} days.`);
       }
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("audit_log")
         .select("created_at,actor_user_id,action,entity_type,entity_id,entity_label,message,metadata")
-        .eq("org_id", orgId)
+        .eq("org_id", orgId);
+
+      if (!hasMinRole(role, "manager")) {
+        query = query.eq("actor_user_id", userId);
+      }
+
+      const { data, error } = await query
         .order("created_at", { ascending: false })
         .gte("created_at", fromDate.toISOString())
         .lte("created_at", toEnd.toISOString());
@@ -104,10 +110,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("audit_log")
       .select("*", { count: "exact" })
-      .eq("org_id", orgId)
+      .eq("org_id", orgId);
+
+    if (!hasMinRole(role, "manager")) {
+      query = query.eq("actor_user_id", userId);
+    }
+
+    const { data, error, count } = await query
       .order("created_at", { ascending: false })
       .limit(LATEST_LIMIT)
       .range(0, LATEST_LIMIT - 1);

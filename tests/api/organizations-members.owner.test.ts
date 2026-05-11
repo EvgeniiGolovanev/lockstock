@@ -75,7 +75,7 @@ function createSupabaseForRole(role: Role) {
     insert: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({
-        data: { id: "invite-1", email: "new.user@example.com", status: "pending" },
+        data: { id: "invite-1", email: "new.user@example.com", role: "manager", status: "pending" },
         error: null
       })
     })
@@ -147,6 +147,23 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
     ]);
   });
 
+  it("allows managers to view organization members", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("manager-1");
+    const supabase = createSupabaseForRole("manager");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
+      method: "GET",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token" }
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ id: orgId }) });
+
+    expect(response.status).toBe(200);
+    expect(supabase.orgUsersTable.order).toHaveBeenCalledOnce();
+  });
+
   it("returns 403 when caller is not owner", async () => {
     vi.mocked(extractBearerToken).mockReturnValue("token");
     vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
@@ -156,7 +173,7 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
     const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
       method: "POST",
       headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "new.user@example.com" })
+      body: JSON.stringify({ email: "new.user@example.com", role: "manager" })
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: orgId }) });
@@ -175,7 +192,7 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
     const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
       method: "POST",
       headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "new.user@example.com" })
+      body: JSON.stringify({ email: "new.user@example.com", role: "manager" })
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: orgId }) });
@@ -184,10 +201,17 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
     expect(response.status).toBe(201);
     expect(body.data.mode).toBe("invited");
     expect(body.data.email).toBe("new.user@example.com");
+    expect(body.data.role).toBe("manager");
     expect(body.data.expires_in_days).toBe(7);
     expect(body.data.email_delivery).toBe("sent");
     expect(supabase.orgInvitationsTable.update).toHaveBeenCalledOnce();
     expect(supabase.orgInvitationsTable.insert).toHaveBeenCalledOnce();
+    expect(supabase.orgInvitationsTable.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "new.user@example.com",
+        role: "manager"
+      })
+    );
     expect(supabase.organizationsTable.maybeSingle).toHaveBeenCalledOnce();
     expect(sendTransactionalEmail).toHaveBeenCalledOnce();
   });
@@ -201,7 +225,7 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
     const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
       method: "POST",
       headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "owner@example.com" })
+      body: JSON.stringify({ email: "owner@example.com", role: "member" })
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: orgId }) });
@@ -209,6 +233,46 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toContain("own account");
+    expect(supabase.orgInvitationsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit role when creating an invitation", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("owner-1");
+    const supabase = createSupabaseForRole("owner");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
+      method: "POST",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "new.user@example.com" })
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ id: orgId }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("Validation failed");
+    expect(supabase.orgInvitationsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects owner role invitations", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("owner-1");
+    const supabase = createSupabaseForRole("owner");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
+      method: "POST",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "new.user@example.com", role: "owner" })
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ id: orgId }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("Owner role cannot be assigned");
     expect(supabase.orgInvitationsTable.insert).not.toHaveBeenCalled();
   });
 
@@ -222,7 +286,7 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
     const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
       method: "POST",
       headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "new.user@example.com" })
+      body: JSON.stringify({ email: "new.user@example.com", role: "member" })
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: orgId }) });

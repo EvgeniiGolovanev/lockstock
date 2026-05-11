@@ -2,17 +2,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/audit-log/route";
 import { ApiError } from "@/lib/api/errors";
-import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
+import { hasMinRole, requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 
 vi.mock("@/lib/api/route-context", () => ({
   requireRequestContext: vi.fn(),
-  requireMinRole: vi.fn()
+  requireMinRole: vi.fn(),
+  hasMinRole: vi.fn()
 }));
 
 const orgId = "11111111-1111-4111-8111-111111111111";
 
 function createAuditListSupabase() {
-  const range = vi.fn().mockResolvedValue({
+  const query = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    range: vi.fn().mockResolvedValue({
     data: [
       {
         id: "audit-1",
@@ -29,24 +35,22 @@ function createAuditListSupabase() {
     ],
     error: null,
     count: 1
-  });
-  const limit = vi.fn().mockReturnValue({ range });
-  const order = vi.fn().mockReturnValue({ limit, range });
-  const eq = vi.fn().mockReturnValue({ order });
-  const select = vi.fn().mockReturnValue({ eq });
+    })
+  };
 
   return {
-    from: vi.fn(() => ({ select })),
-    select,
-    eq,
-    order,
-    limit,
-    range
+    from: vi.fn(() => query),
+    ...query
   };
 }
 
 function createAuditExportSupabase() {
-  const lte = vi.fn().mockResolvedValue({
+  const query = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockResolvedValue({
     data: [
       {
         created_at: "2026-05-06T08:15:00.000Z",
@@ -60,19 +64,12 @@ function createAuditExportSupabase() {
       }
     ],
     error: null
-  });
-  const gte = vi.fn().mockReturnValue({ lte });
-  const order = vi.fn().mockReturnValue({ gte });
-  const eq = vi.fn().mockReturnValue({ order });
-  const select = vi.fn().mockReturnValue({ eq });
+    })
+  };
 
   return {
-    from: vi.fn(() => ({ select })),
-    select,
-    eq,
-    order,
-    gte,
-    lte
+    from: vi.fn(() => query),
+    ...query
   };
 }
 
@@ -80,13 +77,17 @@ describe("GET /api/audit-log", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireMinRole).mockImplementation((role, minimumRole) => {
-      if (role === "member" && minimumRole === "manager") {
-        throw new ApiError(403, "This action requires manager role or higher.");
+      if (role === "viewer" && minimumRole === "member") {
+        throw new ApiError(403, "This action requires member role or higher.");
       }
+    });
+    vi.mocked(hasMinRole).mockImplementation((role, minimumRole) => {
+      const rank = { viewer: 0, member: 1, manager: 2, owner: 3 } as const;
+      return rank[role] >= rank[minimumRole];
     });
   });
 
-  it("returns the latest 20 audit entries for an organization member", async () => {
+  it("returns only own latest audit entries for a member", async () => {
     const supabase = createAuditListSupabase();
     vi.mocked(requireRequestContext).mockResolvedValue({
       orgId,
@@ -101,12 +102,32 @@ describe("GET /api/audit-log", () => {
     expect(response.status).toBe(200);
     expect(supabase.from).toHaveBeenCalledWith("audit_log");
     expect(supabase.eq).toHaveBeenCalledWith("org_id", orgId);
+    expect(supabase.eq).toHaveBeenCalledWith("actor_user_id", "user-1");
     expect(supabase.order).toHaveBeenCalledWith("created_at", { ascending: false });
     expect(supabase.limit).toHaveBeenCalledWith(20);
     expect(body.data[0].message).toBe("Material created: MAT-001");
   });
 
-  it("blocks CSV export below manager role", async () => {
+  it("blocks CSV export for viewer role", async () => {
+    const supabase = createAuditExportSupabase();
+    vi.mocked(requireRequestContext).mockResolvedValue({
+      orgId,
+      userId: "user-1",
+      role: "viewer",
+      supabase
+    } as never);
+
+    const response = await GET(
+      new NextRequest("http://localhost:3000/api/audit-log?format=csv&from=2026-05-01&to=2026-05-06")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("member");
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it("exports a member CSV scoped to own actions", async () => {
     const supabase = createAuditExportSupabase();
     vi.mocked(requireRequestContext).mockResolvedValue({
       orgId,
@@ -118,11 +139,10 @@ describe("GET /api/audit-log", () => {
     const response = await GET(
       new NextRequest("http://localhost:3000/api/audit-log?format=csv&from=2026-05-01&to=2026-05-06")
     );
-    const body = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(body.error).toContain("manager");
-    expect(supabase.from).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(supabase.eq).toHaveBeenCalledWith("org_id", orgId);
+    expect(supabase.eq).toHaveBeenCalledWith("actor_user_id", "user-1");
   });
 
   it("exports a manager CSV for the requested date range", async () => {

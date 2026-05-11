@@ -112,14 +112,14 @@ describe("organization group endpoints", () => {
     expect(body.data[0].organization.name).toBe("Alex Group");
   });
 
-  it("creates another group for the authenticated user", async () => {
+  it("ensures the authenticated user has a default group", async () => {
     const supabase = createSupabaseForOrganizations();
     vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
 
     const request = new NextRequest("http://localhost:3000/api/organizations", {
       method: "POST",
       headers: { Authorization: "Bearer token", "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Second Group" })
+      body: JSON.stringify({ name: "Alex Group" })
     });
 
     const response = await POST(request);
@@ -128,7 +128,7 @@ describe("organization group endpoints", () => {
     expect(response.status).toBe(201);
     expect(body.data.id).toBe("22222222-2222-4222-8222-222222222222");
     expect(supabase.rpc).toHaveBeenCalledWith("create_organization_with_owner", {
-      p_name: "Second Group"
+      p_name: "Alex Group"
     });
   });
 
@@ -167,7 +167,7 @@ describe("organization group endpoints", () => {
     expect(body.error).toContain("owner");
   });
 
-  it("deletes a group for an owner", async () => {
+  it("does not delete the default group for an owner", async () => {
     const supabase = createSupabaseForOrganizations("owner");
     vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
 
@@ -179,9 +179,9 @@ describe("organization group endpoints", () => {
     const response = await DELETE(request, { params: Promise.resolve({ id: orgId }) });
     const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({ id: orgId, deleted: true });
-    expect(supabase.organizationsTable.delete).toHaveBeenCalledOnce();
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("Default group cannot be deleted");
+    expect(supabase.organizationsTable.delete).not.toHaveBeenCalled();
   });
 
   it("rejects group deletion for a non-owner", async () => {
