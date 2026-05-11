@@ -251,6 +251,13 @@ export function LockstockWorkbench() {
   const [materialMinStock, setMaterialMinStock] = useState("10");
   const [materialRequiredErrors, setMaterialRequiredErrors] = useState<MaterialDraftRequiredField[]>([]);
   const [materialSkuDuplicate, setMaterialSkuDuplicate] = useState(false);
+  const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
+  const [editMaterialName, setEditMaterialName] = useState("");
+  const [editMaterialCategory, setEditMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
+  const [editMaterialSubcategory, setEditMaterialSubcategory] = useState(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
+  const [editMaterialMinStock, setEditMaterialMinStock] = useState("");
+  const [editMaterialDescription, setEditMaterialDescription] = useState("");
+  const [editMaterialRequiredErrors, setEditMaterialRequiredErrors] = useState<Array<"name" | "minStock">>([]);
   const [supplierVendorNumber, setSupplierVendorNumber] = useState<number | null>(null);
   const [supplierName, setSupplierName] = useState("Acme Supply");
   const [supplierPhoneCountryCode, setSupplierPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
@@ -344,6 +351,10 @@ export function LockstockWorkbench() {
     () => (selectedReceiveLine ? materials.find((material) => material.id === selectedReceiveLine.material_id) ?? null : null),
     [materials, selectedReceiveLine]
   );
+  const editingMaterial = useMemo(
+    () => (editingMaterialId ? materials.find((material) => material.id === editingMaterialId) ?? null : null),
+    [editingMaterialId, materials]
+  );
   const activeMaterials = useMemo(() => materials.filter((material) => material.is_active !== false), [materials]);
   const activeLocations = useMemo(() => locations.filter((location) => location.is_active !== false), [locations]);
   const activeSuppliers = useMemo(() => suppliers.filter((supplier) => supplier.is_active !== false), [suppliers]);
@@ -354,6 +365,10 @@ export function LockstockWorkbench() {
   const availableMaterialSubcategories = useMemo(
     () => getMaterialSubcategories(materialCategory),
     [materialCategory]
+  );
+  const availableEditMaterialSubcategories = useMemo(
+    () => getMaterialSubcategories(editMaterialCategory),
+    [editMaterialCategory]
   );
   const materialFilterSubcategories = useMemo(() => {
     if (materialCategoryFilter === "all") {
@@ -719,6 +734,12 @@ export function LockstockWorkbench() {
   }, [availableMaterialSubcategories, materialSubcategory]);
 
   useEffect(() => {
+    if (!availableEditMaterialSubcategories.includes(editMaterialSubcategory)) {
+      setEditMaterialSubcategory(availableEditMaterialSubcategories[0] ?? "");
+    }
+  }, [availableEditMaterialSubcategories, editMaterialSubcategory]);
+
+  useEffect(() => {
     if (materialCategoryFilter === "all" || !materialFilterSubcategories.includes(materialSubcategoryFilter)) {
       setMaterialSubcategoryFilter("all");
     }
@@ -931,6 +952,31 @@ export function LockstockWorkbench() {
   function closeSupplierForm() {
     setShowSupplierForm(false);
     resetSupplierForm();
+  }
+
+  function openEditMaterialForm(material: Material) {
+    const category = MATERIAL_CATEGORIES.includes(material.category as MaterialCategory)
+      ? (material.category as MaterialCategory)
+      : MATERIAL_CATEGORIES[0];
+    const subcategories = getMaterialSubcategories(category);
+
+    setEditingMaterialId(material.id);
+    setEditMaterialName(material.name);
+    setEditMaterialCategory(category);
+    setEditMaterialSubcategory(
+      material.subcategory && subcategories.includes(material.subcategory) ? material.subcategory : subcategories[0] ?? ""
+    );
+    setEditMaterialMinStock(String(material.min_stock ?? 0));
+    setEditMaterialDescription(material.description ?? "");
+    setEditMaterialRequiredErrors([]);
+  }
+
+  function closeEditMaterialForm() {
+    setEditingMaterialId(null);
+    setEditMaterialName("");
+    setEditMaterialMinStock("");
+    setEditMaterialDescription("");
+    setEditMaterialRequiredErrors([]);
   }
 
   async function apiRequest<T>(
@@ -1539,6 +1585,48 @@ export function LockstockWorkbench() {
         setMaterialSkuDuplicate(true);
       }
       addActivity(`Create material failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpdateMaterial() {
+    if (!editingMaterialId) {
+      return;
+    }
+
+    const missingFields: Array<"name" | "minStock"> = [];
+    if (!editMaterialName.trim()) {
+      missingFields.push("name");
+    }
+    if (editMaterialMinStock.trim() === "") {
+      missingFields.push("minStock");
+    }
+
+    if (missingFields.length > 0) {
+      setEditMaterialRequiredErrors(missingFields);
+      addActivity("Update material failed: name and minimum stock are required.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      setEditMaterialRequiredErrors([]);
+      await apiRequest(`/api/materials/${editingMaterialId}`, {
+        method: "PATCH",
+        body: {
+          name: editMaterialName.trim(),
+          category: editMaterialCategory,
+          subcategory: editMaterialSubcategory,
+          min_stock: Number(editMaterialMinStock),
+          description: editMaterialDescription.trim() || null
+        }
+      });
+      addActivity("Material updated.");
+      closeEditMaterialForm();
+      await refreshCoreData();
+    } catch (error) {
+      addActivity(`Update material failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -2509,13 +2597,14 @@ export function LockstockWorkbench() {
               <p>No materials match these filters.</p>
             ) : (
               <div className="table-wrap">
-                <table className="compact-table">
+                <table className="compact-table materials-table">
                   <thead>
                     <tr>
                       <th>SKU</th>
                       <th>Name</th>
                       <th>Category</th>
                       <th>Subcategory</th>
+                      <th>Description</th>
                       <th>UoM</th>
                       <th>Minimum stock</th>
                       <th>Status</th>
@@ -2530,19 +2619,32 @@ export function LockstockWorkbench() {
                         <td>{material.name}</td>
                         <td>{material.category || "-"}</td>
                         <td>{material.subcategory || "-"}</td>
+                        <td className="table-description-cell">{material.description || "-"}</td>
                         <td>{formatMaterialUnitLabel(material.uom, locale)}</td>
                         <td>{formatNumberLabel(material.min_stock)}</td>
                         <td>{material.is_active === false ? "Blocked" : "Active"}</td>
                         <td>{material.created_at ? formatDateTimeLabel(material.created_at) : "-"}</td>
                         <td>
-                          <button
-                            type="button"
-                            className="ghost-btn"
-                            disabled={busy}
-                            onClick={() => setPendingMaterialUsageChange(material)}
-                          >
-                            {material.is_active === false ? "Unblock" : "Block"}
-                          </button>
+                          <div className="row-actions table-action-buttons">
+                            {canManageCatalog ? (
+                              <button
+                                type="button"
+                                className="ghost-btn"
+                                disabled={busy}
+                                onClick={() => openEditMaterialForm(material)}
+                              >
+                                Edit
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="ghost-btn"
+                              disabled={busy}
+                              onClick={() => setPendingMaterialUsageChange(material)}
+                            >
+                              {material.is_active === false ? "Unblock" : "Block"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2563,6 +2665,93 @@ export function LockstockWorkbench() {
               </button>
             </div>
           </section>
+          {editingMaterialId ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit material">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>Edit material</h4>
+                  <button type="button" className="ghost-btn" disabled={busy} onClick={closeEditMaterialForm}>
+                    Close
+                  </button>
+                </div>
+                <div className="materials-form-wrap material-edit-form">
+                  <div className="grid grid-2">
+                    <label className="field">
+                      <span>Material number</span>
+                      <input value={editingMaterial?.sku ?? ""} readOnly />
+                    </label>
+                    <label className="field">
+                      <span>UoM</span>
+                      <input value={editingMaterial ? formatMaterialUnitLabel(editingMaterial.uom, locale) : ""} readOnly />
+                    </label>
+                    <label className={`field ${editMaterialRequiredErrors.includes("name") ? "field-invalid" : ""}`}>
+                      <span>Name</span>
+                      <input
+                        value={editMaterialName}
+                        required
+                        aria-invalid={editMaterialRequiredErrors.includes("name")}
+                        onChange={(event) => {
+                          setEditMaterialName(event.target.value);
+                          setEditMaterialRequiredErrors((prev) => prev.filter((field) => field !== "name"));
+                        }}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Category</span>
+                      <select value={editMaterialCategory} onChange={(event) => setEditMaterialCategory(event.target.value as MaterialCategory)}>
+                        {MATERIAL_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Subcategory</span>
+                      <select value={editMaterialSubcategory} onChange={(event) => setEditMaterialSubcategory(event.target.value)}>
+                        {availableEditMaterialSubcategories.map((subcategory) => (
+                          <option key={subcategory} value={subcategory}>
+                            {subcategory}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={`field ${editMaterialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
+                      <span>Minimum Stock</span>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        aria-invalid={editMaterialRequiredErrors.includes("minStock")}
+                        value={editMaterialMinStock}
+                        onChange={(event) => {
+                          setEditMaterialMinStock(event.target.value);
+                          setEditMaterialRequiredErrors((prev) => prev.filter((field) => field !== "minStock"));
+                        }}
+                      />
+                    </label>
+                    <label className="field field-span-2">
+                      <span>Description</span>
+                      <textarea
+                        value={editMaterialDescription}
+                        maxLength={256}
+                        rows={3}
+                        onChange={(event) => setEditMaterialDescription(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <div className="actions">
+                    <button type="button" disabled={busy} onClick={handleUpdateMaterial}>
+                      Save changes
+                    </button>
+                    <button type="button" className="ghost-btn" disabled={busy} onClick={closeEditMaterialForm}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {pendingMaterialUsageChange ? (
             <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm material usage change">
               <div className="modal-card">

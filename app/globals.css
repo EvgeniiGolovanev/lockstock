@@ -367,6 +367,34 @@ button:disabled {
   background: #f8faff;
 }
 
+.materials-table {
+  min-width: 1120px;
+}
+
+.materials-table th,
+.materials-table td {
+  vertical-align: middle;
+}
+
+.table-description-cell {
+  max-width: 220px;
+  line-height: 1.35;
+}
+
+.table-action-buttons {
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.table-action-buttons button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.material-edit-form {
+  margin-top: 0.8rem;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
