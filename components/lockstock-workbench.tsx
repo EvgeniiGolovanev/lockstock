@@ -227,7 +227,6 @@ export function LockstockWorkbench() {
   const [signedInAs, setSignedInAs] = useState("");
   const { addActivity } = useActivityLog(signedInAs || email);
   const [signedInFullName, setSignedInFullName] = useState("");
-  const [orgName, setOrgName] = useState("");
   const [renamingOrgId, setRenamingOrgId] = useState("");
   const [renameOrgName, setRenameOrgName] = useState("");
 
@@ -306,8 +305,9 @@ export function LockstockWorkbench() {
   const [pendingCancelPo, setPendingCancelPo] = useState<PurchaseOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
+  const [storageHydrated, setStorageHydrated] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
-  const [memberInviteOrgId, setMemberInviteOrgId] = useState("");
+  const [memberInviteRole, setMemberInviteRole] = useState<OrganizationMember["role"] | "">("");
 
   const normalizedBaseUrl = useMemo(() => baseUrl.replace(/\/+$/, ""), [baseUrl]);
   const isOrgScopedReady = Boolean(accessToken && orgId);
@@ -323,8 +323,13 @@ export function LockstockWorkbench() {
     () => organizations.find((item) => item.organization.id === orgId) ?? null,
     [organizations, orgId]
   );
+  const activeRoleRank = activeMembership
+    ? ({ viewer: 0, member: 1, manager: 2, owner: 3 } as const)[activeMembership.role]
+    : -1;
+  const canManageCatalog = activeRoleRank >= 2;
   const canManageMembers = activeMembership?.role === "owner";
   const ownedGroups = useMemo(() => organizations.filter((item) => item.role === "owner"), [organizations]);
+  const ownedGroup = ownedGroups[0] ?? null;
   const selectedReceiveMaterial = useMemo(
     () => (selectedReceiveLine ? materials.find((material) => material.id === selectedReceiveLine.material_id) ?? null : null),
     [materials, selectedReceiveLine]
@@ -477,10 +482,16 @@ export function LockstockWorkbench() {
     return normalized.includes("invalid or expired access token") || normalized.includes("jwt") || normalized.includes("token");
   }
 
+  function setActiveOrgId(nextOrgId: string) {
+    setOrgId(nextOrgId);
+    window.localStorage.setItem(STORAGE_KEYS.orgId, nextOrgId);
+  }
+
   useEffect(() => {
     setBaseUrl(window.localStorage.getItem(STORAGE_KEYS.baseUrl) ?? window.location.origin);
     setAccessToken(window.localStorage.getItem(STORAGE_KEYS.token) ?? "");
     setOrgId(window.localStorage.getItem(STORAGE_KEYS.orgId) ?? "");
+    setStorageHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -582,21 +593,25 @@ export function LockstockWorkbench() {
   }, [baseUrl]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.token, accessToken);
-  }, [accessToken]);
+    if (storageHydrated) {
+      window.localStorage.setItem(STORAGE_KEYS.token, accessToken);
+    }
+  }, [accessToken, storageHydrated]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.orgId, orgId);
-  }, [orgId]);
+    if (storageHydrated) {
+      window.localStorage.setItem(STORAGE_KEYS.orgId, orgId);
+    }
+  }, [orgId, storageHydrated]);
 
   // bootstrapOrganizationContext is intentionally excluded to avoid re-bootstrap loops from function identity changes.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (!accessToken || !signedInAs || !normalizedBaseUrl) {
+    if (!storageHydrated || !accessToken || !signedInAs || !normalizedBaseUrl) {
       return;
     }
-    void bootstrapOrganizationContext({ tokenOverride: accessToken, announce: false });
-  }, [accessToken, signedInAs, normalizedBaseUrl]);
+    void bootstrapOrganizationContext({ tokenOverride: accessToken, announce: false, preferredOrgId: orgId });
+  }, [storageHydrated, accessToken, signedInAs, normalizedBaseUrl, orgId]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // loadMaterials is intentionally excluded to avoid dependency churn on function identity.
@@ -634,16 +649,6 @@ export function LockstockWorkbench() {
     });
   }, [isOrgScopedReady, normalizedBaseUrl, poFilterStatus, poFilterSupplierId, poFilterQuery, poPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
-
-  useEffect(() => {
-    const activeOwnedGroup = ownedGroups.find((item) => item.organization.id === orgId);
-    const selectedOwnedGroup = ownedGroups.find((item) => item.organization.id === memberInviteOrgId);
-    const nextInviteGroupId = selectedOwnedGroup?.organization.id ?? activeOwnedGroup?.organization.id ?? ownedGroups[0]?.organization.id ?? "";
-
-    if (nextInviteGroupId !== memberInviteOrgId) {
-      setMemberInviteOrgId(nextInviteGroupId);
-    }
-  }, [memberInviteOrgId, orgId, ownedGroups]);
 
   useEffect(() => {
     if (!movementMaterialId && activeMaterials[0]) {
@@ -743,7 +748,7 @@ export function LockstockWorkbench() {
     setOrganizations([]);
     setOrganizationMembers([]);
     setPendingInvitations([]);
-    setMemberInviteOrgId("");
+    setMemberInviteRole("");
     setMaterials([]);
     setMaterialMovements([]);
     setLocations([]);
@@ -1175,7 +1180,7 @@ export function LockstockWorkbench() {
     );
   }
 
-  async function bootstrapOrganizationContext(options?: { tokenOverride?: string; announce?: boolean }) {
+  async function bootstrapOrganizationContext(options?: { tokenOverride?: string; announce?: boolean; preferredOrgId?: string }) {
     const effectiveToken = options?.tokenOverride ?? accessToken;
     if (!effectiveToken) {
       return;
@@ -1188,7 +1193,9 @@ export function LockstockWorkbench() {
         tokenOverride: effectiveToken
       });
 
-      if (organizationsResult.data.length === 0) {
+      let ownedMembership = organizationsResult.data.find((item) => item.role === "owner") ?? null;
+
+      if (!ownedMembership) {
         const defaultOrgName = getDefaultGroupName();
         await apiRequest("/api/organizations", {
           method: "POST",
@@ -1196,11 +1203,12 @@ export function LockstockWorkbench() {
           tokenOverride: effectiveToken,
           body: { name: defaultOrgName }
         });
-        addActivity(`No group found. Created "${defaultOrgName}".`);
+        addActivity(`Created default group "${defaultOrgName}".`);
         organizationsResult = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
           requireOrg: false,
           tokenOverride: effectiveToken
         });
+        ownedMembership = organizationsResult.data.find((item) => item.role === "owner") ?? null;
       }
 
       if (organizationsResult.data.length === 0) {
@@ -1209,10 +1217,11 @@ export function LockstockWorkbench() {
 
       setOrganizations(organizationsResult.data);
 
-      const existingSelection = organizationsResult.data.find((item) => item.organization.id === orgId);
-      const selectedMembership = existingSelection ?? organizationsResult.data[0];
-      if (selectedMembership.organization.id !== orgId) {
-        setOrgId(selectedMembership.organization.id);
+      const preferredOrgId = options?.preferredOrgId ?? orgId;
+      const existingSelection = organizationsResult.data.find((item) => item.organization.id === preferredOrgId);
+      const selectedMembership = existingSelection ?? ownedMembership ?? organizationsResult.data[0];
+      if (selectedMembership.organization.id !== preferredOrgId) {
+        setActiveOrgId(selectedMembership.organization.id);
       }
 
       if (options?.announce ?? true) {
@@ -1236,38 +1245,6 @@ export function LockstockWorkbench() {
 
   async function handleLoadOrganizations() {
     await bootstrapOrganizationContext({ announce: true });
-  }
-
-  async function handleCreateOrganization() {
-    try {
-      setBusy(true);
-      const nextOrgName = orgName.trim() || getDefaultGroupName();
-      const response = await apiRequest<{ data: { id: string } }>("/api/organizations", {
-        method: "POST",
-        requireOrg: false,
-        body: { name: nextOrgName }
-      });
-
-      setOrgId(response.data.id);
-      setOrgName("");
-      addActivity(`Group created: ${nextOrgName}.`);
-      const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
-        requireOrg: false
-      });
-      setOrganizations(organizationsResponse.data);
-      await refreshCoreData(response.data.id, undefined, "owner");
-    } catch (error) {
-      const message = (error as Error).message;
-      if (isAuthTokenError(message)) {
-        setAccessToken("");
-        setSignedInAs("");
-        setSignedInFullName("");
-        clearWorkspaceData();
-      }
-      addActivity(`Create group failed: ${message}`);
-    } finally {
-      setBusy(false);
-    }
   }
 
   function startRenameGroup(membership: OrganizationMembership) {
@@ -1304,46 +1281,6 @@ export function LockstockWorkbench() {
       addActivity(`Group renamed: ${response.data.name}.`);
     } catch (error) {
       addActivity(`Rename group failed: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDeleteGroup(membership: OrganizationMembership) {
-    const confirmed = window.confirm(`Delete group "${membership.organization.name}"? This cannot be undone.`);
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setBusy(true);
-      await apiRequest(`/api/organizations/${membership.organization.id}`, {
-        method: "DELETE",
-        orgOverride: membership.organization.id
-      });
-
-      addActivity(`Group deleted: ${membership.organization.name}.`);
-      const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
-        requireOrg: false
-      });
-
-      if (organizationsResponse.data.length === 0) {
-        setOrgId("");
-        setOrganizations([]);
-        setOrganizationMembers([]);
-        await bootstrapOrganizationContext({ announce: true });
-        return;
-      }
-
-      setOrganizations(organizationsResponse.data);
-      const nextMembership =
-        organizationsResponse.data.find((item) => item.organization.id === orgId) ?? organizationsResponse.data[0];
-      if (nextMembership.organization.id !== orgId) {
-        setOrgId(nextMembership.organization.id);
-      }
-      await refreshCoreData(nextMembership.organization.id, undefined, nextMembership.role);
-    } catch (error) {
-      addActivity(`Delete group failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -1443,32 +1380,35 @@ export function LockstockWorkbench() {
   }
 
   async function handleInviteMemberByEmail() {
-    if (!memberInviteOrgId) {
-      addActivity("Invite failed: select a group.");
+    const targetGroup = ownedGroup;
+    if (!targetGroup) {
+      addActivity("Invite failed: default group is not available.");
+      return;
+    }
+    if (!memberInviteRole) {
+      addActivity("Invite failed: select a role.");
       return;
     }
 
     try {
       setBusy(true);
       const email = memberInviteEmail.trim().toLowerCase();
-      const targetGroup = ownedGroups.find((item) => item.organization.id === memberInviteOrgId);
-      if (!targetGroup) {
-        throw new Error("Selected group is not available for invitations.");
-      }
+      const inviteOrgId = targetGroup.organization.id;
       const response = await apiRequest<{
         data: {
           email: string;
+          role: OrganizationMember["role"];
           expires_in_days: number;
           email_delivery: "sent" | "skipped" | "failed";
           email_delivery_message: string | null;
         };
-      }>(`/api/organizations/${memberInviteOrgId}/members`, {
+      }>(`/api/organizations/${inviteOrgId}/members`, {
         method: "POST",
-        orgOverride: memberInviteOrgId,
-        body: { email }
+        orgOverride: inviteOrgId,
+        body: { email, role: memberInviteRole }
       });
       setMemberInviteEmail("");
-      if (memberInviteOrgId === orgId) {
+      if (inviteOrgId === orgId) {
         await loadOrganizationMembers();
       }
       await loadPendingInvitations();
@@ -1478,7 +1418,7 @@ export function LockstockWorkbench() {
           : response.data.email_delivery === "skipped"
             ? response.data.email_delivery_message ?? "Email delivery skipped."
             : response.data.email_delivery_message ?? "Email delivery failed.";
-      addActivity(`Invitation created for ${targetGroup.organization.name}: ${response.data.email}`);
+      addActivity(`Invitation created for ${targetGroup.organization.name}: ${response.data.email} (${response.data.role})`);
       addActivity(deliveryMessage);
     } catch (error) {
       addActivity(`Invite failed: ${(error as Error).message}`);
@@ -1498,7 +1438,12 @@ export function LockstockWorkbench() {
         }
       );
       addActivity(`Invitation accepted: joined group ${response.data.organization_name} as ${response.data.membership_role}.`);
-      await bootstrapOrganizationContext({ announce: true });
+      const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
+        requireOrg: false
+      });
+      setOrganizations(organizationsResponse.data);
+      setActiveOrgId(response.data.org_id);
+      await refreshCoreData(response.data.org_id, undefined, response.data.membership_role as OrganizationMember["role"]);
     } catch (error) {
       addActivity(`Accept invitation failed: ${(error as Error).message}`);
     } finally {
@@ -1879,6 +1824,11 @@ export function LockstockWorkbench() {
           <div>
             <h1>{currentScreen.title}</h1>
             <p>{currentScreen.subtitle}</p>
+            {activeMembership ? (
+              <p className="subtle-line">
+                Active group: <strong>{activeMembership.organization.name}</strong> ({activeMembership.role})
+              </p>
+            ) : null}
           </div>
           {pathname === "/inventory" ? (
             <Link className="action-link" href="/materials">
@@ -1936,7 +1886,7 @@ export function LockstockWorkbench() {
               value={orgId}
               onChange={(event) => {
                 const nextOrgId = event.target.value;
-                setOrgId(nextOrgId);
+                setActiveOrgId(nextOrgId);
                 const nextMembership = organizations.find((item) => item.organization.id === nextOrgId);
                 addActivity(`Switched group to ${nextMembership?.organization.name ?? "selected group"}.`);
                 void refreshCoreData(nextOrgId, undefined, nextMembership?.role);
@@ -1995,22 +1945,6 @@ export function LockstockWorkbench() {
             </div>
           </div>
 
-          <div className="grid grid-2">
-            <label className="field">
-              <span>Create group</span>
-              <input
-                value={orgName}
-                onChange={(event) => setOrgName(event.target.value)}
-                placeholder={getDefaultGroupName()}
-              />
-            </label>
-            <div className="actions">
-              <button type="button" disabled={busy || !accessToken} onClick={handleCreateOrganization}>
-                Create Group
-              </button>
-            </div>
-          </div>
-
           {renamingOrgId ? (
             <div className="grid grid-2">
               <label className="field">
@@ -2058,21 +1992,31 @@ export function LockstockWorkbench() {
                 ) : (
                   organizations.flatMap((item) => {
                     const isActiveOrganization = item.organization.id === orgId;
-                    const groupAction =
-                      item.role === "owner" ? (
-                        <div className="actions">
+                    const groupAction = (
+                      <div className="actions">
+                        {!isActiveOrganization ? (
+                          <button
+                            type="button"
+                            className="ghost-btn"
+                            disabled={busy}
+                            onClick={() => {
+                              setActiveOrgId(item.organization.id);
+                              addActivity(`Switched group to ${item.organization.name}.`);
+                              void refreshCoreData(item.organization.id, undefined, item.role);
+                            }}
+                          >
+                            Open Group
+                          </button>
+                        ) : item.role !== "owner" ? (
+                          "Current"
+                        ) : null}
+                        {item.role === "owner" ? (
                           <button type="button" className="ghost-btn" disabled={busy} onClick={() => startRenameGroup(item)}>
                             Rename Group
                           </button>
-                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleDeleteGroup(item)}>
-                            Delete Group
-                          </button>
-                        </div>
-                      ) : isActiveOrganization ? (
-                        "Current"
-                      ) : (
-                        "-"
-                      );
+                        ) : null}
+                      </div>
+                    );
                     const rows =
                       isActiveOrganization && canManageMembers && organizationMembers.length > 0
                         ? organizationMembers.map((member) => ({
@@ -2125,22 +2069,15 @@ export function LockstockWorkbench() {
           </div>
 
           {ownedGroups.length === 0 ? (
-            <p className="subtle-line">Only group owner can invite and manage members in this MVP.</p>
+            <p className="subtle-line">Your default group is being prepared. Invitations are available after it is ready.</p>
           ) : null}
 
-          {ownedGroups.length > 0 ? (
+          {ownedGroup ? (
             <>
+              <p className="subtle-line">
+                Invite people to your default group: <strong>{ownedGroup.organization.name}</strong>.
+              </p>
               <div className="grid grid-2">
-                <label className="field">
-                  <span>Invite to group</span>
-                  <select value={memberInviteOrgId} onChange={(event) => setMemberInviteOrgId(event.target.value)}>
-                    {ownedGroups.map((item) => (
-                      <option key={item.organization.id} value={item.organization.id}>
-                        {item.organization.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <label className="field">
                   <span>Invite by email</span>
                   <input
@@ -2150,8 +2087,25 @@ export function LockstockWorkbench() {
                     type="email"
                   />
                 </label>
+                <label className="field">
+                  <span>Assigned role</span>
+                  <select
+                    value={memberInviteRole}
+                    onChange={(event) => setMemberInviteRole(event.target.value as OrganizationMember["role"] | "")}
+                    required
+                  >
+                    <option value="">Select role</option>
+                    <option value="viewer">Viewer</option>
+                    <option value="member">Member</option>
+                    <option value="manager">Manager</option>
+                  </select>
+                </label>
                 <div className="actions">
-                  <button type="button" disabled={busy || !memberInviteOrgId || !memberInviteEmail.trim()} onClick={handleInviteMemberByEmail}>
+                  <button
+                    type="button"
+                    disabled={busy || !memberInviteEmail.trim() || !memberInviteRole}
+                    onClick={handleInviteMemberByEmail}
+                  >
                     Send Invitation
                   </button>
                 </div>
@@ -2359,10 +2313,11 @@ export function LockstockWorkbench() {
 
       {showMaterialSection ? (
         <>
-          <section className="card">
-            <h3>Materials</h3>
-            <p className="subtle-line">Create materials and keep the material catalog searchable.</p>
-            <div className="materials-form-wrap">
+          {canManageCatalog ? (
+            <section className="card">
+              <h3>Materials</h3>
+              <p className="subtle-line">Create materials and keep the material catalog searchable.</p>
+              <div className="materials-form-wrap">
               <div className="grid grid-2">
                 <label className="field">
                   <span>SKU</span>
@@ -2426,8 +2381,14 @@ export function LockstockWorkbench() {
                   Create Material
                 </button>
               </div>
-            </div>
-          </section>
+              </div>
+            </section>
+          ) : (
+            <section className="card">
+              <h3>Materials</h3>
+              <p className="subtle-line">Read-only access for the active group.</p>
+            </section>
+          )}
 
           <section className="card">
             <div className="materials-table-head">

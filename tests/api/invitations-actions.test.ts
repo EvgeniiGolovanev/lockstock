@@ -19,12 +19,14 @@ function createSupabaseForInvitations({
   invitationFound = true,
   memberOrgIds = [],
   memberships,
-  invitationRows
+  invitationRows,
+  acceptedRole = "member"
 }: {
   invitationFound?: boolean;
   memberOrgIds?: string[];
   memberships?: Array<{ org_id: string; role: string }>;
   invitationRows?: Array<Record<string, string>>;
+  acceptedRole?: "owner" | "manager" | "member" | "viewer";
 }) {
   const invitationRow = {
     id: "11111111-1111-4111-8111-111111111112",
@@ -82,7 +84,7 @@ function createSupabaseForInvitations({
                     id: invitationRow.id,
                     org_id: invitationRow.org_id,
                     org_name: invitationRow.org_name,
-                    membership_role: "member"
+                    membership_role: acceptedRole
                   }
                 ],
                 error: null
@@ -264,6 +266,26 @@ describe("Invitation endpoints", () => {
     expect(supabase.rpc).toHaveBeenCalledWith("accept_org_invitation", {
       p_invitation_id: "11111111-1111-4111-8111-111111111112"
     });
+  });
+
+  it("returns the role assigned by the accepted invitation", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("invitee-user-id");
+    const supabase = createSupabaseForInvitations({ invitationFound: true, acceptedRole: "manager" });
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/invitations/11111111-1111-4111-8111-111111111112/accept", {
+      method: "POST",
+      headers: { Authorization: "Bearer token" }
+    });
+
+    const response = await POST_ACCEPT(request, {
+      params: Promise.resolve({ id: "11111111-1111-4111-8111-111111111112" })
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.membership_role).toBe("manager");
   });
 
   it("rejects invitation by invitation id", async () => {

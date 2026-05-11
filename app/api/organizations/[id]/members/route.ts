@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { generateInvitationToken, hashInvitationToken } from "@/lib/api/invitations";
 import { sendTransactionalEmail } from "@/lib/api/mailer";
-import { requireExactRole, requireRequestContext } from "@/lib/api/route-context";
+import { requireExactRole, requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createOrganizationMemberSchema } from "@/lib/validators/member";
 
 const INVITATION_EXPIRY_DAYS = 7;
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const { id: orgIdFromPath } = await context.params;
     const { orgId, userId, role, supabase } = await requireRequestContext(request);
     requireMatchingOrgId(orgIdFromPath, orgId);
-    requireExactRole(role, "owner");
+    requireMinRole(role, "manager");
 
     const { data: members, error } = await supabase
       .from("org_users")
@@ -80,6 +80,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     requireExactRole(role, "owner");
 
     const payload = createOrganizationMemberSchema.parse(await request.json());
+    if (payload.role === "owner") {
+      throw new ApiError(400, "Owner role cannot be assigned by invitation.");
+    }
 
     const normalizedEmail = payload.email.trim().toLowerCase();
     const { data: authUserData, error: authUserError } = await supabase.auth.getUser();
@@ -123,13 +126,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         org_id: orgId,
         org_name: orgName,
         email: normalizedEmail,
-        role: "member",
+        role: payload.role,
         invited_by: userId,
         token_hash: tokenHash,
         status: "pending",
         expires_at: expiresAt
       })
-      .select("id,email,status,expires_at")
+      .select("id,email,role,status,expires_at")
       .single();
 
     if (invitationError) {
@@ -168,6 +171,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           status: invitation.status,
           expires_at: invitation.expires_at,
           expires_in_days: INVITATION_EXPIRY_DAYS,
+          role: invitation.role,
           email_delivery,
           email_delivery_message
         }

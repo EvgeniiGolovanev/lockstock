@@ -3,14 +3,14 @@ import { ApiError } from "@/lib/api/errors";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
-const roleRank = {
+export const roleRank = {
   viewer: 0,
   member: 1,
   manager: 2,
   owner: 3
 } as const;
 
-type Role = keyof typeof roleRank;
+export type Role = keyof typeof roleRank;
 
 const uuidV4LikePattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -61,9 +61,13 @@ export async function requireRequestContext(request: NextRequest): Promise<Reque
 }
 
 export function requireMinRole(currentRole: Role, minimumRole: Role) {
-  if (roleRank[currentRole] < roleRank[minimumRole]) {
+  if (!hasMinRole(currentRole, minimumRole)) {
     throw new ApiError(403, `This action requires ${minimumRole} role or higher.`);
   }
+}
+
+export function hasMinRole(currentRole: Role, minimumRole: Role) {
+  return roleRank[currentRole] >= roleRank[minimumRole];
 }
 
 export function requireExactRole(currentRole: Role, requiredRole: Role) {

@@ -3,7 +3,8 @@ import { z } from "zod";
 const orgRoleSchema = z.enum(["owner", "manager", "member", "viewer"]);
 
 export const createOrganizationMemberSchema = z.object({
-  email: z.string().email().max(320)
+  email: z.string().email().max(320),
+  role: orgRoleSchema
 });
 
 export const updateOrganizationMemberRoleSchema = z.object({

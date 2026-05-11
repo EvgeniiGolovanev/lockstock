@@ -42,17 +42,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id: orgIdFromPath } = await context.params;
-    const { orgId, role, supabase } = await requireRequestContext(request);
+    const { orgId, role } = await requireRequestContext(request);
     requireMatchingOrgId(orgIdFromPath, orgId);
     requireExactRole(role, "owner");
 
-    const { error } = await supabase.from("organizations").delete().eq("id", orgId);
-
-    if (error) {
-      throw new ApiError(500, "Failed to delete group.", error.message);
-    }
-
-    return NextResponse.json({ data: { id: orgId, deleted: true } });
+    throw new ApiError(400, "Default group cannot be deleted.");
   } catch (error) {
     return handleApiError(error);
   }
