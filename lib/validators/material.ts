@@ -25,3 +25,23 @@ export const createMaterialSchema = z
 export const updateMaterialUsageSchema = z.object({
   is_active: z.boolean()
 });
+
+export const updateMaterialSchema = z
+  .object({
+    name: z.string().min(1).max(160).optional(),
+    description: z.string().max(256).nullable().optional(),
+    category: z.enum(MATERIAL_CATEGORIES).optional(),
+    subcategory: z.string().min(1).max(160).optional(),
+    min_stock: z.number().min(0).optional(),
+    is_active: z.boolean().optional()
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.category && value.subcategory && !isValidMaterialSubcategory(value.category, value.subcategory)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Subcategory does not belong to selected category.",
+        path: ["subcategory"]
+      });
+    }
+  });

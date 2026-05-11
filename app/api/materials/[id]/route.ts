@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
-import { updateMaterialUsageSchema } from "@/lib/validators/material";
+import { updateMaterialSchema } from "@/lib/validators/material";
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { orgId, role, supabase } = await requireRequestContext(request);
     requireMinRole(role, "manager");
     const { id } = await context.params;
-    const payload = updateMaterialUsageSchema.parse(await request.json());
+    const payload = updateMaterialSchema.parse(await request.json());
 
     const { data, error } = await supabase
       .from("materials")
       .update({
-        is_active: payload.is_active,
+        ...payload,
         updated_at: new Date().toISOString()
       })
       .eq("id", id)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMaterialSchema } from "@/lib/validators/material";
+import { createMaterialSchema, updateMaterialSchema } from "@/lib/validators/material";
 
 describe("createMaterialSchema", () => {
   const basePayload = {
@@ -37,6 +37,35 @@ describe("createMaterialSchema", () => {
       createMaterialSchema.parse({
         ...basePayload,
         description: "x".repeat(257)
+      })
+    ).toThrow();
+  });
+});
+
+describe("updateMaterialSchema", () => {
+  it("accepts editable material catalog fields", () => {
+    const parsed = updateMaterialSchema.parse({
+      name: "Concrete mix",
+      category: "Structural & Building Materials",
+      subcategory: "Concrete & cement",
+      min_stock: 12,
+      description: "Ready-mix bags"
+    });
+
+    expect(parsed).toEqual({
+      name: "Concrete mix",
+      category: "Structural & Building Materials",
+      subcategory: "Concrete & cement",
+      min_stock: 12,
+      description: "Ready-mix bags"
+    });
+  });
+
+  it("rejects immutable material number and uom fields", () => {
+    expect(() =>
+      updateMaterialSchema.parse({
+        sku: "MAT-002",
+        uom: "BOX"
       })
     ).toThrow();
   });
