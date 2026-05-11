@@ -229,6 +229,24 @@ p {
   color: #32445f;
 }
 
+.field-invalid span {
+  color: #b4232f;
+}
+
+.field-invalid input,
+.field-invalid select,
+.field-invalid textarea {
+  border-color: #dc3545;
+  background: #fff8f8;
+}
+
+.field-message {
+  color: #b4232f;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 input,
 select,
 textarea,

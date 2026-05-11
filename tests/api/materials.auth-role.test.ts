@@ -14,7 +14,13 @@ vi.mock("@/lib/api/auth", () => ({
   requireAuthenticatedUserId: vi.fn()
 }));
 
-function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") {
+function createSupabaseForRole(
+  role: "viewer" | "member" | "manager" | "owner",
+  insertResult: { data: unknown; error: unknown } = {
+    data: { id: "mat-1", sku: "MAT-001", name: "Cement" },
+    error: null
+  }
+) {
   const orgUsersQuery = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -23,10 +29,7 @@ function createSupabaseForRole(role: "viewer" | "member" | "manager" | "owner") 
 
   const materialInsertQuery = {
     select: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({
-      data: { id: "mat-1", sku: "MAT-001", name: "Cement" },
-      error: null
-    })
+    single: vi.fn().mockResolvedValue(insertResult)
   };
 
   const materialListQuery = {
@@ -141,6 +144,39 @@ describe("POST /api/materials auth and role enforcement", () => {
         subcategory: "Concrete & cement"
       })
     );
+  });
+
+  it("returns 409 when the material number already exists", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    const supabase = createSupabaseForRole("manager", {
+      data: null,
+      error: {
+        code: "23505",
+        message: 'duplicate key value violates unique constraint "materials_org_id_sku_key"',
+        details: "Key (org_id, sku)=(org-1, MAT-001) already exists."
+      }
+    });
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/materials", {
+      method: "POST",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sku: "MAT-001",
+        name: "Cement",
+        uom: "bag",
+        category: "Structural & Building Materials",
+        subcategory: "Concrete & cement",
+        min_stock: 10
+      })
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("This material number already exists.");
   });
 
   it("applies material catalog search and category filters", async () => {

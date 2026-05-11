@@ -3,12 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
+import { MATERIAL_DUPLICATE_SKU_ERROR } from "@/lib/material-errors";
 import { MATERIAL_UNITS, formatMaterialUnitLabel } from "@/lib/material-units";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  materialDuplicateSkuMessage,
+  validateMaterialDraftRequiredFields,
+  type MaterialDraftRequiredField
+} from "@/lib/ui/material-form";
 import {
   formatDateLabel as formatUiDateLabel,
   formatDateTimeLabel,
@@ -219,6 +226,7 @@ function SelectFieldIcon() {
 export function LockstockWorkbench() {
   const pathname = usePathname();
   const router = useRouter();
+  const { locale } = useLanguage();
   const [baseUrl, setBaseUrl] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [orgId, setOrgId] = useState("");
@@ -240,7 +248,9 @@ export function LockstockWorkbench() {
   const [materialUom, setMaterialUom] = useState("BAG");
   const [materialCategory, setMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
   const [materialSubcategory, setMaterialSubcategory] = useState(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
-  const [materialMinStock, setMaterialMinStock] = useState(10);
+  const [materialMinStock, setMaterialMinStock] = useState("10");
+  const [materialRequiredErrors, setMaterialRequiredErrors] = useState<MaterialDraftRequiredField[]>([]);
+  const [materialSkuDuplicate, setMaterialSkuDuplicate] = useState(false);
   const [supplierVendorNumber, setSupplierVendorNumber] = useState<number | null>(null);
   const [supplierName, setSupplierName] = useState("Acme Supply");
   const [supplierPhoneCountryCode, setSupplierPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
@@ -1488,13 +1498,28 @@ export function LockstockWorkbench() {
   }
 
   async function handleCreateMaterial() {
+    const missingFields = validateMaterialDraftRequiredFields({
+      sku: materialSku,
+      name: materialName,
+      minStock: materialMinStock
+    });
+
+    if (missingFields.length > 0) {
+      setMaterialRequiredErrors(missingFields);
+      setMaterialSkuDuplicate(false);
+      addActivity("Create material failed: SKU, name, and minimum stock are required.");
+      return;
+    }
+
     try {
       setBusy(true);
+      setMaterialRequiredErrors([]);
+      setMaterialSkuDuplicate(false);
       await apiRequest("/api/materials", {
         method: "POST",
         body: {
-          sku: materialSku,
-          name: materialName,
+          sku: materialSku.trim(),
+          name: materialName.trim(),
           description: materialDescription.trim() || undefined,
           uom: materialUom,
           category: materialCategory,
@@ -1503,8 +1528,16 @@ export function LockstockWorkbench() {
         }
       });
       addActivity("Material created.");
+      setMaterialSku("");
+      setMaterialName("");
+      setMaterialMinStock("");
+      setMaterialDescription("");
       await refreshCoreData();
     } catch (error) {
+      if ((error as Error).message === MATERIAL_DUPLICATE_SKU_ERROR) {
+        setMaterialRequiredErrors(["sku"]);
+        setMaterialSkuDuplicate(true);
+      }
       addActivity(`Create material failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
@@ -2319,13 +2352,31 @@ export function LockstockWorkbench() {
               <p className="subtle-line">Create materials and keep the material catalog searchable.</p>
               <div className="materials-form-wrap">
               <div className="grid grid-2">
-                <label className="field">
+                <label className={`field ${materialRequiredErrors.includes("sku") ? "field-invalid" : ""}`}>
                   <span>SKU</span>
-                  <input value={materialSku} onChange={(event) => setMaterialSku(event.target.value)} />
+                  <input
+                    value={materialSku}
+                    required
+                    aria-invalid={materialRequiredErrors.includes("sku")}
+                    onChange={(event) => {
+                      setMaterialSku(event.target.value);
+                      setMaterialSkuDuplicate(false);
+                      setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "sku"));
+                    }}
+                  />
+                  {materialSkuDuplicate ? <small className="field-message">{materialDuplicateSkuMessage(locale)}</small> : null}
                 </label>
-                <label className="field">
+                <label className={`field ${materialRequiredErrors.includes("name") ? "field-invalid" : ""}`}>
                   <span>Name</span>
-                  <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
+                  <input
+                    value={materialName}
+                    required
+                    aria-invalid={materialRequiredErrors.includes("name")}
+                    onChange={(event) => {
+                      setMaterialName(event.target.value);
+                      setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "name"));
+                    }}
+                  />
                 </label>
                 <label className="field">
                   <span>Category</span>
@@ -2352,18 +2403,23 @@ export function LockstockWorkbench() {
                   <select value={materialUom} onChange={(event) => setMaterialUom(event.target.value)}>
                     {MATERIAL_UNITS.map((unit) => (
                       <option key={unit.code} value={unit.code}>
-                        {unit.label}
+                        {formatMaterialUnitLabel(unit.code, locale)}
                       </option>
                     ))}
                   </select>
                 </label>
-                <label className="field">
+                <label className={`field ${materialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
                   <span>Minimum Stock</span>
                   <input
                     type="number"
                     min={0}
+                    required
+                    aria-invalid={materialRequiredErrors.includes("minStock")}
                     value={materialMinStock}
-                    onChange={(event) => setMaterialMinStock(Number(event.target.value))}
+                    onChange={(event) => {
+                      setMaterialMinStock(event.target.value);
+                      setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "minStock"));
+                    }}
                   />
                 </label>
                 <label className="field">
@@ -2474,7 +2530,7 @@ export function LockstockWorkbench() {
                         <td>{material.name}</td>
                         <td>{material.category || "-"}</td>
                         <td>{material.subcategory || "-"}</td>
-                        <td>{formatMaterialUnitLabel(material.uom)}</td>
+                        <td>{formatMaterialUnitLabel(material.uom, locale)}</td>
                         <td>{formatNumberLabel(material.min_stock)}</td>
                         <td>{material.is_active === false ? "Blocked" : "Active"}</td>
                         <td>{material.created_at ? formatDateTimeLabel(material.created_at) : "-"}</td>
@@ -2689,7 +2745,7 @@ export function LockstockWorkbench() {
                       <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
                       <td>{formatMovementLocation(movement.location)}</td>
                       <td>{formatNumberLabel(Number(movement.quantity_delta))}</td>
-                      <td>{movement.material ? formatMaterialUnitLabel(movement.material.uom) : "-"}</td>
+                      <td>{movement.material ? formatMaterialUnitLabel(movement.material.uom, locale) : "-"}</td>
                       <td>{movement.material?.category ?? "-"}</td>
                       <td>{formatMovementReason(movement.reason)}</td>
                       <td>{movement.note?.trim() ? movement.note : "-"}</td>

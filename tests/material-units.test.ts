@@ -32,4 +32,10 @@ describe("material units", () => {
     expect(formatMaterialUnitLabel("BAG")).toBe("Sac");
     expect(formatMaterialUnitLabel("custom")).toBe("custom");
   });
+
+  it("formats known unit codes as English labels when English is active", () => {
+    expect(formatMaterialUnitLabel("BAG", "en")).toBe("Bag");
+    expect(formatMaterialUnitLabel("M2", "en")).toBe("Square meter");
+    expect(formatMaterialUnitLabel("custom", "en")).toBe("custom");
+  });
 });

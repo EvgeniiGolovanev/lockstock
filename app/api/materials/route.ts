@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleApiError } from "@/lib/api/errors";
+import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
+import { MATERIAL_DUPLICATE_SKU_ERROR, isDuplicateMaterialSkuError } from "@/lib/material-errors";
 import { createMaterialSchema } from "@/lib/validators/material";
 
 const DEFAULT_LIMIT = 25;
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      if (isDuplicateMaterialSkuError(error)) {
+        throw new ApiError(409, MATERIAL_DUPLICATE_SKU_ERROR);
+      }
+
       throw error;
     }
 

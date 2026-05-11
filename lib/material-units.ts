@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n";
+
 export type MaterialUnit = {
   code: string;
   label: string;
@@ -27,8 +29,11 @@ export const MATERIAL_UNITS = [
   { code: "T", label: "Tonne", english: "Metric tonne" }
 ] as const satisfies readonly MaterialUnit[];
 
-const MATERIAL_UNIT_LABELS: ReadonlyMap<string, string> = new Map(MATERIAL_UNITS.map((unit) => [unit.code, unit.label]));
+const MATERIAL_UNIT_LABELS: Readonly<Record<Locale, ReadonlyMap<string, string>>> = {
+  en: new Map(MATERIAL_UNITS.map((unit) => [unit.code, unit.english])),
+  fr: new Map(MATERIAL_UNITS.map((unit) => [unit.code, unit.label]))
+};
 
-export function formatMaterialUnitLabel(value: string) {
-  return MATERIAL_UNIT_LABELS.get(value) ?? value;
+export function formatMaterialUnitLabel(value: string, locale: Locale = "fr") {
+  return MATERIAL_UNIT_LABELS[locale].get(value) ?? value;
 }
