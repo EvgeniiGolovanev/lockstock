@@ -696,6 +696,10 @@ button:disabled {
   gap: 0.75rem;
 }
 
+.stock-movements-table-head {
+  margin-top: 1rem;
+}
+
 .vendors-table-head {
   margin-top: 1rem;
   display: grid;
