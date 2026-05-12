@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LockStock Redesign Sketches</title>
+    <style>
+      :root {
+        --black: #111111;
+        --ink: #1f1f1f;
+        --muted: #686868;
+        --line: #d9d4cf;
+        --paper: #fbfaf8;
+        --white: #ffffff;
+        --orange: #f26522;
+        --orange-soft: #fff0e7;
+        --gray: #efedea;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #e9e5df;
+        font-family: "Aptos", "Segoe UI", system-ui, sans-serif;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .board {
+        width: min(1440px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 40px 0 64px;
+      }
+
+      .intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+        gap: 28px;
+        align-items: end;
+        padding: 28px;
+        border: 2px solid var(--black);
+        background: var(--paper);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 16px;
+        color: var(--black);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      .logo-mark {
+        width: 84px;
+        height: 48px;
+        display: grid;
+        gap: 8px;
+        align-content: center;
+      }
+
+      .logo-mark span {
+        display: block;
+        height: 10px;
+        background: var(--black);
+      }
+
+      .logo-mark span:nth-child(2) {
+        background: var(--orange);
+      }
+
+      .brand-text {
+        font-size: clamp(38px, 5vw, 72px);
+        line-height: 0.95;
+      }
+
+      .intro-copy {
+        margin-top: 22px;
+        max-width: 780px;
+        color: #333;
+        font-size: 18px;
+        line-height: 1.5;
+      }
+
+      .tokens {
+        display: grid;
+        gap: 10px;
+      }
+
+      .token {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 12px;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .swatch {
+        height: 28px;
+        border: 2px solid var(--black);
+      }
+
+      .black {
+        background: var(--black);
+      }
+
+      .white {
+        background: var(--white);
+      }
+
+      .orange {
+        background: var(--orange);
+      }
+
+      .direction {
+        margin-top: 28px;
+        border: 2px solid var(--black);
+        background: var(--paper);
+      }
+
+      .direction-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: center;
+        padding: 22px 24px;
+        border-bottom: 2px solid var(--black);
+      }
+
+      .direction-kicker {
+        color: var(--orange);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .direction h2 {
+        margin-top: 4px;
+        font-size: clamp(26px, 3vw, 42px);
+        letter-spacing: -0.04em;
+      }
+
+      .direction p {
+        margin-top: 8px;
+        color: #4b4b4b;
+        line-height: 1.45;
+      }
+
+      .fit {
+        max-width: 340px;
+        padding: 12px 14px;
+        color: var(--white);
+        background: var(--black);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .sketch-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .sketch {
+        min-height: 280px;
+        padding: 16px;
+        border-right: 1px solid var(--black);
+        border-bottom: 1px solid var(--black);
+      }
+
+      .sketch:nth-child(3n) {
+        border-right: none;
+      }
+
+      .sketch h3 {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .sketch h3 span {
+        color: var(--orange);
+      }
+
+      .frame {
+        min-height: 210px;
+        border: 2px solid var(--black);
+        background: var(--white);
+        overflow: hidden;
+      }
+
+      .rail-layout {
+        display: grid;
+        grid-template-columns: 58px 1fr;
+      }
+
+      .side-rail {
+        background: var(--black);
+        padding: 12px 9px;
+        display: grid;
+        align-content: start;
+        gap: 10px;
+      }
+
+      .rail-logo {
+        height: 24px;
+        display: grid;
+        gap: 4px;
+      }
+
+      .rail-logo span {
+        height: 4px;
+        background: var(--white);
+      }
+
+      .rail-logo span:nth-child(2) {
+        background: var(--orange);
+      }
+
+      .rail-dot {
+        width: 100%;
+        height: 24px;
+        border: 1px solid #555;
+        background: #252525;
+      }
+
+      .rail-dot.active {
+        border-color: var(--orange);
+        background: var(--orange);
+      }
+
+      .mini-page {
+        padding: 14px;
+      }
+
+      .mini-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .mini-title {
+        height: 20px;
+        width: 42%;
+        background: var(--black);
+      }
+
+      .mini-action {
+        height: 24px;
+        width: 84px;
+        background: var(--orange);
+      }
+
+      .mini-line {
+        height: 8px;
+        margin-top: 8px;
+        background: var(--line);
+      }
+
+      .mini-line.short {
+        width: 62%;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin: 14px 0;
+      }
+
+      .stat {
+        min-height: 44px;
+        border: 1px solid var(--black);
+        background: var(--paper);
+        padding: 6px;
+      }
+
+      .stat::before,
+      .stat::after {
+        content: "";
+        display: block;
+        height: 6px;
+        background: var(--black);
+      }
+
+      .stat::after {
+        width: 55%;
+        margin-top: 9px;
+        background: var(--orange);
+      }
+
+      .table {
+        display: grid;
+        gap: 4px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1.1fr 0.8fr 0.7fr 0.45fr;
+        gap: 5px;
+      }
+
+      .row span {
+        height: 11px;
+        background: var(--gray);
+      }
+
+      .row.head span {
+        background: var(--black);
+      }
+
+      .row span.hot {
+        background: var(--orange);
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 0.72fr;
+        gap: 10px;
+      }
+
+      .panel {
+        border: 1px solid var(--black);
+        background: var(--paper);
+        padding: 10px;
+        min-height: 74px;
+      }
+
+      .panel.dark {
+        color: var(--white);
+        background: var(--black);
+      }
+
+      .panel.dark .mini-line,
+      .panel.dark .form-line {
+        background: #333;
+      }
+
+      .form-line {
+        height: 18px;
+        margin-top: 8px;
+        border: 1px solid var(--black);
+        background: var(--white);
+      }
+
+      .warehouse-map {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 12px;
+      }
+
+      .bay {
+        min-height: 44px;
+        border: 1px solid var(--black);
+        background: var(--gray);
+      }
+
+      .bay:nth-child(2),
+      .bay:nth-child(5) {
+        background: var(--orange-soft);
+        border-color: var(--orange);
+      }
+
+      .landing-frame {
+        background:
+          linear-gradient(90deg, rgba(242, 101, 34, 0.18) 0 14%, transparent 14%),
+          var(--white);
+      }
+
+      .hero-photo {
+        min-height: 92px;
+        border: 2px solid var(--black);
+        background:
+          linear-gradient(135deg, transparent 0 40%, rgba(242, 101, 34, 0.5) 40% 52%, transparent 52%),
+          repeating-linear-gradient(90deg, #222 0 12px, #f7f7f7 12px 34px);
+      }
+
+      .dense-layout {
+        background: var(--black);
+        color: var(--white);
+      }
+
+      .dense-layout .mini-title,
+      .dense-layout .row.head span {
+        background: var(--white);
+      }
+
+      .dense-layout .logo-mark span {
+        background: var(--white);
+      }
+
+      .dense-layout .logo-mark span:nth-child(2) {
+        background: var(--orange);
+      }
+
+      .dense-layout .frame,
+      .dense-layout .panel,
+      .dense-layout .stat {
+        border-color: var(--white);
+      }
+
+      .dense-layout .mini-line,
+      .dense-layout .row span {
+        background: #363636;
+      }
+
+      .dense-layout .stat {
+        background: #171717;
+      }
+
+      .dense-layout .stat::before {
+        background: var(--white);
+      }
+
+      .top-band {
+        background: var(--black);
+        color: var(--white);
+      }
+
+      .top-band-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px;
+        border-bottom: 2px solid var(--orange);
+      }
+
+      .top-band-logo {
+        width: 70px;
+        display: grid;
+        gap: 5px;
+      }
+
+      .top-band-logo span {
+        height: 6px;
+        background: var(--white);
+      }
+
+      .top-band-logo span:nth-child(2) {
+        background: var(--orange);
+      }
+
+      .chips {
+        display: flex;
+        gap: 5px;
+      }
+
+      .chip {
+        width: 38px;
+        height: 16px;
+        border: 1px solid #777;
+      }
+
+      .chip.active {
+        background: var(--orange);
+        border-color: var(--orange);
+      }
+
+      .top-band .mini-page {
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      .legend {
+        margin-top: 14px;
+        color: #555;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 1080px) {
+        .intro,
+        .direction-head {
+          grid-template-columns: 1fr;
+        }
+
+        .sketch-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .sketch:nth-child(3n) {
+          border-right: 1px solid var(--black);
+        }
+
+        .sketch:nth-child(2n) {
+          border-right: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .board {
+          width: min(100% - 24px, 1440px);
+          padding-top: 16px;
+        }
+
+        .sketch-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .sketch,
+        .sketch:nth-child(2n),
+        .sketch:nth-child(3n) {
+          border-right: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <section class="intro">
+        <div>
+          <div class="brand">
+            <div class="logo-mark" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="brand-text">LockStock</div>
+          </div>
+          <p class="intro-copy">
+            Sketch board based on the first logo in the supplied image. The system uses black, white, and orange as the
+            primary identity, with the three-bar mark becoming the navigation motif, status accent, and section divider.
+          </p>
+        </div>
+        <div class="tokens" aria-label="Color tokens">
+          <div class="token"><span class="swatch black"></span><span>Black #111111</span></div>
+          <div class="token"><span class="swatch white"></span><span>White #ffffff</span></div>
+          <div class="token"><span class="swatch orange"></span><span>Orange #f26522</span></div>
+        </div>
+      </section>
+
+      <section class="direction">
+        <div class="direction-head">
+          <div>
+            <div class="direction-kicker">Sketch set 1</div>
+            <h2>Industrial Side Rail</h2>
+            <p>
+              A warehouse control interface: black left rail, orange active state, white work surface. Best for dense
+              operational workflows because navigation stays fixed and screen content gets maximum horizontal room.
+            </p>
+          </div>
+          <div class="fit">Recommended direction for the app shell. It feels closest to inventory operations and scales well across every page.</div>
+        </div>
+        <div class="sketch-grid">
+          <article class="sketch">
+            <h3>Landing <span>01</span></h3>
+            <div class="frame landing-frame mini-page">
+              <div class="mini-top"><div class="logo-mark" style="width:58px;height:32px;gap:5px"><span></span><span></span><span></span></div><div class="mini-action"></div></div>
+              <div class="split">
+                <div><div class="mini-title" style="width:80%;height:34px"></div><div class="mini-line short"></div><div class="mini-line"></div><div class="mini-action" style="margin-top:14px"></div></div>
+                <div class="hero-photo"></div>
+              </div>
+              <div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div>
+            </div>
+          </article>
+          <article class="sketch">
+            <h3>Inventory <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot active"></div><div class="rail-dot"></div><div class="rail-dot"></div><div class="rail-dot"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span class="hot"></span></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Materials <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot"></div><div class="rail-dot active"></div><div class="rail-dot"></div><div class="rail-dot"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span class="hot"></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div><div class="panel dark"><div class="mini-line"></div><div class="form-line"></div><div class="form-line"></div><div class="mini-action" style="margin-top:10px"></div></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Stock Moves <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot"></div><div class="rail-dot"></div><div class="rail-dot active"></div><div class="rail-dot"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title" style="width:55%"></div><div class="mini-action"></div></div><div class="split"><div class="panel dark"><div class="form-line"></div><div class="form-line"></div><div class="form-line"></div></div><div class="panel"><div class="mini-line"></div><div class="mini-line"></div><div class="mini-line short"></div></div></div><div class="table" style="margin-top:12px"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span class="hot"></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Locations <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot"></div><div class="rail-dot"></div><div class="rail-dot"></div><div class="rail-dot active"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="warehouse-map"><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div></div><div class="panel" style="margin-top:10px"><div class="mini-line"></div><div class="mini-line short"></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Vendors <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot active"></div><div class="rail-dot"></div><div class="rail-dot"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards" style="grid-template-columns:repeat(3,1fr)"><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Purchase Orders <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot"></div><div class="rail-dot active"></div><div class="rail-dot"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title" style="width:60%"></div><div class="mini-action"></div></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span class="hot"></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Members <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot"></div><div class="rail-dot"></div><div class="rail-dot active"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div><div class="panel dark"><div class="form-line"></div><div class="form-line"></div><div class="mini-action" style="margin-top:10px"></div></div></div></div></div>
+          </article>
+          <article class="sketch">
+            <h3>Account <span>01</span></h3>
+            <div class="frame rail-layout"><div class="side-rail"><div class="rail-logo"><span></span><span></span><span></span></div><div class="rail-dot"></div><div class="rail-dot active"></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards" style="grid-template-columns:repeat(2,1fr)"><div class="panel"><div class="form-line"></div><div class="form-line"></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div></div></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="direction dense-layout">
+        <div class="direction-head">
+          <div>
+            <div class="direction-kicker">Sketch set 2</div>
+            <h2>Black Ledger</h2>
+            <p>
+              A high-contrast dark operations desk with orange only for exceptions and primary actions. This feels more
+              premium and command-center-like, but requires careful table contrast and form states.
+            </p>
+          </div>
+          <div class="fit">Best when the product should feel serious, technical, and monitor-heavy.</div>
+        </div>
+        <div class="sketch-grid">
+          <article class="sketch"><h3>Landing <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="logo-mark" style="width:58px;height:32px;gap:5px"><span></span><span></span><span></span></div><div class="mini-action"></div></div><div class="mini-title" style="width:72%;height:38px"></div><div class="mini-line short"></div><div class="hero-photo" style="margin-top:16px"></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div></div></article>
+          <article class="sketch"><h3>Inventory <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span class="hot"></span></div></div></div></article>
+          <article class="sketch"><h3>Materials <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span class="hot"></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div><div class="form-line"></div></div></div></div></article>
+          <article class="sketch"><h3>Stock Moves <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title" style="width:55%"></div><div class="mini-action"></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div><div class="table" style="margin-top:12px"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span class="hot"></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div></article>
+          <article class="sketch"><h3>Locations <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="warehouse-map"><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div></div><div class="panel" style="margin-top:10px"><div class="mini-line"></div><div class="mini-line short"></div></div></div></article>
+          <article class="sketch"><h3>Vendors <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards" style="grid-template-columns:repeat(3,1fr)"><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div></article>
+          <article class="sketch"><h3>Purchase Orders <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title" style="width:60%"></div><div class="mini-action"></div></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span class="hot"></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div></div></div></article>
+          <article class="sketch"><h3>Members <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div></div></div></article>
+          <article class="sketch"><h3>Account <span>02</span></h3><div class="frame dense-layout mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards" style="grid-template-columns:repeat(2,1fr)"><div class="panel"><div class="form-line"></div><div class="form-line"></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div></div></div></article>
+        </div>
+      </section>
+
+      <section class="direction">
+        <div class="direction-head">
+          <div>
+            <div class="direction-kicker">Sketch set 3</div>
+            <h2>White Top Band</h2>
+            <p>
+              A cleaner evolution of the current app: white content, black top band, orange underline and action color.
+              It is the lowest-risk visual refresh because it preserves the existing top-navigation mental model.
+            </p>
+          </div>
+          <div class="fit">Best when the goal is brand alignment with minimal layout disruption.</div>
+        </div>
+        <div class="sketch-grid">
+          <article class="sketch"><h3>Landing <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip active"></div><div class="chip"></div><div class="chip"></div></div></div><div class="mini-page"><div class="split"><div><div class="mini-title" style="width:78%;height:34px"></div><div class="mini-line short"></div><div class="mini-action" style="margin-top:14px"></div></div><div class="hero-photo"></div></div></div></div></article>
+          <article class="sketch"><h3>Inventory <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip active"></div><div class="chip"></div><div class="chip"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div></div></article>
+          <article class="sketch"><h3>Materials <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip"></div><div class="chip active"></div><div class="chip"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span></span><span class="hot"></span></div><div class="row"><span></span><span></span><span></span><span></span></div></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div></div></div></div></article>
+          <article class="sketch"><h3>Stock Moves <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip"></div><div class="chip active"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title" style="width:55%"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="form-line"></div><div class="form-line"></div><div class="form-line"></div></div><div class="panel"><div class="mini-line"></div><div class="mini-line short"></div></div></div></div></div></article>
+          <article class="sketch"><h3>Locations <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip"></div><div class="chip active"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="warehouse-map"><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div><div class="bay"></div></div></div></div></article>
+          <article class="sketch"><h3>Vendors <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip active"></div><div class="chip"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards" style="grid-template-columns:repeat(3,1fr)"><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div></div></div></div></article>
+          <article class="sketch"><h3>Purchase Orders <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip"></div><div class="chip active"></div><div class="chip"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title" style="width:60%"></div><div class="mini-action"></div></div><div class="cards"><div class="stat"></div><div class="stat"></div><div class="stat"></div><div class="stat"></div></div><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span class="hot"></span><span></span><span></span><span></span></div></div></div></div></article>
+          <article class="sketch"><h3>Members <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip active"></div><div class="chip"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="split"><div class="panel"><div class="table"><div class="row head"><span></span><span></span><span></span><span></span></div><div class="row"><span></span><span></span><span class="hot"></span><span></span></div></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div></div></div></div></article>
+          <article class="sketch"><h3>Account <span>03</span></h3><div class="frame top-band"><div class="top-band-bar"><div class="top-band-logo"><span></span><span></span><span></span></div><div class="chips"><div class="chip"></div><div class="chip active"></div></div></div><div class="mini-page"><div class="mini-top"><div class="mini-title"></div><div class="mini-action"></div></div><div class="cards" style="grid-template-columns:repeat(2,1fr)"><div class="panel"><div class="form-line"></div><div class="form-line"></div></div><div class="panel"><div class="form-line"></div><div class="form-line"></div></div></div></div></div></article>
+        </div>
+      </section>
+
+      <p class="legend">
+        Notes: orange should be reserved for active navigation, primary actions, alerts, and live exceptions. Tables stay
+        mostly black and white so operational data remains readable. The first-logo three-bar mark can replace the
+        current LS square in both the landing page and the authenticated shell.
+      </p>
+    </main>
+  </body>
+</html>
