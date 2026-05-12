@@ -348,6 +348,8 @@ export function LockstockWorkbench() {
   const [materialSubcategoryFilter, setMaterialSubcategoryFilter] = useState("all");
   const [inventoryStatus, setInventoryStatus] = useState("all");
   const [inventoryLocation, setInventoryLocation] = useState("all");
+  const [locationFilterQuery, setLocationFilterQuery] = useState("");
+  const [locationStatusFilter, setLocationStatusFilter] = useState("all");
   const [movementFilterQuery, setMovementFilterQuery] = useState("");
   const [movementLocationFilter, setMovementLocationFilter] = useState("all");
   const [movementReasonFilter, setMovementReasonFilter] = useState("all");
@@ -2061,18 +2063,28 @@ export function LockstockWorkbench() {
     tableSorts.invitations,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
+  const locationRows = locations.map((location) => ({
+    id: location.id,
+    code: location.code ?? "-",
+    name: location.name,
+    address: location.address?.trim() ? location.address : "-",
+    status: location.is_active === false ? "Blocked" : "Active",
+    lowStock: locationSkuAlertCounts[location.id]?.lowStock ?? 0,
+    outOfStock: locationSkuAlertCounts[location.id]?.outOfStock ?? 0,
+    actionLabel: "Edit Block",
+    location
+  }));
+  const filteredLocationRows = locationRows.filter((row) => {
+    const normalizedQuery = locationFilterQuery.trim().toLowerCase();
+    const matchesQuery =
+      normalizedQuery.length === 0 ||
+      [row.code, row.name, row.address].some((value) => String(value).toLowerCase().includes(normalizedQuery));
+    const matchesStatus = locationStatusFilter === "all" || row.status.toLowerCase() === locationStatusFilter;
+
+    return matchesQuery && matchesStatus;
+  });
   const locationTableRows = sortRowsByKey(
-    locations.map((location) => ({
-      id: location.id,
-      code: location.code ?? "-",
-      name: location.name,
-      address: location.address?.trim() ? location.address : "-",
-      status: location.is_active === false ? "Blocked" : "Active",
-      lowStock: locationSkuAlertCounts[location.id]?.lowStock ?? 0,
-      outOfStock: locationSkuAlertCounts[location.id]?.outOfStock ?? 0,
-      actionLabel: "Edit Block",
-      location
-    })),
+    filteredLocationRows,
     tableSorts.locations,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
@@ -2548,35 +2560,63 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showLocationSection ? (
-        <section className="card">
-          <div className="title-row">
-            <div>
-              <h3>Location Management</h3>
-              <p className="subtle-line">Create and manage warehouse locations.</p>
+        <>
+          <section className="card">
+            <div className="inventory-toolbar location-toolbar">
+              <div className="search-input-wrap">
+                <SearchFieldIcon />
+                <input
+                  value={locationFilterQuery}
+                  onChange={(event) => {
+                    setLocationFilterQuery(event.target.value);
+                    setLocationPage(1);
+                  }}
+                  placeholder="Search by code, name or address..."
+                />
+              </div>
+              <div className="category-wrap">
+                <SelectFieldIcon />
+                <select
+                  value={locationStatusFilter}
+                  onChange={(event) => {
+                    setLocationStatusFilter(event.target.value);
+                    setLocationPage(1);
+                  }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </div>
             </div>
-            <div className="actions table-head-actions">
-              <button type="button" onClick={openCreateLocationForm}>
-                Add Location
-              </button>
-              <button
-                type="button"
-                className="ghost-btn"
-                disabled={locationTableRows.length === 0}
-                onClick={() =>
-                  exportTableCsv(
-                    "locations.csv",
-                    ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"],
-                    locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
-                  )
-                }
-              >
-                Export CSV
-              </button>
+          </section>
+
+          <section className="card">
+            <div className="table-section-head">
+              <h2>Location Management</h2>
+              <div className="actions table-head-actions inventory-table-actions">
+                <button type="button" className="ghost-btn" onClick={openCreateLocationForm}>
+                  Add Location
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={locationTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "locations.csv",
+                      ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"],
+                      locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
-          </div>
 
           <div className="table-wrap">
-            <table className="compact-table">
+            <table className="compact-table locations-table">
               <thead>
                 <tr>
                   <SortableHeader tableId="locations" sortKey="code" label="Code" sortState={tableSorts.locations} onSort={handleTableSort} />
@@ -2585,13 +2625,15 @@ export function LockstockWorkbench() {
                   <SortableHeader tableId="locations" sortKey="status" label="Status" sortState={tableSorts.locations} onSort={handleTableSort} />
                   <SortableHeader tableId="locations" sortKey="lowStock" label="Low stock" sortState={tableSorts.locations} onSort={handleTableSort} />
                   <SortableHeader tableId="locations" sortKey="outOfStock" label="Out of stock" sortState={tableSorts.locations} onSort={handleTableSort} />
-                  <th>Actions</th>
+                  <th>
+                    <span className="table-static-head">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {locationTableRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>No locations created yet.</td>
+                    <td colSpan={7}>{locations.length === 0 ? "No locations created yet." : "No locations match these filters."}</td>
                   </tr>
                 ) : (
                   paginatedLocationTableRows.map((row) => (
@@ -2603,7 +2645,7 @@ export function LockstockWorkbench() {
                       <td>{row.lowStock}</td>
                       <td>{row.outOfStock}</td>
                       <td>
-                        <div className="actions">
+                        <div className="row-actions table-action-buttons">
                           <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditLocationForm(row.location)}>
                             Edit
                           </button>
@@ -2710,7 +2752,8 @@ export function LockstockWorkbench() {
               </div>
             </div>
           ) : null}
-        </section>
+          </section>
+        </>
       ) : null}
 
       {showMaterialSection ? (
