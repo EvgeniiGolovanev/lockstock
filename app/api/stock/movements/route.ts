@@ -3,7 +3,7 @@ import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createStockMovementSchema } from "@/lib/validators/stock";
 
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 function parsePositiveInt(value: string | null, fallback: number) {

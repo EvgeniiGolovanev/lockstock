@@ -201,4 +201,20 @@ describe("POST /api/materials auth and role enforcement", () => {
     expect(supabase.materialListQuery.eq).toHaveBeenCalledWith("subcategory", "Concrete & cement");
     expect(supabase.materialListQuery.range).toHaveBeenCalledWith(10, 19);
   });
+
+  it("defaults material catalog pagination to 20 rows", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    const supabase = createSupabaseForRole("member");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest("http://localhost:3000/api/materials", {
+      headers: { "x-org-id": orgId, Authorization: "Bearer token" }
+    });
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(supabase.materialListQuery.range).toHaveBeenCalledWith(0, 19);
+  });
 });

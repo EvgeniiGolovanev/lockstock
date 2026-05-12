@@ -42,3 +42,13 @@ function escapeCsvCell(value: CsvCell) {
 export function tableRowsToCsv(headers: readonly string[], rows: readonly (readonly CsvCell[])[]) {
   return [headers, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
 }
+
+export function totalPagesForRows(totalRows: number, pageSize: number) {
+  return Math.max(1, Math.ceil(totalRows / pageSize));
+}
+
+export function paginateRows<Row>(rows: Row[], page: number, pageSize: number) {
+  const safePage = Math.max(1, page);
+  const from = (safePage - 1) * pageSize;
+  return rows.slice(from, from + pageSize);
+}
