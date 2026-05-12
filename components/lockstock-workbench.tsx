@@ -319,6 +319,7 @@ export function LockstockWorkbench() {
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+  const [showMovementForm, setShowMovementForm] = useState(false);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
   const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
   const [selectedPoDetailsId, setSelectedPoDetailsId] = useState<string | null>(null);
@@ -347,6 +348,9 @@ export function LockstockWorkbench() {
   const [materialSubcategoryFilter, setMaterialSubcategoryFilter] = useState("all");
   const [inventoryStatus, setInventoryStatus] = useState("all");
   const [inventoryLocation, setInventoryLocation] = useState("all");
+  const [movementFilterQuery, setMovementFilterQuery] = useState("");
+  const [movementLocationFilter, setMovementLocationFilter] = useState("all");
+  const [movementReasonFilter, setMovementReasonFilter] = useState("all");
   const [locationPage, setLocationPage] = useState(1);
   const [materialPage, setMaterialPage] = useState(1);
   const [materialTotal, setMaterialTotal] = useState(0);
@@ -1906,24 +1910,24 @@ export function LockstockWorkbench() {
     try {
       if (!movementMaterialId) {
         addActivity("Stock movement failed: select a material.");
-        return;
+        return false;
       }
       if (movementReason === "transfer") {
         if (!movementFromLocationId || !movementToLocationId) {
           addActivity("Stock movement failed: select both transfer locations.");
-          return;
+          return false;
         }
         if (movementFromLocationId === movementToLocationId) {
           addActivity("Stock movement failed: transfer locations must be different.");
-          return;
+          return false;
         }
         if (Number(movementQuantity) <= 0) {
           addActivity("Stock movement failed: transfer quantity must be greater than zero.");
-          return;
+          return false;
         }
       } else if (!movementLocationId || Number(movementQuantity) === 0) {
         addActivity("Stock movement failed: select a location and non-zero quantity.");
-        return;
+        return false;
       }
 
       setBusy(true);
@@ -1951,8 +1955,10 @@ export function LockstockWorkbench() {
       setMovementComment("");
       setMovementQuantity(1);
       await refreshCoreData();
+      return true;
     } catch (error) {
       addActivity(`Stock movement failed: ${(error as Error).message}`);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -2088,18 +2094,36 @@ export function LockstockWorkbench() {
     tableSorts.materials,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
+  const movementRows = materialMovements.map((movement) => ({
+    id: movement.id,
+    createdAt: formatDateTimeLabel(movement.created_at),
+    materialSku: movement.material?.sku ?? "",
+    materialName: movement.material?.name ?? "",
+    materialLabel: movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-",
+    locationLabel: formatMovementLocation(movement.location),
+    quantity: formatNumberLabel(Number(movement.quantity_delta)),
+    uom: movement.material ? formatMaterialUnitLabel(movement.material.uom, locale) : "-",
+    category: movement.material?.category ?? "-",
+    reason: formatMovementReason(movement.reason),
+    comments: movement.note?.trim() ? movement.note : "-"
+  }));
+  const movementLocations = ["all", ...Array.from(new Set(movementRows.map((row) => row.locationLabel))).sort((a, b) => a.localeCompare(b))];
+  const movementReasons = ["all", ...Array.from(new Set(movementRows.map((row) => row.reason))).sort((a, b) => a.localeCompare(b))];
+  const filteredMovementRows = movementRows.filter((row) => {
+    const normalizedQuery = movementFilterQuery.trim().toLowerCase();
+    if (movementLocationFilter !== "all" && row.locationLabel !== movementLocationFilter) {
+      return false;
+    }
+    if (movementReasonFilter !== "all" && row.reason !== movementReasonFilter) {
+      return false;
+    }
+    if (!normalizedQuery) {
+      return true;
+    }
+    return row.materialSku.toLowerCase().includes(normalizedQuery) || row.materialName.toLowerCase().includes(normalizedQuery);
+  });
   const movementTableRows = sortRowsByKey(
-    materialMovements.map((movement) => ({
-      id: movement.id,
-      createdAt: formatDateTimeLabel(movement.created_at),
-      materialLabel: movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-",
-      locationLabel: formatMovementLocation(movement.location),
-      quantity: formatNumberLabel(Number(movement.quantity_delta)),
-      uom: movement.material ? formatMaterialUnitLabel(movement.material.uom, locale) : "-",
-      category: movement.material?.category ?? "-",
-      reason: formatMovementReason(movement.reason),
-      comments: movement.note?.trim() ? movement.note : "-"
-    })),
+    filteredMovementRows,
     tableSorts.movements,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
@@ -3099,120 +3123,58 @@ export function LockstockWorkbench() {
 
       {showStockMovementsSection ? (
         <section className="card">
-          <h3>Stock Movements</h3>
-          <p className="subtle-line">Add stock to locations and review material movement history.</p>
-          <div className="materials-form-wrap">
-            <div className="stock-movement-form-grid">
-              <div className="stock-movement-row stock-movement-row-top">
-                <label className="field">
-                  <span>Material</span>
-                  <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
-                    <option value="">Select material</option>
-                    {activeMaterials.map((material) => (
-                      <option key={material.id} value={material.id}>
-                        {material.sku} - {material.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Reason</span>
-                  <select value={movementReason} onChange={(event) => setMovementReason(event.target.value as ManualMovementReason)}>
-                    <option value="adjustment">Adjustment</option>
-                    <option value="transfer">Transfer</option>
-                  </select>
-                </label>
-              </div>
-
-              {movementReason === "adjustment" ? (
-                <div className="stock-movement-row stock-movement-row-single">
-                  <label className="field">
-                    <span>Location</span>
-                    <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
-                      <option value="">Select location</option>
-                      {activeLocations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.code ? `${location.code} - ` : ""}
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              ) : (
-                <div className="stock-movement-row stock-movement-row-top">
-                  <label className="field">
-                    <span>Transfer out</span>
-                    <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
-                      <option value="">Select location</option>
-                      {activeLocations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.code ? `${location.code} - ` : ""}
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Transfer to</span>
-                    <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
-                      <option value="">Select location</option>
-                      {activeLocations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.code ? `${location.code} - ` : ""}
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              )}
-
-              <div className="stock-movement-row stock-movement-row-single">
-                <label className="field">
-                  <span>{movementReason === "transfer" ? "Quantity" : "Quantity Delta"}</span>
-                  <input
-                    type="number"
-                    min={movementReason === "transfer" ? 1 : undefined}
-                    value={movementQuantity}
-                    onChange={(event) => setMovementQuantity(Number(event.target.value))}
-                  />
-                </label>
-              </div>
-
-              <div className="stock-movement-row stock-movement-row-single">
-                <label className="field">
-                  <span>Comments</span>
-                  <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
-                </label>
-              </div>
+          <div className="inventory-toolbar materials-toolbar">
+            <div className="search-input-wrap">
+              <SearchFieldIcon />
+              <input
+                value={movementFilterQuery}
+                onChange={(event) => {
+                  setMovementFilterQuery(event.target.value);
+                  setMovementPage(1);
+                }}
+                placeholder="Search by SKU or name..."
+              />
             </div>
-            <div className="actions">
-              <button
-                type="button"
-                disabled={
-                  busy ||
-                  !isOrgScopedReady ||
-                  !movementMaterialId ||
-                  (movementReason === "transfer"
-                    ? !movementFromLocationId ||
-                      !movementToLocationId ||
-                      movementFromLocationId === movementToLocationId ||
-                      Number(movementQuantity) <= 0
-                    : !movementLocationId || Number(movementQuantity) === 0)
-                }
-                onClick={handleCreateMovement}
+            <div className="category-wrap">
+              <SelectFieldIcon />
+              <select
+                value={movementLocationFilter}
+                onChange={(event) => {
+                  setMovementLocationFilter(event.target.value);
+                  setMovementPage(1);
+                }}
               >
-                Add to Stock
-              </button>
+                {movementLocations.map((location) => (
+                  <option key={location} value={location}>
+                    {location === "all" ? "All Locations" : location}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="category-wrap">
+              <SelectFieldIcon />
+              <select
+                value={movementReasonFilter}
+                onChange={(event) => {
+                  setMovementReasonFilter(event.target.value);
+                  setMovementPage(1);
+                }}
+              >
+                {movementReasons.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason === "all" ? "All Reasons" : reason}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="materials-table-head">
-            <div className="field">
-              <span>Material Movements</span>
-            </div>
-            <div className="actions table-head-actions">
+          <div className="table-section-head stock-movements-table-head">
+            <h2>Material movements</h2>
+            <div className="actions table-head-actions inventory-table-actions">
+              <button type="button" className="ghost-btn" onClick={() => setShowMovementForm(true)}>
+                Move Material
+              </button>
               <button
                 type="button"
                 className="ghost-btn"
@@ -3238,6 +3200,136 @@ export function LockstockWorkbench() {
               </button>
             </div>
           </div>
+
+          {showMovementForm ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Move material">
+              <div className="modal-card">
+                <div className="title-row">
+                  <div>
+                    <h4>Move Material</h4>
+                    <p className="subtle-line">Add stock to a location or transfer it between locations.</p>
+                  </div>
+                  <button type="button" className="ghost-btn" disabled={busy} onClick={() => setShowMovementForm(false)}>
+                    Close
+                  </button>
+                </div>
+                <div className="materials-form-wrap">
+                  <div className="stock-movement-form-grid">
+                    <div className="stock-movement-row stock-movement-row-top">
+                      <label className="field">
+                        <span>Material</span>
+                        <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
+                          <option value="">Select material</option>
+                          {activeMaterials.map((material) => (
+                            <option key={material.id} value={material.id}>
+                              {material.sku} - {material.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Reason</span>
+                        <select value={movementReason} onChange={(event) => setMovementReason(event.target.value as ManualMovementReason)}>
+                          <option value="adjustment">Adjustment</option>
+                          <option value="transfer">Transfer</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    {movementReason === "adjustment" ? (
+                      <div className="stock-movement-row stock-movement-row-single">
+                        <label className="field">
+                          <span>Location</span>
+                          <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
+                            <option value="">Select location</option>
+                            {activeLocations.map((location) => (
+                              <option key={location.id} value={location.id}>
+                                {location.code ? `${location.code} - ` : ""}
+                                {location.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="stock-movement-row stock-movement-row-top">
+                        <label className="field">
+                          <span>Transfer out</span>
+                          <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
+                            <option value="">Select location</option>
+                            {activeLocations.map((location) => (
+                              <option key={location.id} value={location.id}>
+                                {location.code ? `${location.code} - ` : ""}
+                                {location.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Transfer to</span>
+                          <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
+                            <option value="">Select location</option>
+                            {activeLocations.map((location) => (
+                              <option key={location.id} value={location.id}>
+                                {location.code ? `${location.code} - ` : ""}
+                                {location.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    )}
+
+                    <div className="stock-movement-row stock-movement-row-single">
+                      <label className="field">
+                        <span>{movementReason === "transfer" ? "Quantity" : "Quantity Delta"}</span>
+                        <input
+                          type="number"
+                          min={movementReason === "transfer" ? 1 : undefined}
+                          value={movementQuantity}
+                          onChange={(event) => setMovementQuantity(Number(event.target.value))}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="stock-movement-row stock-movement-row-single">
+                      <label className="field">
+                        <span>Comments</span>
+                        <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="actions">
+                  <button
+                    type="button"
+                    disabled={
+                      busy ||
+                      !isOrgScopedReady ||
+                      !movementMaterialId ||
+                      (movementReason === "transfer"
+                        ? !movementFromLocationId ||
+                          !movementToLocationId ||
+                          movementFromLocationId === movementToLocationId ||
+                          Number(movementQuantity) <= 0
+                        : !movementLocationId || Number(movementQuantity) === 0)
+                    }
+                    onClick={async () => {
+                      const success = await handleCreateMovement();
+                      if (success) {
+                        setShowMovementForm(false);
+                      }
+                    }}
+                  >
+                    Add to Stock
+                  </button>
+                  <button type="button" className="ghost-btn" disabled={busy} onClick={() => setShowMovementForm(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {movementTableRows.length === 0 ? (
             <p>No material movements yet.</p>
