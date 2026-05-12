@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LockStock Sketch Set 1 Static Pages</title>
+    <style>
+      :root {
+        --black: #101010;
+        --ink: #1d1b19;
+        --muted: #6f6860;
+        --line: #d8d1c8;
+        --line-strong: #171717;
+        --paper: #f4f0ea;
+        --surface: #fffdf9;
+        --surface-2: #f8f5ef;
+        --orange: #f26522;
+        --orange-deep: #c84912;
+        --orange-soft: #fff0e7;
+        --red: #bd2634;
+        --green: #257447;
+        --shadow: 0 16px 42px rgba(18, 17, 15, 0.09);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(rgba(16, 16, 16, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(16, 16, 16, 0.035) 1px, transparent 1px),
+          var(--paper);
+        background-size: 28px 28px;
+        font-family: "Aptos", "Segoe UI", system-ui, sans-serif;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .prototype-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        overflow-x: auto;
+        padding: 10px 14px;
+        color: #fff;
+        background: var(--black);
+        border-bottom: 3px solid var(--orange);
+      }
+
+      .prototype-nav a {
+        flex: 0 0 auto;
+        color: #fff;
+        text-decoration: none;
+        border: 1px solid #383838;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .prototype-nav a:hover {
+        color: var(--black);
+        background: var(--orange);
+        border-color: var(--orange);
+      }
+
+      .page-label {
+        width: min(1440px, calc(100% - 40px));
+        margin: 34px auto 10px;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .page-label h2 {
+        font-size: clamp(24px, 3vw, 42px);
+        letter-spacing: -0.04em;
+      }
+
+      .page-label p {
+        max-width: 560px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: inherit;
+        font-weight: 900;
+        letter-spacing: -0.045em;
+      }
+
+      .mark {
+        width: 54px;
+        height: 32px;
+        display: grid;
+        gap: 5px;
+        align-content: center;
+      }
+
+      .mark span {
+        display: block;
+        height: 7px;
+        background: currentColor;
+      }
+
+      .mark span:nth-child(2) {
+        background: var(--orange);
+      }
+
+      .brand-name {
+        font-size: 24px;
+        line-height: 1;
+      }
+
+      .landing {
+        width: min(1440px, calc(100% - 40px));
+        min-height: 820px;
+        margin: 0 auto 38px;
+        background: var(--surface);
+        border: 2px solid var(--line-strong);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .landing header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 24px;
+        padding: 22px 28px;
+        border-bottom: 2px solid var(--line-strong);
+      }
+
+      .landing-links {
+        display: flex;
+        justify-content: center;
+        gap: 26px;
+      }
+
+      .landing-links a,
+      .side-link,
+      .sub-nav a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .landing-links a {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .landing-actions {
+        display: inline-flex;
+        gap: 10px;
+      }
+
+      .btn {
+        min-height: 38px;
+        border: 2px solid var(--black);
+        background: var(--black);
+        color: #fff;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+
+      .btn.orange {
+        background: var(--orange);
+        border-color: var(--orange);
+      }
+
+      .btn.ghost {
+        background: transparent;
+        color: var(--black);
+      }
+
+      .landing-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+        min-height: 520px;
+      }
+
+      .hero-copy {
+        padding: 74px 28px 42px;
+      }
+
+      .eyebrow {
+        color: var(--orange);
+        font-size: 12px;
+        font-weight: 1000;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .hero-copy h1 {
+        margin-top: 14px;
+        max-width: 720px;
+        font-size: clamp(48px, 7vw, 96px);
+        line-height: 0.9;
+        letter-spacing: -0.075em;
+      }
+
+      .hero-copy p {
+        margin-top: 22px;
+        max-width: 540px;
+        color: #49443f;
+        font-size: 18px;
+        line-height: 1.5;
+      }
+
+      .hero-actions {
+        margin-top: 26px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .hero-visual {
+        position: relative;
+        min-height: 520px;
+        border-left: 2px solid var(--black);
+        background:
+          linear-gradient(135deg, transparent 0 38%, rgba(242, 101, 34, 0.92) 38% 48%, transparent 48%),
+          repeating-linear-gradient(90deg, #171717 0 18px, #ffffff 18px 60px);
+      }
+
+      .hero-visual::before {
+        content: "";
+        position: absolute;
+        inset: 48px 38px 54px;
+        border: 2px solid var(--black);
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.74)),
+          linear-gradient(90deg, #161616 0 24%, transparent 24% 100%);
+      }
+
+      .hero-panel {
+        position: absolute;
+        right: 64px;
+        bottom: 70px;
+        width: min(420px, calc(100% - 72px));
+        padding: 18px;
+        border: 2px solid var(--black);
+        background: var(--surface);
+      }
+
+      .hero-panel-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .mini-stat {
+        border: 2px solid var(--black);
+        padding: 10px;
+        background: var(--surface-2);
+      }
+
+      .mini-stat strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 24px;
+        letter-spacing: -0.04em;
+      }
+
+      .landing-band {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 2px solid var(--black);
+      }
+
+      .landing-band article {
+        min-height: 154px;
+        padding: 22px;
+        border-right: 2px solid var(--black);
+        background: var(--surface-2);
+      }
+
+      .landing-band article:last-child {
+        border-right: none;
+      }
+
+      .landing-band h3 {
+        font-size: 21px;
+        letter-spacing: -0.03em;
+      }
+
+      .landing-band p {
+        margin-top: 10px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .app-shell {
+        width: min(1440px, calc(100% - 40px));
+        min-height: 820px;
+        margin: 0 auto 42px;
+        display: grid;
+        grid-template-columns: 94px minmax(0, 1fr);
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .side {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 18px;
+        padding: 18px 12px;
+        color: #fff;
+        background: var(--black);
+      }
+
+      .side .mark {
+        width: 62px;
+        margin: 0 auto 8px;
+      }
+
+      .side-links {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+      }
+
+      .side-link {
+        display: grid;
+        place-items: center;
+        min-height: 58px;
+        border: 1px solid #333;
+        color: #d7d0c8;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .side-link.active {
+        color: var(--black);
+        background: var(--orange);
+        border-color: var(--orange);
+      }
+
+      .side-user {
+        display: grid;
+        place-items: center;
+        height: 58px;
+        border: 1px solid #333;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .workspace {
+        min-width: 0;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 20px;
+        align-items: center;
+        min-height: 78px;
+        padding: 18px 24px;
+        border-bottom: 2px solid var(--black);
+      }
+
+      .topbar h1 {
+        font-size: clamp(32px, 4vw, 54px);
+        line-height: 0.94;
+        letter-spacing: -0.065em;
+      }
+
+      .topbar p {
+        margin-top: 6px;
+        color: var(--muted);
+      }
+
+      .top-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .locale {
+        display: inline-flex;
+        border: 2px solid var(--black);
+      }
+
+      .locale span {
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .locale span:first-child {
+        color: #fff;
+        background: var(--black);
+      }
+
+      .content {
+        padding: 22px 24px 28px;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .kpi {
+        min-height: 128px;
+        padding: 16px;
+        border: 2px solid var(--black);
+        background: var(--surface-2);
+      }
+
+      .kpi .meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .kpi strong {
+        display: block;
+        margin-top: 18px;
+        font-size: 42px;
+        line-height: 0.95;
+        letter-spacing: -0.06em;
+      }
+
+      .kpi.hot {
+        color: var(--black);
+        background: var(--orange-soft);
+        border-color: var(--orange);
+      }
+
+      .layout-2 {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .panel {
+        border: 2px solid var(--black);
+        background: var(--surface);
+      }
+
+      .panel.dark {
+        color: #fff;
+        background: var(--black);
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 56px;
+        padding: 12px 14px;
+        border-bottom: 2px solid var(--black);
+      }
+
+      .panel.dark .panel-head {
+        border-color: #333;
+      }
+
+      .panel-head h3 {
+        font-size: 17px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 170px 170px;
+        gap: 10px;
+        padding: 14px;
+        border-bottom: 2px solid var(--black);
+        background: var(--surface-2);
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      input,
+      select {
+        width: 100%;
+        min-height: 40px;
+        border: 2px solid var(--black);
+        border-radius: 0;
+        background: #fff;
+        padding: 8px 10px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 780px;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 12px 13px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-size: 14px;
+      }
+
+      th {
+        color: #fff;
+        background: var(--black);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      tr.alert td {
+        background: var(--orange-soft);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border: 1px solid var(--black);
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .pill.orange {
+        color: var(--black);
+        background: var(--orange);
+        border-color: var(--orange);
+      }
+
+      .pill.red {
+        color: #fff;
+        background: var(--red);
+        border-color: var(--red);
+      }
+
+      .pill.green {
+        color: #fff;
+        background: var(--green);
+        border-color: var(--green);
+      }
+
+      .form-card {
+        padding: 14px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .form-card .btn {
+        width: 100%;
+      }
+
+      .split-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .map-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .bay {
+        min-height: 138px;
+        border: 2px solid var(--black);
+        padding: 12px;
+        background: var(--surface-2);
+      }
+
+      .bay.active {
+        background: var(--orange-soft);
+        border-color: var(--orange);
+      }
+
+      .bay h4 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.04em;
+      }
+
+      .bay p {
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      .timeline {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+      }
+
+      .timeline article {
+        display: grid;
+        grid-template-columns: 110px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border: 2px solid var(--black);
+        background: var(--surface-2);
+      }
+
+      .sub-nav {
+        display: flex;
+        gap: 8px;
+        padding: 12px 14px;
+        border-bottom: 2px solid var(--black);
+        background: var(--surface-2);
+      }
+
+      .sub-nav a {
+        border: 2px solid var(--black);
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+
+      .sub-nav a.active {
+        color: #fff;
+        background: var(--black);
+      }
+
+      .account-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .account-card {
+        border: 2px solid var(--black);
+        padding: 16px;
+        background: var(--surface-2);
+      }
+
+      .account-card.wide {
+        grid-column: 1 / -1;
+      }
+
+      .account-card h3 {
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .activity-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .activity-list article {
+        display: grid;
+        grid-template-columns: 160px 1fr 130px;
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+
+      @media (max-width: 980px) {
+        .landing header,
+        .landing-hero,
+        .layout-2,
+        .topbar,
+        .page-label {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-visual {
+          border-left: none;
+          border-top: 2px solid var(--black);
+        }
+
+        .app-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .side {
+          grid-template-rows: auto;
+          grid-template-columns: auto 1fr auto;
+          align-items: center;
+        }
+
+        .side-links {
+          display: flex;
+          overflow-x: auto;
+        }
+
+        .side-link {
+          min-width: 74px;
+          min-height: 50px;
+        }
+
+        .kpis,
+        .landing-band,
+        .map-grid,
+        .account-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .account-card.wide {
+          grid-column: auto;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .prototype-nav,
+        .landing,
+        .app-shell,
+        .page-label {
+          width: calc(100% - 20px);
+        }
+
+        .landing-actions,
+        .top-actions,
+        .toolbar,
+        .split-form,
+        .timeline article,
+        .activity-list article {
+          grid-template-columns: 1fr;
+          display: grid;
+        }
+
+        .hero-copy,
+        .content {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="prototype-nav" aria-label="Prototype pages">
+      <a href="#landing">Landing</a>
+      <a href="#inventory">Inventory</a>
+      <a href="#materials">Materials</a>
+      <a href="#stock-movements">Stock Moves</a>
+      <a href="#locations">Locations</a>
+      <a href="#vendors">Vendors</a>
+      <a href="#purchase-orders">Purchase Orders</a>
+      <a href="#members">Members</a>
+      <a href="#account">Account</a>
+    </nav>
+
+    <section id="landing" class="page-label">
+      <div>
+        <h2>Landing Page</h2>
+        <p>Public entry point with the first-logo mark, a blunt industrial hero, and a glimpse of the product surface.</p>
+      </div>
+    </section>
+    <main class="landing">
+      <header>
+        <div class="logo">
+          <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <span class="brand-name">LockStock</span>
+        </div>
+        <nav class="landing-links">
+          <a href="#">Features</a>
+          <a href="#">Operations</a>
+          <a href="#">Pricing</a>
+        </nav>
+        <div class="landing-actions">
+          <button class="btn ghost">Sign In</button>
+          <button class="btn orange">Get Started</button>
+        </div>
+      </header>
+      <section class="landing-hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Inventory command system</div>
+          <h1>Keep every material accounted for.</h1>
+          <p>
+            LockStock gives warehouse, purchasing, and site teams one operational surface for stock, locations, suppliers,
+            purchase orders, and audit trails.
+          </p>
+          <div class="hero-actions">
+            <button class="btn orange">Start Free Trial</button>
+            <button class="btn ghost">Watch Demo</button>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-panel">
+            <div class="eyebrow">Live warehouse snapshot</div>
+            <div class="hero-panel-grid">
+              <div class="mini-stat"><span>SKUs</span><strong>248</strong></div>
+              <div class="mini-stat"><span>Low</span><strong>12</strong></div>
+              <div class="mini-stat"><span>POs</span><strong>18</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="landing-band">
+        <article><h3>Know what is on hand.</h3><p>Per-location stock, reorder levels, and clear exceptions.</p></article>
+        <article><h3>Move stock without mystery.</h3><p>Transfers and adjustments leave a visible operational trail.</p></article>
+        <article><h3>Buy with context.</h3><p>Purchase orders connect suppliers, prices, receipt status, and materials.</p></article>
+      </section>
+    </main>
+
+    <section id="inventory" class="page-label">
+      <div>
+        <h2>Inventory</h2>
+        <p>The default app dashboard: KPI strip, focused filters, and a high-density stock table.</p>
+      </div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links">
+          <a class="side-link active" href="#inventory">Inv</a>
+          <a class="side-link" href="#materials">Mat</a>
+          <a class="side-link" href="#stock-movements">Move</a>
+          <a class="side-link" href="#locations">Loc</a>
+          <a class="side-link" href="#vendors">Ven</a>
+          <a class="side-link" href="#purchase-orders">PO</a>
+          <a class="side-link" href="#members">Team</a>
+        </nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <div><h1>Inventory</h1><p>Track stock by SKU, status, value, and warehouse position.</p></div>
+          <div class="top-actions"><div class="locale"><span>EN</span><span>FR</span></div><button class="btn orange">Add Movement</button></div>
+        </header>
+        <div class="content">
+          <div class="kpis">
+            <article class="kpi"><div class="meta"><span>Total Materials</span><span>01</span></div><strong>248</strong></article>
+            <article class="kpi hot"><div class="meta"><span>Low Stock</span><span>02</span></div><strong>12</strong></article>
+            <article class="kpi"><div class="meta"><span>Out of Stock</span><span>03</span></div><strong>4</strong></article>
+            <article class="kpi"><div class="meta"><span>Total Value</span><span>04</span></div><strong>EUR 82k</strong></article>
+          </div>
+          <section class="panel" style="margin-top:14px">
+            <div class="toolbar">
+              <label class="field"><span>Search</span><input value="cement" /></label>
+              <label class="field"><span>Status</span><select><option>All statuses</option></select></label>
+              <label class="field"><span>Location</span><select><option>All locations</option></select></label>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>SKU</th><th>Item Name</th><th>Category</th><th>Quantity</th><th>Location</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>MAT-001</td><td>Portland Cement</td><td>Structural</td><td>180 BAG</td><td>Main Warehouse</td><td><span class="pill green">In Stock</span></td></tr>
+                  <tr class="alert"><td>MAT-024</td><td>Rebar 12mm</td><td>Metal</td><td>9 PCS</td><td>North Yard</td><td><span class="pill orange">Low Stock</span></td></tr>
+                  <tr><td>MAT-112</td><td>Waterproof Membrane</td><td>Roofing</td><td>47 ROLL</td><td>Rack B4</td><td><span class="pill green">In Stock</span></td></tr>
+                  <tr class="alert"><td>MAT-230</td><td>Anchor Bolt M16</td><td>Hardware</td><td>0 BOX</td><td>Overflow</td><td><span class="pill red">Out</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="materials" class="page-label">
+      <div><h2>Materials</h2><p>Catalog management with the table as the main surface and a black form panel for creation/editing.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link active" href="#materials">Mat</a><a class="side-link" href="#stock-movements">Move</a><a class="side-link" href="#locations">Loc</a><a class="side-link" href="#vendors">Ven</a><a class="side-link" href="#purchase-orders">PO</a><a class="side-link" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Materials</h1><p>Create materials and maintain the catalog.</p></div><div class="top-actions"><button class="btn orange">New Material</button></div></header>
+        <div class="content">
+          <div class="layout-2">
+            <section class="panel">
+              <div class="toolbar">
+                <label class="field"><span>Search</span><input value="concrete" /></label>
+                <label class="field"><span>Category</span><select><option>All categories</option></select></label>
+                <label class="field"><span>Usage</span><select><option>Active only</option></select></label>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Min Stock</th><th>UOM</th><th>Action</th></tr></thead>
+                  <tbody>
+                    <tr><td>MAT-001</td><td>Portland Cement</td><td>Structural</td><td>40</td><td>BAG</td><td><span class="pill">Edit</span></td></tr>
+                    <tr><td>MAT-014</td><td>Concrete Additive</td><td>Chemical</td><td>8</td><td>L</td><td><span class="pill">Edit</span></td></tr>
+                    <tr><td>MAT-057</td><td>Formwork Panel</td><td>Timber</td><td>18</td><td>PCS</td><td><span class="pill">Edit</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <aside class="panel dark">
+              <div class="panel-head"><h3>Add Material</h3><span class="pill orange">Draft</span></div>
+              <div class="form-card">
+                <label class="field"><span>SKU</span><input value="MAT-249" /></label>
+                <label class="field"><span>Name</span><input value="Galvanized Bracket" /></label>
+                <div class="split-form"><label class="field"><span>UOM</span><input value="PCS" /></label><label class="field"><span>Min</span><input value="20" /></label></div>
+                <button class="btn orange">Save Material</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="stock-movements" class="page-label">
+      <div><h2>Stock Movements</h2><p>Manual adjustments and transfers with a transaction ledger below.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link" href="#materials">Mat</a><a class="side-link active" href="#stock-movements">Move</a><a class="side-link" href="#locations">Loc</a><a class="side-link" href="#vendors">Ven</a><a class="side-link" href="#purchase-orders">PO</a><a class="side-link" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Stock Movements</h1><p>Adjust, transfer, and review every material movement.</p></div><div class="top-actions"><button class="btn orange">Record</button></div></header>
+        <div class="content">
+          <section class="panel dark">
+            <div class="panel-head"><h3>Record Movement</h3><span class="pill orange">Adjustment</span></div>
+            <div class="form-card">
+              <div class="split-form"><label class="field"><span>Material</span><input value="MAT-024 Rebar 12mm" /></label><label class="field"><span>Location</span><input value="North Yard" /></label></div>
+              <div class="split-form"><label class="field"><span>Quantity</span><input value="+50" /></label><label class="field"><span>Reason</span><input value="Correction" /></label></div>
+            </div>
+          </section>
+          <section class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>Movement Ledger</h3><button class="btn ghost">Export</button></div>
+            <div class="timeline">
+              <article><strong>Today 11:42</strong><span>MAT-024 moved +50 to North Yard</span><span class="pill green">In</span></article>
+              <article><strong>Today 09:13</strong><span>MAT-001 received from PO-1048</span><span class="pill orange">PO</span></article>
+              <article><strong>Yesterday</strong><span>MAT-230 transferred from Main Warehouse to Overflow</span><span class="pill">Transfer</span></article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="locations" class="page-label">
+      <div><h2>Locations</h2><p>Storage locations represented as operational bays with alert accents.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link" href="#materials">Mat</a><a class="side-link" href="#stock-movements">Move</a><a class="side-link active" href="#locations">Loc</a><a class="side-link" href="#vendors">Ven</a><a class="side-link" href="#purchase-orders">PO</a><a class="side-link" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Locations</h1><p>Configure storage and fulfillment locations.</p></div><div class="top-actions"><button class="btn orange">Add Location</button></div></header>
+        <div class="content">
+          <section class="panel">
+            <div class="panel-head"><h3>Warehouse Map</h3><span class="pill orange">2 alerts</span></div>
+            <div class="map-grid">
+              <article class="bay"><h4>Main Warehouse</h4><p>184 SKUs, 3 low stock</p></article>
+              <article class="bay active"><h4>North Yard</h4><p>49 SKUs, rebar alert</p></article>
+              <article class="bay"><h4>Rack B4</h4><p>32 SKUs, healthy</p></article>
+              <article class="bay"><h4>Site Depot</h4><p>22 SKUs, healthy</p></article>
+              <article class="bay active"><h4>Overflow</h4><p>17 SKUs, 1 out</p></article>
+              <article class="bay"><h4>Returns</h4><p>6 SKUs, review queue</p></article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="vendors" class="page-label">
+      <div><h2>Vendors</h2><p>Supplier records with lead-time stats and purchasing context.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link" href="#materials">Mat</a><a class="side-link" href="#stock-movements">Move</a><a class="side-link" href="#locations">Loc</a><a class="side-link active" href="#vendors">Ven</a><a class="side-link" href="#purchase-orders">PO</a><a class="side-link" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Vendors</h1><p>Maintain supplier records, lead times, and order volume.</p></div><div class="top-actions"><button class="btn orange">New Vendor</button></div></header>
+        <div class="content">
+          <div class="kpis">
+            <article class="kpi"><div class="meta"><span>Suppliers</span><span>01</span></div><strong>36</strong></article>
+            <article class="kpi"><div class="meta"><span>Open POs</span><span>02</span></div><strong>18</strong></article>
+            <article class="kpi hot"><div class="meta"><span>Late</span><span>03</span></div><strong>3</strong></article>
+            <article class="kpi"><div class="meta"><span>Avg Lead</span><span>04</span></div><strong>6d</strong></article>
+          </div>
+          <section class="panel" style="margin-top:14px">
+            <div class="toolbar"><label class="field"><span>Search</span><input value="supply" /></label><label class="field"><span>Status</span><select><option>Active</option></select></label><label class="field"><span>Sort</span><select><option>Lead time</option></select></label></div>
+            <div class="table-wrap"><table><thead><tr><th>Vendor #</th><th>Name</th><th>Phone</th><th>Lead Time</th><th>Orders</th><th>Status</th></tr></thead><tbody><tr><td>0001</td><td>Acme Supply</td><td>+33 555 0182</td><td>5 days</td><td>12</td><td><span class="pill green">Active</span></td></tr><tr class="alert"><td>0008</td><td>Nord Steel</td><td>+33 555 0160</td><td>11 days</td><td>4</td><td><span class="pill orange">Watch</span></td></tr><tr><td>0014</td><td>BuildChem Europe</td><td>+33 555 0120</td><td>3 days</td><td>8</td><td><span class="pill green">Active</span></td></tr></tbody></table></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="purchase-orders" class="page-label">
+      <div><h2>Purchase Orders</h2><p>A purchasing command page with summary metrics, status filters, and receive actions.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link" href="#materials">Mat</a><a class="side-link" href="#stock-movements">Move</a><a class="side-link" href="#locations">Loc</a><a class="side-link" href="#vendors">Ven</a><a class="side-link active" href="#purchase-orders">PO</a><a class="side-link" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Purchase Orders</h1><p>Create, track, receive, and cancel supplier orders.</p></div><div class="top-actions"><button class="btn orange">Create PO</button><button class="btn ghost">Receive</button></div></header>
+        <div class="content">
+          <div class="kpis">
+            <article class="kpi"><div class="meta"><span>Draft</span><span>01</span></div><strong>5</strong></article>
+            <article class="kpi"><div class="meta"><span>Sent</span><span>02</span></div><strong>11</strong></article>
+            <article class="kpi hot"><div class="meta"><span>Partial</span><span>03</span></div><strong>2</strong></article>
+            <article class="kpi"><div class="meta"><span>Value</span><span>04</span></div><strong>EUR 34k</strong></article>
+          </div>
+          <section class="panel" style="margin-top:14px">
+            <div class="sub-nav"><a class="active" href="#">All</a><a href="#">Draft</a><a href="#">Sent</a><a href="#">Partial</a><a href="#">Received</a></div>
+            <div class="table-wrap"><table><thead><tr><th>PO #</th><th>Supplier</th><th>Status</th><th>Items</th><th>Expected</th><th>Total</th><th>Action</th></tr></thead><tbody><tr><td>PO-1048</td><td>Acme Supply</td><td><span class="pill orange">Partial</span></td><td>6</td><td>May 15</td><td>EUR 8,240</td><td><span class="pill">Receive</span></td></tr><tr><td>PO-1049</td><td>Nord Steel</td><td><span class="pill">Sent</span></td><td>3</td><td>May 18</td><td>EUR 12,900</td><td><span class="pill">Details</span></td></tr><tr><td>PO-1050</td><td>BuildChem Europe</td><td><span class="pill">Draft</span></td><td>4</td><td>May 22</td><td>EUR 3,440</td><td><span class="pill">Send</span></td></tr></tbody></table></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="members" class="page-label">
+      <div><h2>Members</h2><p>Workspace members, invitations, roles, and workspace controls.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link" href="#materials">Mat</a><a class="side-link" href="#stock-movements">Move</a><a class="side-link" href="#locations">Loc</a><a class="side-link" href="#vendors">Ven</a><a class="side-link" href="#purchase-orders">PO</a><a class="side-link active" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Members</h1><p>Manage the group workspace and access roles.</p></div><div class="top-actions"><button class="btn orange">Invite Member</button></div></header>
+        <div class="content">
+          <div class="layout-2">
+            <section class="panel"><div class="panel-head"><h3>Active Members</h3><span class="pill orange">Owner</span></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead><tbody><tr><td>Alex Chen</td><td>alex@lockstock.test</td><td><span class="pill orange">Owner</span></td><td>Feb 24</td></tr><tr><td>Marie Laurent</td><td>marie@lockstock.test</td><td><span class="pill">Manager</span></td><td>Mar 12</td></tr><tr><td>Samir Patel</td><td>samir@lockstock.test</td><td><span class="pill">Member</span></td><td>Apr 02</td></tr></tbody></table></div></section>
+            <aside class="panel dark"><div class="panel-head"><h3>Invite</h3></div><div class="form-card"><label class="field"><span>Email</span><input value="new.member@company.com" /></label><label class="field"><span>Role</span><input value="Manager" /></label><button class="btn orange">Send Invite</button></div></aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="account" class="page-label">
+      <div><h2>Account</h2><p>Profile, password, email, and audit log in the same visual language as the workbench.</p></div>
+    </section>
+    <section class="app-shell">
+      <aside class="side">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <nav class="side-links"><a class="side-link" href="#inventory">Inv</a><a class="side-link" href="#materials">Mat</a><a class="side-link" href="#stock-movements">Move</a><a class="side-link" href="#locations">Loc</a><a class="side-link" href="#vendors">Ven</a><a class="side-link" href="#purchase-orders">PO</a><a class="side-link" href="#members">Team</a></nav>
+        <div class="side-user">AC</div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar"><div><h1>Account</h1><p>Manage private profile details and activity exports.</p></div><div class="top-actions"><button class="btn ghost">Sign Out</button></div></header>
+        <div class="content">
+          <div class="account-grid">
+            <article class="account-card"><h3>Private Info</h3><div class="form-card"><div class="split-form"><label class="field"><span>Name</span><input value="Alex Chen" /></label><label class="field"><span>Company</span><input value="LockStock Demo" /></label></div><button class="btn orange">Save Info</button></div></article>
+            <article class="account-card"><h3>Email</h3><div class="form-card"><label class="field"><span>Current Email</span><input value="alex@lockstock.test" /></label><button class="btn orange">Update Email</button></div></article>
+            <article class="account-card wide"><h3>Activity Log</h3><div class="activity-list"><article><strong>May 12, 09:48</strong><span>Purchase order PO-1048 received partially.</span><span class="pill orange">PO</span></article><article><strong>May 11, 17:22</strong><span>Material MAT-024 minimum stock changed from 20 to 40.</span><span class="pill">Material</span></article><article><strong>May 11, 15:03</strong><span>New member invited as manager.</span><span class="pill">Team</span></article></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
