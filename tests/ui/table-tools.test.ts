@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareAlphaNumeric, sortRowsByKey, tableRowsToCsv } from "@/lib/ui/table-tools";
+import { compareAlphaNumeric, paginateRows, sortRowsByKey, tableRowsToCsv, totalPagesForRows } from "@/lib/ui/table-tools";
 
 describe("table tools", () => {
   it("sorts strings with numeric segments alphanumerically", () => {
@@ -25,5 +25,13 @@ describe("table tools", () => {
     expect(tableRowsToCsv(["Name", "Note"], [["Acme, Inc.", "He said \"ok\""], ["Blank", null]])).toBe(
       'Name,Note\r\n"Acme, Inc.","He said ""ok"""\r\nBlank,'
     );
+  });
+
+  it("paginates rows at 20 rows per page by default table size", () => {
+    const rows = Array.from({ length: 45 }, (_, index) => index + 1);
+
+    expect(paginateRows(rows, 1, 20)).toEqual(rows.slice(0, 20));
+    expect(paginateRows(rows, 2, 20)).toEqual(rows.slice(20, 40));
+    expect(totalPagesForRows(rows.length, 20)).toBe(3);
   });
 });

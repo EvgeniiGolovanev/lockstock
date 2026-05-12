@@ -32,6 +32,7 @@ describe("i18n helpers", () => {
   });
 
   it("translates dynamic strings used in the interface", () => {
+    expect(translateText("Page 2/8", "fr")).toBe("Page 2/8");
     expect(translateText("Page 2 / 8 (50 total)", "fr")).toBe("Page 2 / 8 (50 au total)");
     expect(translateText("3 item(s) - EUR 120.00", "fr")).toBe("3 article(s) - EUR 120.00");
     expect(translateText("5 stars", "fr")).toBe("5 etoiles");

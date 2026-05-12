@@ -505,6 +505,7 @@ const FR_PREFIX_TRANSLATIONS: Array<[string, string]> = [
   ["Reject invitation to org ", "Refuser l'invitation vers l'organisation "]
 ];
 
+const PAGE_PATTERN = /^Page (\d+)\/(\d+)$/;
 const PAGE_TOTAL_PATTERN = /^Page (\d+) \/ (\d+) \((\d+) total\)$/;
 const ITEMS_PATTERN = /^(\d+)\sitem\(s\)\s-\s(.+)$/;
 const STARS_PATTERN = /^(\d+)\sstars$/;
@@ -519,6 +520,11 @@ function translateCoreText(text: string, locale: Locale): string {
   const direct = FR_TRANSLATIONS[text];
   if (direct) {
     return direct;
+  }
+
+  const compactPageMatch = PAGE_PATTERN.exec(text);
+  if (compactPageMatch) {
+    return `Page ${compactPageMatch[1]}/${compactPageMatch[2]}`;
   }
 
   const pageMatch = PAGE_TOTAL_PATTERN.exec(text);

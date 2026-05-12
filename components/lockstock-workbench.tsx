@@ -22,8 +22,10 @@ import {
   formatNumberLabel
 } from "@/lib/ui/formatters";
 import {
+  paginateRows,
   sortRowsByKey,
   tableRowsToCsv,
+  totalPagesForRows,
   type CsvCell,
   type SortDirection,
   type SortState
@@ -198,9 +200,10 @@ type TableId =
   | "purchase-orders"
   | "inventory";
 
-const MATERIALS_PAGE_SIZE = 25;
-const MOVEMENTS_PAGE_SIZE = 25;
-const PURCHASE_ORDERS_PAGE_SIZE = 20;
+const DEFAULT_TABLE_PAGE_SIZE = 20;
+const MATERIALS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
+const MOVEMENTS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
+const PURCHASE_ORDERS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
 
 const STORAGE_KEYS = {
   baseUrl: "lockstock.baseUrl",
@@ -343,10 +346,12 @@ export function LockstockWorkbench() {
   const [materialSubcategoryFilter, setMaterialSubcategoryFilter] = useState("all");
   const [inventoryStatus, setInventoryStatus] = useState("all");
   const [inventoryLocation, setInventoryLocation] = useState("all");
+  const [locationPage, setLocationPage] = useState(1);
   const [materialPage, setMaterialPage] = useState(1);
   const [materialTotal, setMaterialTotal] = useState(0);
   const [movementPage, setMovementPage] = useState(1);
   const [movementTotal, setMovementTotal] = useState(0);
+  const [supplierPage, setSupplierPage] = useState(1);
   const [poFilterStatus, setPoFilterStatus] = useState<PurchaseOrderFilterStatus>("all");
   const [poFilterSupplierId, setPoFilterSupplierId] = useState("all");
   const [poFilterQuery, setPoFilterQuery] = useState("");
@@ -2162,6 +2167,18 @@ export function LockstockWorkbench() {
     tableSorts.inventory,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
+  const locationTotalPages = totalPagesForRows(locationTableRows.length, DEFAULT_TABLE_PAGE_SIZE);
+  const supplierTotalPages = totalPagesForRows(supplierTableRows.length, DEFAULT_TABLE_PAGE_SIZE);
+  const paginatedLocationTableRows = paginateRows(locationTableRows, locationPage, DEFAULT_TABLE_PAGE_SIZE);
+  const paginatedSupplierTableRows = paginateRows(supplierTableRows, supplierPage, DEFAULT_TABLE_PAGE_SIZE);
+
+  useEffect(() => {
+    setLocationPage((current) => Math.min(current, locationTotalPages));
+  }, [locationTotalPages]);
+
+  useEffect(() => {
+    setSupplierPage((current) => Math.min(current, supplierTotalPages));
+  }, [supplierTotalPages]);
 
   return (
     <>
@@ -2556,7 +2573,7 @@ export function LockstockWorkbench() {
                     <td colSpan={7}>No locations created yet.</td>
                   </tr>
                 ) : (
-                  locationTableRows.map((row) => (
+                  paginatedLocationTableRows.map((row) => (
                     <tr key={row.id}>
                       <td>{row.code}</td>
                       <td>{row.name}</td>
@@ -2584,6 +2601,20 @@ export function LockstockWorkbench() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="actions">
+            <button type="button" disabled={busy || locationPage <= 1} onClick={() => setLocationPage((prev) => Math.max(1, prev - 1))}>
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={busy || locationPage >= locationTotalPages}
+              onClick={() => setLocationPage((prev) => Math.min(locationTotalPages, prev + 1))}
+            >
+              Next
+            </button>
+            <p className="subtle-line">Page {locationPage}/{locationTotalPages}</p>
           </div>
 
           {showLocationForm ? (
@@ -2767,9 +2798,6 @@ export function LockstockWorkbench() {
             <div className="materials-table-head">
               <div className="field">
                 <span>Materials</span>
-                <p className="subtle-line">
-                  Page {materialPage} / {materialTotalPages} ({materialTotal} total)
-                </p>
               </div>
               <div className="actions table-head-actions">
                 <button
@@ -2918,6 +2946,7 @@ export function LockstockWorkbench() {
               >
                 Next
               </button>
+              <p className="subtle-line">Page {materialPage}/{materialTotalPages}</p>
             </div>
           </section>
           {editingMaterialId ? (
@@ -3159,9 +3188,6 @@ export function LockstockWorkbench() {
           <div className="materials-table-head">
             <div className="field">
               <span>Material Movements</span>
-              <p className="subtle-line">
-                Page {movementPage} / {movementTotalPages} ({movementTotal} total)
-              </p>
             </div>
             <div className="actions table-head-actions">
               <button
@@ -3235,6 +3261,7 @@ export function LockstockWorkbench() {
             >
               Next
             </button>
+            <p className="subtle-line">Page {movementPage}/{movementTotalPages}</p>
           </div>
         </section>
       ) : null}
@@ -3282,7 +3309,10 @@ export function LockstockWorkbench() {
               <span>Search Vendor</span>
                 <input
                   value={supplierSearch}
-                  onChange={(event) => setSupplierSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSupplierSearch(event.target.value);
+                    setSupplierPage(1);
+                  }}
                   placeholder="Filter by vendor name, ID, phone, or address"
                 />
               </label>
@@ -3310,7 +3340,7 @@ export function LockstockWorkbench() {
                     <td colSpan={10}>No suppliers created yet.</td>
                   </tr>
                 ) : (
-                  supplierTableRows.map((supplier) => {
+                  paginatedSupplierTableRows.map((supplier) => {
                     const editableSupplier = supplier.editableSupplier;
                     return (
                       <tr key={supplier.supplierId}>
@@ -3352,6 +3382,20 @@ export function LockstockWorkbench() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="actions">
+            <button type="button" disabled={busy || supplierPage <= 1} onClick={() => setSupplierPage((prev) => Math.max(1, prev - 1))}>
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={busy || supplierPage >= supplierTotalPages}
+              onClick={() => setSupplierPage((prev) => Math.min(supplierTotalPages, prev + 1))}
+            >
+              Next
+            </button>
+            <p className="subtle-line">Page {supplierPage}/{supplierTotalPages}</p>
           </div>
 
           {showSupplierForm ? (
@@ -3579,9 +3623,6 @@ export function LockstockWorkbench() {
                 </select>
               </label>
             </div>
-            <p className="subtle-line">
-              Page {poPage} / {poTotalPages} ({poTotal} total)
-            </p>
           </section>
 
           <section className="card">
@@ -3736,6 +3777,7 @@ export function LockstockWorkbench() {
               >
                 Next
               </button>
+              <p className="subtle-line">Page {poPage}/{poTotalPages}</p>
             </div>
 	          </section>
 
@@ -4351,7 +4393,7 @@ export function LockstockWorkbench() {
                 Next
               </button>
               <p className="subtle-line">
-                Page {materialPage} / {materialTotalPages} ({materialTotal} total)
+                Page {materialPage}/{materialTotalPages}
               </p>
             </div>
           </section>

@@ -190,4 +190,20 @@ describe("stock movement routes", () => {
       total_pages: 1
     });
   });
+
+  it("defaults movement pagination to 20 rows", async () => {
+    const supabase = createMovementListSupabase();
+
+    vi.mocked(requireRequestContext).mockResolvedValue({
+      orgId: "11111111-1111-4111-8111-111111111111",
+      userId: "user-1",
+      role: "viewer",
+      supabase
+    } as never);
+
+    const response = await GET(new NextRequest("http://localhost:3000/api/stock/movements"));
+
+    expect(response.status).toBe(200);
+    expect(supabase.range).toHaveBeenCalledWith(0, 19);
+  });
 });

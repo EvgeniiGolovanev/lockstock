@@ -4,7 +4,7 @@ import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { MATERIAL_DUPLICATE_SKU_ERROR, isDuplicateMaterialSkuError } from "@/lib/material-errors";
 import { createMaterialSchema } from "@/lib/validators/material";
 
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 type MaterialBalanceRow = {
