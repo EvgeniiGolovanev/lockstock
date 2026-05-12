@@ -367,6 +367,38 @@ button:disabled {
   background: #f8faff;
 }
 
+.table-sort-btn {
+  width: 100%;
+  min-height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  box-shadow: none;
+}
+
+.table-sort-btn:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: #1f4fa8;
+}
+
+.table-sort-active {
+  color: #1f4fa8;
+}
+
+.table-head-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
 .materials-table {
   min-width: 1120px;
 }
