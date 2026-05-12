@@ -431,6 +431,11 @@ button:disabled {
   vertical-align: middle;
 }
 
+.vendors-table th,
+.vendors-table td {
+  vertical-align: middle;
+}
+
 .locations-table th,
 .locations-table td {
   vertical-align: middle;
