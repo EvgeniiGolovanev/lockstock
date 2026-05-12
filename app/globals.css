@@ -399,6 +399,20 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.inventory-table-actions {
+  align-items: center;
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  padding: 0.56rem 0.68rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .materials-table {
   min-width: 1120px;
 }

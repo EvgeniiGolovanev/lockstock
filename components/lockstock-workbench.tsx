@@ -2244,11 +2244,6 @@ export function LockstockWorkbench() {
               </p>
             ) : null}
           </div>
-          {pathname === "/inventory" ? (
-            <Link className="action-link" href="/materials">
-              + Add Item
-            </Link>
-          ) : null}
         </div>
       </section>
 
@@ -4315,31 +4310,42 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="table-section-head">
               <h2>Inventory status</h2>
-              <button
-                type="button"
-                className="ghost-btn"
-                disabled={inventoryTableRows.length === 0}
-                onClick={() =>
-                  exportTableCsv(
-                    "inventory.csv",
-                    ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"],
-                    inventoryTableRows.map((row) => [
-                      row.sku,
-                      row.name,
-                      row.category,
-                      row.subcategory,
-                      row.quantity,
-                      row.uom,
-                      row.pricePerUnitExport,
-                      row.totalExport,
-                      row.location,
-                      row.statusLabel
-                    ])
-                  )
-                }
-              >
-                Export CSV
-              </button>
+              <div className="actions table-head-actions inventory-table-actions">
+                <Link className="ghost-btn link-button" href="/materials">
+                  Create Material
+                </Link>
+                <Link className="ghost-btn link-button" href="/stock-movements">
+                  Move Material
+                </Link>
+                <Link className="ghost-btn link-button" href="/purchase-orders">
+                  Order Material
+                </Link>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={inventoryTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "inventory.csv",
+                      ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"],
+                      inventoryTableRows.map((row) => [
+                        row.sku,
+                        row.name,
+                        row.category,
+                        row.subcategory,
+                        row.quantity,
+                        row.uom,
+                        row.pricePerUnitExport,
+                        row.totalExport,
+                        row.location,
+                        row.statusLabel
+                      ])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
             {inventoryTableRows.length === 0 ? (
               <p>No inventory items match these filters.</p>
