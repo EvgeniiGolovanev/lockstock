@@ -384,6 +384,15 @@ button:disabled {
   box-shadow: none;
 }
 
+.table-static-head {
+  width: 100%;
+  min-height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-transform: none;
+}
+
 .table-sort-btn:hover:not(:disabled) {
   background: transparent;
   border-color: transparent;
