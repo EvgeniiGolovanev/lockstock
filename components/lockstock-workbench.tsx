@@ -1896,7 +1896,11 @@ export function LockstockWorkbench() {
       <section className="card shell-nav">
         <div className="shell-top">
           <div className="brand-wrap">
-            <div className="brand-mark">LS</div>
+            <svg className="brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+              <rect x="2" y="4" width="60" height="8" />
+              <rect className="brand-mark-accent" x="2" y="16" width="60" height="8" />
+              <rect x="2" y="28" width="60" height="8" />
+            </svg>
             <div>
               <h2>LockStock</h2>
             </div>
