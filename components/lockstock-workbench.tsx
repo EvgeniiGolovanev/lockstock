@@ -21,6 +21,13 @@ import {
   formatDateTimeLabel,
   formatNumberLabel
 } from "@/lib/ui/formatters";
+import {
+  sortRowsByKey,
+  tableRowsToCsv,
+  type CsvCell,
+  type SortDirection,
+  type SortState
+} from "@/lib/ui/table-tools";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
 import {
   DEFAULT_PHONE_COUNTRY_CODE,
@@ -181,6 +188,16 @@ type PaginationMeta = {
   total_pages: number;
 };
 
+type TableId =
+  | "organizations"
+  | "invitations"
+  | "locations"
+  | "materials"
+  | "movements"
+  | "suppliers"
+  | "purchase-orders"
+  | "inventory";
+
 const MATERIALS_PAGE_SIZE = 25;
 const MOVEMENTS_PAGE_SIZE = 25;
 const PURCHASE_ORDERS_PAGE_SIZE = 20;
@@ -220,6 +237,36 @@ function SelectFieldIcon() {
         <path d="m6 9 6 6 6-6" />
       </svg>
     </span>
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  tableId,
+  sortState,
+  onSort
+}: {
+  label: string;
+  sortKey: string;
+  tableId: TableId;
+  sortState?: SortState;
+  onSort: (tableId: TableId, key: string) => void;
+}) {
+  const active = sortState?.key === sortKey;
+  const direction = active ? sortState.direction : undefined;
+
+  return (
+    <th aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        className={`table-sort-btn ${active ? "table-sort-active" : ""}`}
+        onClick={() => onSort(tableId, sortKey)}
+      >
+        <span>{label}</span>
+        {direction ? <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span> : null}
+      </button>
+    </th>
   );
 }
 
@@ -305,6 +352,7 @@ export function LockstockWorkbench() {
   const [poFilterQuery, setPoFilterQuery] = useState("");
   const [poPage, setPoPage] = useState(1);
   const [poTotal, setPoTotal] = useState(0);
+  const [tableSorts, setTableSorts] = useState<Partial<Record<TableId, SortState>>>({});
 
   const [materials, setMaterials] = useState<Material[]>([]);
   const [materialMovements, setMaterialMovements] = useState<MaterialMovement[]>([]);
@@ -865,6 +913,35 @@ export function LockstockWorkbench() {
 
   function formatGroupAccess(role: OrganizationMembership["role"]) {
     return role === "owner" ? "Owner" : "Member";
+  }
+
+  function handleTableSort(tableId: TableId, key: string) {
+    setTableSorts((current) => {
+      const previous = current[tableId];
+      const direction: SortDirection = previous?.key === key && previous.direction === "asc" ? "desc" : "asc";
+      return {
+        ...current,
+        [tableId]: { key, direction }
+      };
+    });
+  }
+
+  function exportTableCsv(filename: string, headers: readonly string[], rows: readonly (readonly CsvCell[])[]) {
+    const csv = tableRowsToCsv(headers, rows);
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  function formatCurrencyExport(amount: number, currency: PurchaseOrderCurrency) {
+    return `${currency} ${Number(amount || 0).toFixed(2)}`;
   }
 
   function handleAddPoDraftLine() {
@@ -1891,6 +1968,201 @@ export function LockstockWorkbench() {
     }
   }
 
+  const organizationTableRows = sortRowsByKey(
+    organizations.flatMap((item) => {
+      const isActiveOrganization = item.organization.id === orgId;
+      const actionLabel = !isActiveOrganization ? "Open Group" : item.role !== "owner" ? "Current" : item.role === "owner" ? "Rename Group" : "";
+      const groupAction = (
+        <div className="actions">
+          {!isActiveOrganization ? (
+            <button
+              type="button"
+              className="ghost-btn"
+              disabled={busy}
+              onClick={() => {
+                setActiveOrgId(item.organization.id);
+                addActivity(`Switched group to ${item.organization.name}.`);
+                void refreshCoreData(item.organization.id, undefined, item.role);
+              }}
+            >
+              Open Group
+            </button>
+          ) : item.role !== "owner" ? (
+            "Current"
+          ) : null}
+          {item.role === "owner" ? (
+            <button type="button" className="ghost-btn" disabled={busy} onClick={() => startRenameGroup(item)}>
+              Rename Group
+            </button>
+          ) : null}
+        </div>
+      );
+      const rows =
+        isActiveOrganization && canManageMembers && organizationMembers.length > 0
+          ? organizationMembers.map((member) => ({
+              key: `${item.organization.id}-${member.user_id}`,
+              organization: item.organization.name,
+              member: formatPersonLabel(member),
+              access: formatGroupAccess(item.role),
+              role: member.role,
+              joined: formatDateLabel(member.created_at),
+              actionLabel: member.role === "owner" ? actionLabel : "Remove",
+              action:
+                member.role === "owner" ? (
+                  groupAction
+                ) : (
+                  <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRemoveOrganizationMember(member.user_id)}>
+                    Remove
+                  </button>
+                )
+            }))
+          : [
+              {
+                key: item.organization.id,
+                organization: item.organization.name,
+                member: formatPersonLabel({ email: signedInAs || email }),
+                access: formatGroupAccess(item.role),
+                role: item.role,
+                joined: formatDateLabel(item.organization.created_at),
+                actionLabel,
+                action: groupAction
+              }
+            ];
+
+      return rows;
+    }),
+    tableSorts.organizations,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const invitationTableRows = sortRowsByKey(
+    pendingInvitations.map((invitation) => ({
+      id: invitation.id,
+      direction: invitation.direction === "sent" ? "Sent" : "Received",
+      group: invitation.organization_name,
+      person: invitation.email,
+      role: invitation.role,
+      expires: formatDateLabel(invitation.expires_at),
+      actionLabel: invitation.direction === "received" ? "Accept Reject" : invitation.status,
+      invitation
+    })),
+    tableSorts.invitations,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const locationTableRows = sortRowsByKey(
+    locations.map((location) => ({
+      id: location.id,
+      code: location.code ?? "-",
+      name: location.name,
+      address: location.address?.trim() ? location.address : "-",
+      status: location.is_active === false ? "Blocked" : "Active",
+      lowStock: locationSkuAlertCounts[location.id]?.lowStock ?? 0,
+      outOfStock: locationSkuAlertCounts[location.id]?.outOfStock ?? 0,
+      actionLabel: "Edit Block",
+      location
+    })),
+    tableSorts.locations,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const materialTableRows = sortRowsByKey(
+    materials.map((material) => ({
+      id: material.id,
+      sku: material.sku,
+      name: material.name,
+      category: material.category || "-",
+      subcategory: material.subcategory || "-",
+      description: material.description || "-",
+      uom: formatMaterialUnitLabel(material.uom, locale),
+      minStock: formatNumberLabel(material.min_stock),
+      status: material.is_active === false ? "Blocked" : "Active",
+      createdAt: material.created_at ? formatDateTimeLabel(material.created_at) : "-",
+      actionLabel: canManageCatalog ? "Edit Block" : "Block",
+      material
+    })),
+    tableSorts.materials,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const movementTableRows = sortRowsByKey(
+    materialMovements.map((movement) => ({
+      id: movement.id,
+      createdAt: formatDateTimeLabel(movement.created_at),
+      materialLabel: movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-",
+      locationLabel: formatMovementLocation(movement.location),
+      quantity: formatNumberLabel(Number(movement.quantity_delta)),
+      uom: movement.material ? formatMaterialUnitLabel(movement.material.uom, locale) : "-",
+      category: movement.material?.category ?? "-",
+      reason: formatMovementReason(movement.reason),
+      comments: movement.note?.trim() ? movement.note : "-"
+    })),
+    tableSorts.movements,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const supplierTableRows = sortRowsByKey(
+    filteredSupplierRows.map((supplier) => ({
+      supplierId: supplier.supplierId,
+      vendorId: formatVendorNumber(supplier.vendorNumber) || "-",
+      name: supplier.name,
+      phone: supplier.phone || "-",
+      address: supplier.address || "-",
+      leadTimeDays: supplier.leadTimeDays,
+      status: supplier.isActive ? "Active" : "Blocked",
+      openOrders: supplier.openOrders,
+      receivedOrders: supplier.receivedOrders,
+      totalOrders: supplier.totalOrders,
+      actionLabel: supplierById.has(supplier.supplierId) ? "Edit Block" : "-",
+      editableSupplier: supplierById.get(supplier.supplierId)
+    })),
+    tableSorts.suppliers,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const purchaseOrderTableRows = sortRowsByKey(
+    poTableRows.map(({ po, summary }) => ({
+      id: po.id,
+      poNumber: po.po_number,
+      supplier: summary.supplierLabel,
+      status: po.status.toUpperCase(),
+      lines: `${summary.lineCount} ${summary.lineCount === 1 ? "line" : "lines"}`,
+      progress: `${summary.totalReceived}/${summary.totalOrdered} (${summary.progressPercentage}%)`,
+      total: formatCurrencyAmount(summary.totalAmount, summary.currency),
+      totalExport: formatCurrencyExport(summary.totalAmount, summary.currency),
+      expected: formatDateLabel(po.expected_at),
+      actionLabel:
+        po.status === "draft"
+          ? "Mark Sent Cancel"
+          : po.status === "sent" || po.status === "partial"
+            ? "Receive Cancel"
+            : "No actions",
+      po,
+      summary
+    })),
+    tableSorts["purchase-orders"],
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const inventoryTableRows = sortRowsByKey(
+    inventoryRows.map((material) => {
+      const quantity = Number(material.location_quantity ?? 0);
+      const status = normalizeStatus(undefined, quantity, Number(material.min_stock));
+      const materialPrice = priceByMaterial.get(material.id);
+      return {
+        id: material.inventory_row_id,
+        sku: material.sku,
+        name: material.name,
+        category: material.category || "-",
+        subcategory: material.subcategory || "-",
+        quantity: formatNumberLabel(quantity),
+        uom: material.uom,
+        pricePerUnit: materialPrice == null ? "-" : formatCurrencyAmount(materialPrice.unitPrice, materialPrice.currency),
+        total: materialPrice == null ? "-" : formatCurrencyAmount(quantity * materialPrice.unitPrice, materialPrice.currency),
+        pricePerUnitExport: materialPrice == null ? "-" : formatCurrencyExport(materialPrice.unitPrice, materialPrice.currency),
+        totalExport: materialPrice == null ? "-" : formatCurrencyExport(quantity * materialPrice.unitPrice, materialPrice.currency),
+        location: material.location_label,
+        statusLabel: status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock",
+        status
+      };
+    }),
+    tableSorts.inventory,
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+
   return (
     <>
       <section className="card shell-nav">
@@ -2101,93 +2373,30 @@ export function LockstockWorkbench() {
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Group</th>
-                  <th>Member</th>
-                  <th>Your Access</th>
-                  <th>Role</th>
-                  <th>Joined</th>
+                  <SortableHeader tableId="organizations" sortKey="organization" label="Group" sortState={tableSorts.organizations} onSort={handleTableSort} />
+                  <SortableHeader tableId="organizations" sortKey="member" label="Member" sortState={tableSorts.organizations} onSort={handleTableSort} />
+                  <SortableHeader tableId="organizations" sortKey="access" label="Your Access" sortState={tableSorts.organizations} onSort={handleTableSort} />
+                  <SortableHeader tableId="organizations" sortKey="role" label="Role" sortState={tableSorts.organizations} onSort={handleTableSort} />
+                  <SortableHeader tableId="organizations" sortKey="joined" label="Joined" sortState={tableSorts.organizations} onSort={handleTableSort} />
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {organizations.length === 0 ? (
+                {organizationTableRows.length === 0 ? (
                   <tr>
                     <td colSpan={6}>No groups in workspace yet.</td>
                   </tr>
                 ) : (
-                  organizations.flatMap((item) => {
-                    const isActiveOrganization = item.organization.id === orgId;
-                    const groupAction = (
-                      <div className="actions">
-                        {!isActiveOrganization ? (
-                          <button
-                            type="button"
-                            className="ghost-btn"
-                            disabled={busy}
-                            onClick={() => {
-                              setActiveOrgId(item.organization.id);
-                              addActivity(`Switched group to ${item.organization.name}.`);
-                              void refreshCoreData(item.organization.id, undefined, item.role);
-                            }}
-                          >
-                            Open Group
-                          </button>
-                        ) : item.role !== "owner" ? (
-                          "Current"
-                        ) : null}
-                        {item.role === "owner" ? (
-                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => startRenameGroup(item)}>
-                            Rename Group
-                          </button>
-                        ) : null}
-                      </div>
-                    );
-                    const rows =
-                      isActiveOrganization && canManageMembers && organizationMembers.length > 0
-                        ? organizationMembers.map((member) => ({
-                            key: `${item.organization.id}-${member.user_id}`,
-                            organization: item.organization.name,
-                            member: formatPersonLabel(member),
-                            access: formatGroupAccess(item.role),
-                            role: member.role,
-                            joined: formatDateLabel(member.created_at),
-                            action:
-                              member.role === "owner" ? (
-                                groupAction
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="ghost-btn"
-                                  disabled={busy}
-                                  onClick={() => handleRemoveOrganizationMember(member.user_id)}
-                                >
-                                  Remove
-                                </button>
-                              )
-                          }))
-                        : [
-                            {
-                              key: item.organization.id,
-                              organization: item.organization.name,
-                              member: formatPersonLabel({ email: signedInAs || email }),
-                              access: formatGroupAccess(item.role),
-                              role: item.role,
-                              joined: formatDateLabel(item.organization.created_at),
-                              action: groupAction
-                            }
-                          ];
-
-                    return rows.map((row) => (
-                      <tr key={row.key}>
-                        <td>{row.organization}</td>
-                        <td>{row.member}</td>
-                        <td>{row.access}</td>
-                        <td>{row.role}</td>
-                        <td>{row.joined}</td>
-                        <td>{row.action}</td>
-                      </tr>
-                    ));
-                  })
+                  organizationTableRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.organization}</td>
+                      <td>{row.member}</td>
+                      <td>{row.access}</td>
+                      <td>{row.role}</td>
+                      <td>{row.joined}</td>
+                      <td>{row.action}</td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -2256,39 +2465,39 @@ export function LockstockWorkbench() {
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Direction</th>
-                  <th>Group</th>
-                  <th>Person</th>
-                  <th>Role</th>
-                  <th>Expires</th>
+                  <SortableHeader tableId="invitations" sortKey="direction" label="Direction" sortState={tableSorts.invitations} onSort={handleTableSort} />
+                  <SortableHeader tableId="invitations" sortKey="group" label="Group" sortState={tableSorts.invitations} onSort={handleTableSort} />
+                  <SortableHeader tableId="invitations" sortKey="person" label="Person" sortState={tableSorts.invitations} onSort={handleTableSort} />
+                  <SortableHeader tableId="invitations" sortKey="role" label="Role" sortState={tableSorts.invitations} onSort={handleTableSort} />
+                  <SortableHeader tableId="invitations" sortKey="expires" label="Expires" sortState={tableSorts.invitations} onSort={handleTableSort} />
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingInvitations.length === 0 ? (
+                {invitationTableRows.length === 0 ? (
                   <tr>
                     <td colSpan={6}>No pending invitations.</td>
                   </tr>
                 ) : (
-                  pendingInvitations.map((invitation) => (
-                    <tr key={invitation.id}>
-                      <td>{invitation.direction === "sent" ? "Sent" : "Received"}</td>
-                      <td>{invitation.organization_name}</td>
-                      <td>{invitation.email}</td>
-                      <td>{invitation.role}</td>
-                      <td>{formatDateLabel(invitation.expires_at)}</td>
+                  invitationTableRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.direction}</td>
+                      <td>{row.group}</td>
+                      <td>{row.person}</td>
+                      <td>{row.role}</td>
+                      <td>{row.expires}</td>
                       <td>
-                        {invitation.direction === "received" ? (
+                        {row.invitation.direction === "received" ? (
                           <div className="actions">
-                            <button type="button" disabled={busy} onClick={() => handleAcceptInvitation(invitation)}>
+                            <button type="button" disabled={busy} onClick={() => handleAcceptInvitation(row.invitation)}>
                               Accept
                             </button>
-                            <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRejectInvitation(invitation)}>
+                            <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRejectInvitation(row.invitation)}>
                               Reject
                             </button>
                           </div>
                         ) : (
-                          <span className="subtle-line">{invitation.status}</span>
+                          <span className="subtle-line">{row.invitation.status}</span>
                         )}
                       </td>
                     </tr>
@@ -2307,50 +2516,66 @@ export function LockstockWorkbench() {
               <h3>Location Management</h3>
               <p className="subtle-line">Create and manage warehouse locations.</p>
             </div>
-            <button type="button" onClick={openCreateLocationForm}>
-              Add Location
-            </button>
+            <div className="actions table-head-actions">
+              <button type="button" onClick={openCreateLocationForm}>
+                Add Location
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={locationTableRows.length === 0}
+                onClick={() =>
+                  exportTableCsv(
+                    "locations.csv",
+                    ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"],
+                    locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
+                  )
+                }
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
 
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Address</th>
-                  <th>Status</th>
-                  <th>Low stock</th>
-                  <th>Out of stock</th>
+                  <SortableHeader tableId="locations" sortKey="code" label="Code" sortState={tableSorts.locations} onSort={handleTableSort} />
+                  <SortableHeader tableId="locations" sortKey="name" label="Name" sortState={tableSorts.locations} onSort={handleTableSort} />
+                  <SortableHeader tableId="locations" sortKey="address" label="Address" sortState={tableSorts.locations} onSort={handleTableSort} />
+                  <SortableHeader tableId="locations" sortKey="status" label="Status" sortState={tableSorts.locations} onSort={handleTableSort} />
+                  <SortableHeader tableId="locations" sortKey="lowStock" label="Low stock" sortState={tableSorts.locations} onSort={handleTableSort} />
+                  <SortableHeader tableId="locations" sortKey="outOfStock" label="Out of stock" sortState={tableSorts.locations} onSort={handleTableSort} />
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {locations.length === 0 ? (
+                {locationTableRows.length === 0 ? (
                   <tr>
                     <td colSpan={7}>No locations created yet.</td>
                   </tr>
                 ) : (
-                  locations.map((location) => (
-                    <tr key={location.id}>
-                      <td>{location.code ?? "-"}</td>
-                      <td>{location.name}</td>
-                      <td>{location.address?.trim() ? location.address : "-"}</td>
-                      <td>{location.is_active === false ? "Blocked" : "Active"}</td>
-                      <td>{locationSkuAlertCounts[location.id]?.lowStock ?? 0}</td>
-                      <td>{locationSkuAlertCounts[location.id]?.outOfStock ?? 0}</td>
+                  locationTableRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.code}</td>
+                      <td>{row.name}</td>
+                      <td>{row.address}</td>
+                      <td>{row.status}</td>
+                      <td>{row.lowStock}</td>
+                      <td>{row.outOfStock}</td>
                       <td>
                         <div className="actions">
-                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditLocationForm(location)}>
+                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditLocationForm(row.location)}>
                             Edit
                           </button>
                           <button
                             type="button"
                             className="ghost-btn"
                             disabled={busy}
-                            onClick={() => setPendingLocationUsageChange(location)}
+                            onClick={() => setPendingLocationUsageChange(row.location)}
                           >
-                            {location.is_active === false ? "Unblock" : "Block"}
+                            {row.location.is_active === false ? "Unblock" : "Block"}
                           </button>
                         </div>
                       </td>
@@ -2546,6 +2771,32 @@ export function LockstockWorkbench() {
                   Page {materialPage} / {materialTotalPages} ({materialTotal} total)
                 </p>
               </div>
+              <div className="actions table-head-actions">
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={materialTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "materials.csv",
+                      ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"],
+                      materialTableRows.map((row) => [
+                        row.sku,
+                        row.name,
+                        row.category,
+                        row.subcategory,
+                        row.description,
+                        row.uom,
+                        row.minStock,
+                        row.status,
+                        row.createdAt
+                      ])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
             <div className="inventory-toolbar materials-toolbar">
               <div className="search-input-wrap">
@@ -2597,37 +2848,37 @@ export function LockstockWorkbench() {
               </div>
             </div>
 
-            {materials.length === 0 ? (
+            {materialTableRows.length === 0 ? (
               <p>No materials match these filters.</p>
             ) : (
               <div className="table-wrap">
                 <table className="compact-table materials-table">
                   <thead>
                     <tr>
-                      <th>SKU</th>
-                      <th>Name</th>
-                      <th>Category</th>
-                      <th>Subcategory</th>
-                      <th>Description</th>
-                      <th>UoM</th>
-                      <th>Minimum stock</th>
-                      <th>Status</th>
-                      <th>Date and time of creation</th>
+                      <SortableHeader tableId="materials" sortKey="sku" label="SKU" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="name" label="Name" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="category" label="Category" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="subcategory" label="Subcategory" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="description" label="Description" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="uom" label="UoM" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="minStock" label="Minimum stock" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="status" label="Status" sortState={tableSorts.materials} onSort={handleTableSort} />
+                      <SortableHeader tableId="materials" sortKey="createdAt" label="Date and time of creation" sortState={tableSorts.materials} onSort={handleTableSort} />
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {materials.map((material) => (
-                      <tr key={material.id}>
-                        <td>{material.sku}</td>
-                        <td>{material.name}</td>
-                        <td>{material.category || "-"}</td>
-                        <td>{material.subcategory || "-"}</td>
-                        <td className="table-description-cell">{material.description || "-"}</td>
-                        <td>{formatMaterialUnitLabel(material.uom, locale)}</td>
-                        <td>{formatNumberLabel(material.min_stock)}</td>
-                        <td>{material.is_active === false ? "Blocked" : "Active"}</td>
-                        <td>{material.created_at ? formatDateTimeLabel(material.created_at) : "-"}</td>
+                    {materialTableRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.sku}</td>
+                        <td>{row.name}</td>
+                        <td>{row.category}</td>
+                        <td>{row.subcategory}</td>
+                        <td className="table-description-cell">{row.description}</td>
+                        <td>{row.uom}</td>
+                        <td>{row.minStock}</td>
+                        <td>{row.status}</td>
+                        <td>{row.createdAt}</td>
                         <td>
                           <div className="row-actions table-action-buttons">
                             {canManageCatalog ? (
@@ -2635,7 +2886,7 @@ export function LockstockWorkbench() {
                                 type="button"
                                 className="ghost-btn"
                                 disabled={busy}
-                                onClick={() => openEditMaterialForm(material)}
+                                onClick={() => openEditMaterialForm(row.material)}
                               >
                                 Edit
                               </button>
@@ -2644,9 +2895,9 @@ export function LockstockWorkbench() {
                               type="button"
                               className="ghost-btn"
                               disabled={busy}
-                              onClick={() => setPendingMaterialUsageChange(material)}
+                              onClick={() => setPendingMaterialUsageChange(row.material)}
                             >
-                              {material.is_active === false ? "Unblock" : "Block"}
+                              {row.material.is_active === false ? "Unblock" : "Block"}
                             </button>
                           </div>
                         </td>
@@ -2912,36 +3163,61 @@ export function LockstockWorkbench() {
                 Page {movementPage} / {movementTotalPages} ({movementTotal} total)
               </p>
             </div>
+            <div className="actions table-head-actions">
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={movementTableRows.length === 0}
+                onClick={() =>
+                  exportTableCsv(
+                    "material-movements.csv",
+                    ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"],
+                    movementTableRows.map((row) => [
+                      row.createdAt,
+                      row.materialLabel,
+                      row.locationLabel,
+                      row.quantity,
+                      row.uom,
+                      row.category,
+                      row.reason,
+                      row.comments
+                    ])
+                  )
+                }
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
 
-          {materialMovements.length === 0 ? (
+          {movementTableRows.length === 0 ? (
             <p>No material movements yet.</p>
           ) : (
             <div className="table-wrap">
               <table className="compact-table">
                 <thead>
                   <tr>
-                    <th>Date & Time</th>
-                    <th>Material</th>
-                    <th>Location</th>
-                    <th>Quantity</th>
-                    <th>UoM</th>
-                    <th>Category</th>
-                    <th>Reason</th>
-                    <th>Comments</th>
+                    <SortableHeader tableId="movements" sortKey="createdAt" label="Date & Time" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="materialLabel" label="Material" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="locationLabel" label="Location" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="quantity" label="Quantity" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="uom" label="UoM" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="category" label="Category" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="reason" label="Reason" sortState={tableSorts.movements} onSort={handleTableSort} />
+                    <SortableHeader tableId="movements" sortKey="comments" label="Comments" sortState={tableSorts.movements} onSort={handleTableSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {materialMovements.map((movement) => (
-                    <tr key={movement.id}>
-                      <td>{formatDateTimeLabel(movement.created_at)}</td>
-                      <td>{movement.material ? `${movement.material.sku} - ${movement.material.name}` : "-"}</td>
-                      <td>{formatMovementLocation(movement.location)}</td>
-                      <td>{formatNumberLabel(Number(movement.quantity_delta))}</td>
-                      <td>{movement.material ? formatMaterialUnitLabel(movement.material.uom, locale) : "-"}</td>
-                      <td>{movement.material?.category ?? "-"}</td>
-                      <td>{formatMovementReason(movement.reason)}</td>
-                      <td>{movement.note?.trim() ? movement.note : "-"}</td>
+                  {movementTableRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.createdAt}</td>
+                      <td>{row.materialLabel}</td>
+                      <td>{row.locationLabel}</td>
+                      <td>{row.quantity}</td>
+                      <td>{row.uom}</td>
+                      <td>{row.category}</td>
+                      <td>{row.reason}</td>
+                      <td>{row.comments}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -2970,9 +3246,35 @@ export function LockstockWorkbench() {
               <h3>Vendor Management</h3>
               <p className="subtle-line">Manage your material suppliers and vendors.</p>
             </div>
-            <button type="button" onClick={openCreateSupplierForm}>
-              Add Vendor
-            </button>
+            <div className="actions table-head-actions">
+              <button type="button" onClick={openCreateSupplierForm}>
+                Add Vendor
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={supplierTableRows.length === 0}
+                onClick={() =>
+                  exportTableCsv(
+                    "vendors.csv",
+                    ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
+                    supplierTableRows.map((row) => [
+                      row.vendorId,
+                      row.name,
+                      row.phone,
+                      row.address,
+                      row.leadTimeDays,
+                      row.status,
+                      row.openOrders,
+                      row.receivedOrders,
+                      row.totalOrders
+                    ])
+                  )
+                }
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
 
           <div className="vendors-table-head">
@@ -2990,36 +3292,36 @@ export function LockstockWorkbench() {
             <table className="compact-table">
               <thead>
                 <tr>
-                  <th>Vendor ID</th>
-                  <th>Vendor Name</th>
-                  <th>Phone</th>
-                  <th>Address</th>
-                  <th>Lead Time (days)</th>
-                  <th>Status</th>
-                  <th>Open POs</th>
-                  <th>Received POs</th>
-                  <th>Total POs</th>
+                  <SortableHeader tableId="suppliers" sortKey="vendorId" label="Vendor ID" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="name" label="Vendor Name" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="phone" label="Phone" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="address" label="Address" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="leadTimeDays" label="Lead Time (days)" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="status" label="Status" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="openOrders" label="Open POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="receivedOrders" label="Received POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                  <SortableHeader tableId="suppliers" sortKey="totalOrders" label="Total POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSupplierRows.length === 0 ? (
+                {supplierTableRows.length === 0 ? (
                   <tr>
                     <td colSpan={10}>No suppliers created yet.</td>
                   </tr>
                 ) : (
-                  filteredSupplierRows.map((supplier) => {
-                    const editableSupplier = supplierById.get(supplier.supplierId);
+                  supplierTableRows.map((supplier) => {
+                    const editableSupplier = supplier.editableSupplier;
                     return (
                       <tr key={supplier.supplierId}>
-                        <td className="mono-line">{formatVendorNumber(supplier.vendorNumber) || "-"}</td>
+                        <td className="mono-line">{supplier.vendorId}</td>
                         <td>{supplier.name}</td>
-                        <td>{supplier.phone || "-"}</td>
-                        <td>{supplier.address || "-"}</td>
+                        <td>{supplier.phone}</td>
+                        <td>{supplier.address}</td>
                         <td>{supplier.leadTimeDays}</td>
                         <td>
-                          <span className={`status-pill ${supplier.isActive ? "status-received" : "status-cancelled"}`}>
-                            {supplier.isActive ? "Active" : "Blocked"}
+                          <span className={`status-pill ${supplier.status === "Active" ? "status-received" : "status-cancelled"}`}>
+                            {supplier.status}
                           </span>
                         </td>
                         <td>{supplier.openOrders}</td>
@@ -3285,8 +3587,30 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="title-row">
               <h3>All Purchase Orders</h3>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={purchaseOrderTableRows.length === 0}
+                onClick={() =>
+                  exportTableCsv(
+                    "purchase-orders.csv",
+                    ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"],
+                    purchaseOrderTableRows.map((row) => [
+                      row.poNumber,
+                      row.supplier,
+                      row.status,
+                      row.lines,
+                      row.progress,
+                      row.totalExport,
+                      row.expected
+                    ])
+                  )
+                }
+              >
+                Export CSV
+              </button>
             </div>
-            {purchaseOrders.length === 0 ? (
+            {purchaseOrderTableRows.length === 0 ? (
               <div className="po-empty">
                 <p>No purchase orders match these filters.</p>
               </div>
@@ -3295,18 +3619,18 @@ export function LockstockWorkbench() {
                 <table className="compact-table purchase-orders-table">
                   <thead>
                     <tr>
-                      <th>PO Number</th>
-                      <th>Supplier</th>
-                      <th>Status</th>
-                      <th>Lines</th>
-                      <th>Progress</th>
-                      <th>Total</th>
-                      <th>Expected</th>
+                      <SortableHeader tableId="purchase-orders" sortKey="poNumber" label="PO Number" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
+                      <SortableHeader tableId="purchase-orders" sortKey="supplier" label="Supplier" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
+                      <SortableHeader tableId="purchase-orders" sortKey="status" label="Status" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
+                      <SortableHeader tableId="purchase-orders" sortKey="lines" label="Lines" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
+                      <SortableHeader tableId="purchase-orders" sortKey="progress" label="Progress" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
+                      <SortableHeader tableId="purchase-orders" sortKey="total" label="Total" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
+                      <SortableHeader tableId="purchase-orders" sortKey="expected" label="Expected" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-	                    {poTableRows.map(({ po, summary }) => {
+	                    {purchaseOrderTableRows.map(({ po, summary }) => {
 	                      const canReceive = po.status === "sent" || po.status === "partial";
 	                      const canCancel = po.status === "draft" || po.status === "sent" || po.status === "partial";
 	                      return (
@@ -3949,59 +4273,68 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="table-section-head">
               <h2>Inventory status</h2>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={inventoryTableRows.length === 0}
+                onClick={() =>
+                  exportTableCsv(
+                    "inventory.csv",
+                    ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"],
+                    inventoryTableRows.map((row) => [
+                      row.sku,
+                      row.name,
+                      row.category,
+                      row.subcategory,
+                      row.quantity,
+                      row.uom,
+                      row.pricePerUnitExport,
+                      row.totalExport,
+                      row.location,
+                      row.statusLabel
+                    ])
+                  )
+                }
+              >
+                Export CSV
+              </button>
             </div>
-            {inventoryRows.length === 0 ? (
+            {inventoryTableRows.length === 0 ? (
               <p>No inventory items match these filters.</p>
             ) : (
               <div className="table-wrap">
                 <table className="compact-table">
                   <thead>
                     <tr>
-                      <th>SKU</th>
-                      <th>Item Name</th>
-                      <th>Category</th>
-                      <th>Subcategory</th>
-                      <th>Quantity</th>
-                      <th>UoM</th>
-                      <th>Price per unit</th>
-                      <th>Total</th>
-                      <th>Location</th>
-                      <th>Status</th>
+                      <SortableHeader tableId="inventory" sortKey="sku" label="SKU" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="name" label="Item Name" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="category" label="Category" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="subcategory" label="Subcategory" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="quantity" label="Quantity" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="uom" label="UoM" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="pricePerUnit" label="Price per unit" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="total" label="Total" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="location" label="Location" sortState={tableSorts.inventory} onSort={handleTableSort} />
+                      <SortableHeader tableId="inventory" sortKey="statusLabel" label="Status" sortState={tableSorts.inventory} onSort={handleTableSort} />
                     </tr>
                   </thead>
                   <tbody>
-                    {inventoryRows.map((material) => {
-                      const quantity = Number(material.location_quantity ?? 0);
-                      const status = normalizeStatus(undefined, quantity, Number(material.min_stock));
-                      const materialPrice = priceByMaterial.get(material.id);
-
-                      return (
-                        <tr key={material.inventory_row_id}>
-                          <td>{material.sku}</td>
-                          <td>{material.name}</td>
-                          <td>{material.category || "-"}</td>
-                          <td>{material.subcategory || "-"}</td>
-                          <td>{formatNumberLabel(quantity)}</td>
-                          <td>{material.uom}</td>
-                          <td>
-                            {materialPrice == null
-                              ? "-"
-                              : formatCurrencyAmount(materialPrice.unitPrice, materialPrice.currency)}
-                          </td>
-                          <td>
-                            {materialPrice == null
-                              ? "-"
-                              : formatCurrencyAmount(quantity * materialPrice.unitPrice, materialPrice.currency)}
-                          </td>
-                          <td>{material.location_label}</td>
-                          <td>
-                            <span className={`status-pill status-${status}`}>
-                              {status === "out-of-stock" ? "Out of Stock" : status === "low-stock" ? "Low Stock" : "In Stock"}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {inventoryTableRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.sku}</td>
+                        <td>{row.name}</td>
+                        <td>{row.category}</td>
+                        <td>{row.subcategory}</td>
+                        <td>{row.quantity}</td>
+                        <td>{row.uom}</td>
+                        <td>{row.pricePerUnit}</td>
+                        <td>{row.total}</td>
+                        <td>{row.location}</td>
+                        <td>
+                          <span className={`status-pill status-${row.status}`}>{row.statusLabel}</span>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
