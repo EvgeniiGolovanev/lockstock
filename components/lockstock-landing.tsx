@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -61,6 +60,87 @@ const TESTIMONIALS = [
     rating: 5
   }
 ];
+
+function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" }) {
+  const isInventory = variant === "inventory";
+  const rows = isInventory
+    ? [
+        ["MAT-001", "Portland Cement", "180", "Main", "In Stock"],
+        ["MAT-024", "Rebar 12mm", "9", "North", "Low"],
+        ["MAT-112", "Membrane", "47", "Rack B4", "In Stock"],
+        ["MAT-230", "Anchor Bolt", "0", "Overflow", "Out"]
+      ]
+    : [
+        ["PO-1048", "Acme Supply", "Partial", "EUR 8,240"],
+        ["PO-1049", "Nord Steel", "Sent", "EUR 12,900"],
+        ["PO-1050", "BuildChem", "Draft", "EUR 3,440"]
+      ];
+
+  return (
+    <div className={`landing-product-shot ${isInventory ? "landing-product-shot-inventory" : "landing-product-shot-orders"}`}>
+      <div className="landing-shot-rail" aria-hidden="true">
+        <span className="landing-shot-logo-line" />
+        <span className="landing-shot-logo-line landing-shot-logo-line-accent" />
+        <span className="landing-shot-logo-line" />
+        <span className="landing-shot-nav landing-shot-nav-active" />
+        <span className="landing-shot-nav" />
+        <span className="landing-shot-nav" />
+        <span className="landing-shot-nav" />
+      </div>
+      <div className="landing-shot-workspace">
+        <div className="landing-shot-top">
+          <div>
+            <p className="landing-shot-eyebrow">{isInventory ? "Live stock view" : "Purchasing command"}</p>
+            <h3>{isInventory ? "Inventory" : "Purchase Orders"}</h3>
+          </div>
+          <span className="landing-shot-action">{isInventory ? "Add Movement" : "Create PO"}</span>
+        </div>
+
+        <div className="landing-shot-kpis">
+          {(isInventory
+            ? [
+                ["Materials", "248"],
+                ["Low Stock", "12"],
+                ["Out", "4"],
+                ["Value", "EUR 82k"]
+              ]
+            : [
+                ["Draft", "5"],
+                ["Sent", "11"],
+                ["Partial", "2"],
+                ["Value", "EUR 34k"]
+              ]
+          ).map(([label, value], index) => (
+            <article key={label} className={index === 1 || (!isInventory && index === 2) ? "landing-shot-kpi hot" : "landing-shot-kpi"}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+
+        <div className="landing-shot-table" aria-label={`${isInventory ? "Inventory" : "Purchase order"} screenshot preview`}>
+          <div className={`landing-shot-table-row landing-shot-table-head ${isInventory ? "" : "landing-shot-table-row-orders"}`}>
+            {(isInventory ? ["SKU", "Item", "Qty", "Location", "Status"] : ["PO", "Supplier", "Status", "Total"]).map((cell) => (
+              <span key={cell}>{cell}</span>
+            ))}
+          </div>
+          {rows.map((row) => (
+            <div
+              key={row[0]}
+              className={`landing-shot-table-row ${isInventory ? "" : "landing-shot-table-row-orders"} ${
+                row.includes("Low") || row.includes("Out") || row.includes("Partial") ? "alert" : ""
+              }`}
+            >
+              {row.map((cell) => (
+                <span key={`${row[0]}-${cell}`}>{cell}</span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LockstockLanding() {
   const router = useRouter();
@@ -199,7 +279,11 @@ export function LockstockLanding() {
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
           <div className="landing-brand">
-            <span className="landing-brand-mark">LS</span>
+            <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+              <rect x="2" y="4" width="60" height="8" />
+              <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
+              <rect x="2" y="28" width="60" height="8" />
+            </svg>
             <span className="landing-brand-text">LockStock</span>
           </div>
           <nav className="landing-nav">
@@ -259,13 +343,7 @@ export function LockstockLanding() {
           </div>
 
           <div className="landing-image-wrap">
-            <Image
-              src="https://images.unsplash.com/photo-1768796373577-2e6e51351165?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-              alt="Warehouse inventory management"
-              className="landing-image"
-              width={1080}
-              height={720}
-            />
+            <StaticProductScreenshot variant="inventory" />
           </div>
         </div>
       </section>
@@ -311,13 +389,7 @@ export function LockstockLanding() {
             </div>
           </div>
           <div className="landing-image-wrap">
-            <Image
-              src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-              alt="Inventory analytics dashboard"
-              className="landing-image"
-              width={1080}
-              height={720}
-            />
+            <StaticProductScreenshot variant="orders" />
           </div>
         </div>
       </section>
@@ -365,7 +437,11 @@ export function LockstockLanding() {
         <div className="landing-wrap landing-footer-grid">
           <div>
             <div className="landing-brand">
-              <span className="landing-brand-mark">LS</span>
+              <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+                <rect x="2" y="4" width="60" height="8" />
+                <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
+                <rect x="2" y="28" width="60" height="8" />
+              </svg>
               <span className="landing-brand-text">LockStock</span>
             </div>
             <p className="landing-footer-text">
