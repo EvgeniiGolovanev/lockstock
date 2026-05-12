@@ -301,6 +301,7 @@ export function LockstockWorkbench() {
   const [materialMinStock, setMaterialMinStock] = useState("10");
   const [materialRequiredErrors, setMaterialRequiredErrors] = useState<MaterialDraftRequiredField[]>([]);
   const [materialSkuDuplicate, setMaterialSkuDuplicate] = useState(false);
+  const [showMaterialCreateForm, setShowMaterialCreateForm] = useState(false);
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
   const [editMaterialName, setEditMaterialName] = useState("");
   const [editMaterialCategory, setEditMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
@@ -1660,6 +1661,7 @@ export function LockstockWorkbench() {
       setMaterialName("");
       setMaterialMinStock("");
       setMaterialDescription("");
+      setShowMaterialCreateForm(false);
       await refreshCoreData();
     } catch (error) {
       if ((error as Error).message === MATERIAL_DUPLICATE_SKU_ERROR) {
@@ -2689,138 +2691,7 @@ export function LockstockWorkbench() {
 
       {showMaterialSection ? (
         <>
-          {canManageCatalog ? (
-            <section className="card">
-              <h3>Materials</h3>
-              <p className="subtle-line">Create materials and keep the material catalog searchable.</p>
-              <div className="materials-form-wrap">
-              <div className="grid grid-2">
-                <label className={`field ${materialRequiredErrors.includes("sku") ? "field-invalid" : ""}`}>
-                  <span>SKU</span>
-                  <input
-                    value={materialSku}
-                    required
-                    aria-invalid={materialRequiredErrors.includes("sku")}
-                    onChange={(event) => {
-                      setMaterialSku(event.target.value);
-                      setMaterialSkuDuplicate(false);
-                      setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "sku"));
-                    }}
-                  />
-                  {materialSkuDuplicate ? <small className="field-message">{materialDuplicateSkuMessage(locale)}</small> : null}
-                </label>
-                <label className={`field ${materialRequiredErrors.includes("name") ? "field-invalid" : ""}`}>
-                  <span>Name</span>
-                  <input
-                    value={materialName}
-                    required
-                    aria-invalid={materialRequiredErrors.includes("name")}
-                    onChange={(event) => {
-                      setMaterialName(event.target.value);
-                      setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "name"));
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  <span>Category</span>
-                  <select value={materialCategory} onChange={(event) => setMaterialCategory(event.target.value as MaterialCategory)}>
-                    {MATERIAL_CATEGORIES.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Subcategory</span>
-                  <select value={materialSubcategory} onChange={(event) => setMaterialSubcategory(event.target.value)}>
-                    {availableMaterialSubcategories.map((subcategory) => (
-                      <option key={subcategory} value={subcategory}>
-                        {subcategory}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Unit</span>
-                  <select value={materialUom} onChange={(event) => setMaterialUom(event.target.value)}>
-                    {MATERIAL_UNITS.map((unit) => (
-                      <option key={unit.code} value={unit.code}>
-                        {formatMaterialUnitLabel(unit.code, locale)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={`field ${materialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
-                  <span>Minimum Stock</span>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    aria-invalid={materialRequiredErrors.includes("minStock")}
-                    value={materialMinStock}
-                    onChange={(event) => {
-                      setMaterialMinStock(event.target.value);
-                      setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "minStock"));
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  <span>Description</span>
-                  <textarea
-                    value={materialDescription}
-                    maxLength={256}
-                    rows={3}
-                    onChange={(event) => setMaterialDescription(event.target.value)}
-                  />
-                </label>
-              </div>
-              <div className="actions">
-                <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateMaterial}>
-                  Create Material
-                </button>
-              </div>
-              </div>
-            </section>
-          ) : (
-            <section className="card">
-              <h3>Materials</h3>
-              <p className="subtle-line">Read-only access for the active group.</p>
-            </section>
-          )}
-
           <section className="card">
-            <div className="materials-table-head">
-              <div className="field">
-                <span>Materials</span>
-              </div>
-              <div className="actions table-head-actions">
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={materialTableRows.length === 0}
-                  onClick={() =>
-                    exportTableCsv(
-                      "materials.csv",
-                      ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"],
-                      materialTableRows.map((row) => [
-                        row.sku,
-                        row.name,
-                        row.category,
-                        row.subcategory,
-                        row.description,
-                        row.uom,
-                        row.minStock,
-                        row.status,
-                        row.createdAt
-                      ])
-                    )
-                  }
-                >
-                  Export CSV
-                </button>
-              </div>
-            </div>
             <div className="inventory-toolbar materials-toolbar">
               <div className="search-input-wrap">
                 <SearchFieldIcon />
@@ -2870,6 +2741,48 @@ export function LockstockWorkbench() {
                 </select>
               </div>
             </div>
+          </section>
+
+          <section className="card">
+            <div className="table-section-head">
+              <h2>Materials</h2>
+              <div className="actions table-head-actions inventory-table-actions">
+                {canManageCatalog ? (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy || !isOrgScopedReady}
+                    onClick={() => setShowMaterialCreateForm(true)}
+                  >
+                    Create Material
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={materialTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "materials.csv",
+                      ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"],
+                      materialTableRows.map((row) => [
+                        row.sku,
+                        row.name,
+                        row.category,
+                        row.subcategory,
+                        row.description,
+                        row.uom,
+                        row.minStock,
+                        row.status,
+                        row.createdAt
+                      ])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
 
             {materialTableRows.length === 0 ? (
               <p>No materials match these filters.</p>
@@ -2887,7 +2800,9 @@ export function LockstockWorkbench() {
                       <SortableHeader tableId="materials" sortKey="minStock" label="Minimum stock" sortState={tableSorts.materials} onSort={handleTableSort} />
                       <SortableHeader tableId="materials" sortKey="status" label="Status" sortState={tableSorts.materials} onSort={handleTableSort} />
                       <SortableHeader tableId="materials" sortKey="createdAt" label="Date and time of creation" sortState={tableSorts.materials} onSort={handleTableSort} />
-                      <th>Actions</th>
+                      <th>
+                        <span className="table-static-head">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2944,6 +2859,119 @@ export function LockstockWorkbench() {
               <p className="subtle-line">Page {materialPage}/{materialTotalPages}</p>
             </div>
           </section>
+          {showMaterialCreateForm ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create material">
+              <div className="modal-card">
+                <div className="title-row">
+                  <h4>Create material</h4>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={busy}
+                    onClick={() => setShowMaterialCreateForm(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="materials-form-wrap material-edit-form">
+                  <div className="grid grid-2">
+                    <label className={`field ${materialRequiredErrors.includes("sku") ? "field-invalid" : ""}`}>
+                      <span>SKU</span>
+                      <input
+                        value={materialSku}
+                        required
+                        aria-invalid={materialRequiredErrors.includes("sku")}
+                        onChange={(event) => {
+                          setMaterialSku(event.target.value);
+                          setMaterialSkuDuplicate(false);
+                          setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "sku"));
+                        }}
+                      />
+                      {materialSkuDuplicate ? <small className="field-message">{materialDuplicateSkuMessage(locale)}</small> : null}
+                    </label>
+                    <label className={`field ${materialRequiredErrors.includes("name") ? "field-invalid" : ""}`}>
+                      <span>Name</span>
+                      <input
+                        value={materialName}
+                        required
+                        aria-invalid={materialRequiredErrors.includes("name")}
+                        onChange={(event) => {
+                          setMaterialName(event.target.value);
+                          setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "name"));
+                        }}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Category</span>
+                      <select value={materialCategory} onChange={(event) => setMaterialCategory(event.target.value as MaterialCategory)}>
+                        {MATERIAL_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Subcategory</span>
+                      <select value={materialSubcategory} onChange={(event) => setMaterialSubcategory(event.target.value)}>
+                        {availableMaterialSubcategories.map((subcategory) => (
+                          <option key={subcategory} value={subcategory}>
+                            {subcategory}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Unit</span>
+                      <select value={materialUom} onChange={(event) => setMaterialUom(event.target.value)}>
+                        {MATERIAL_UNITS.map((unit) => (
+                          <option key={unit.code} value={unit.code}>
+                            {formatMaterialUnitLabel(unit.code, locale)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={`field ${materialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
+                      <span>Minimum Stock</span>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        aria-invalid={materialRequiredErrors.includes("minStock")}
+                        value={materialMinStock}
+                        onChange={(event) => {
+                          setMaterialMinStock(event.target.value);
+                          setMaterialRequiredErrors((prev) => prev.filter((field) => field !== "minStock"));
+                        }}
+                      />
+                    </label>
+                    <label className="field field-span-2">
+                      <span>Description</span>
+                      <textarea
+                        value={materialDescription}
+                        maxLength={256}
+                        rows={3}
+                        onChange={(event) => setMaterialDescription(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <div className="actions">
+                    <button type="button" disabled={busy || !isOrgScopedReady} onClick={handleCreateMaterial}>
+                      Create Material
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      disabled={busy}
+                      onClick={() => setShowMaterialCreateForm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {editingMaterialId ? (
             <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit material">
               <div className="modal-card">
