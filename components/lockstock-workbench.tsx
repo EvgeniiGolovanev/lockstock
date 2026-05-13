@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
@@ -191,7 +191,8 @@ type PaginationMeta = {
 };
 
 type TableId =
-  | "organizations"
+  | "organization-members"
+  | "memberships"
   | "invitations"
   | "locations"
   | "materials"
@@ -210,6 +211,23 @@ const STORAGE_KEYS = {
   token: "lockstock.accessToken",
   orgId: "lockstock.orgId"
 } as const;
+
+const ROLE_AUTHORIZATIONS = [
+  ["View inventory/materials/stock moves/locations/suppliers/POs", "Yes", "Yes", "Yes", "Yes"],
+  ["View audit log", "Own actions only", "Own actions only", "Yes", "Yes"],
+  ["Create stock movement", "No", "Yes", "Yes", "Yes"],
+  ["Receive purchase order", "No", "Yes", "Yes", "Yes"],
+  ["Export CSV", "No", "Yes", "Yes", "Yes"],
+  ["Create/edit materials", "No", "No", "Yes", "Yes"],
+  ["Create/edit suppliers", "No", "No", "Yes", "Yes"],
+  ["Create/edit locations", "No", "No", "Yes", "Yes"],
+  ["Create/update purchase orders", "No", "No", "Yes", "Yes"],
+  ["View members", "No", "No", "Yes", "Yes"],
+  ["Invite members", "No", "No", "No", "Yes"],
+  ["Change member roles", "No", "No", "No", "Yes"],
+  ["Remove members", "No", "No", "No", "Yes"],
+  ["Rename group", "No", "No", "No", "Yes"]
+] as const;
 
 type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 
@@ -404,8 +422,10 @@ export function LockstockWorkbench() {
   const activeRoleRank = activeMembership
     ? ({ viewer: 0, member: 1, manager: 2, owner: 3 } as const)[activeMembership.role]
     : -1;
+  const canExportCsv = activeRoleRank >= 1;
+  const canCreateStockMovement = activeRoleRank >= 1;
+  const canReceivePurchaseOrders = activeRoleRank >= 1;
   const canManageCatalog = activeRoleRank >= 2;
-  const canManageMembers = activeMembership?.role === "owner";
   const ownedGroups = useMemo(() => organizations.filter((item) => item.role === "owner"), [organizations]);
   const ownedGroup = ownedGroups[0] ?? null;
   const selectedReceiveMaterial = useMemo(
@@ -575,6 +595,21 @@ export function LockstockWorkbench() {
     window.localStorage.setItem(STORAGE_KEYS.orgId, nextOrgId);
   }
 
+  const syncPublicProfile = useCallback(async (tokenOverride?: string) => {
+    const effectiveToken = tokenOverride ?? accessToken;
+    if (!effectiveToken) {
+      return;
+    }
+
+    const syncBaseUrl = (baseUrl || window.location.origin).replace(/\/+$/, "");
+    await fetch(`${syncBaseUrl}/api/account/profile`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${effectiveToken}`
+      }
+    });
+  }, [accessToken, baseUrl]);
+
   useEffect(() => {
     setBaseUrl(window.localStorage.getItem(STORAGE_KEYS.baseUrl) ?? window.location.origin);
     setAccessToken(window.localStorage.getItem(STORAGE_KEYS.token) ?? "");
@@ -613,6 +648,7 @@ export function LockstockWorkbench() {
               user_metadata: data.session.user.user_metadata
             }
           });
+          void syncPublicProfile(data.session.access_token);
           setAuthResolved(true);
         })
         .catch(() => {
@@ -638,6 +674,7 @@ export function LockstockWorkbench() {
               user_metadata: session.user.user_metadata
             }
           });
+          void syncPublicProfile(session.access_token);
           setAuthResolved(true);
         }
 
@@ -660,7 +697,7 @@ export function LockstockWorkbench() {
       unmounted = true;
       unsubscribe();
     };
-  }, [addActivity]);
+  }, [addActivity, syncPublicProfile]);
 
   useEffect(() => {
     const redirectPath = getSignedOutRedirectPath({
@@ -916,20 +953,6 @@ export function LockstockWorkbench() {
     return "Not sent";
   }
 
-  function formatPersonLabel(person: { full_name?: string | null; email?: string | null }) {
-    const fullName = person.full_name?.trim();
-    const personEmail = person.email?.trim();
-
-    if (fullName && personEmail) {
-      return `${fullName} (${personEmail})`;
-    }
-    return fullName || personEmail || "Name or email unavailable";
-  }
-
-  function formatGroupAccess(role: OrganizationMembership["role"]) {
-    return role === "owner" ? "Owner" : "Member";
-  }
-
   function handleTableSort(tableId: TableId, key: string) {
     setTableSorts((current) => {
       const previous = current[tableId];
@@ -942,6 +965,11 @@ export function LockstockWorkbench() {
   }
 
   function exportTableCsv(filename: string, headers: readonly string[], rows: readonly (readonly CsvCell[])[]) {
+    if (!canExportCsv) {
+      addActivity("Export CSV requires member role or higher.");
+      return;
+    }
+
     const csv = tableRowsToCsv(headers, rows);
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -1126,6 +1154,7 @@ export function LockstockWorkbench() {
   async function loadOrganizationMembers(targetOrgId?: string, tokenOverride?: string) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
+      setOrganizationMembers([]);
       return;
     }
 
@@ -1134,6 +1163,16 @@ export function LockstockWorkbench() {
       tokenOverride
     });
     setOrganizationMembers(response.data);
+  }
+
+  async function loadOwnedGroupMembers(targetGroup?: OrganizationMembership | null, tokenOverride?: string) {
+    const group = targetGroup ?? ownedGroup;
+    if (!group) {
+      setOrganizationMembers([]);
+      return;
+    }
+
+    await loadOrganizationMembers(group.organization.id, tokenOverride);
   }
 
   async function loadPendingInvitations(tokenOverride?: string) {
@@ -1167,6 +1206,7 @@ export function LockstockWorkbench() {
           user_metadata: data.session.user.user_metadata
         }
       });
+      await syncPublicProfile(data.session.access_token);
       setAuthResolved(true);
       setPassword("");
       addActivity(`Signed in as ${data.user?.email ?? email}.`);
@@ -1293,8 +1333,7 @@ export function LockstockWorkbench() {
 
   async function refreshCoreData(
     targetOrgId?: string,
-    tokenOverride?: string,
-    membershipRole?: OrganizationMembership["role"]
+    tokenOverride?: string
   ) {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
@@ -1313,10 +1352,9 @@ export function LockstockWorkbench() {
     setLocations(locationsResult.data);
     setSuppliers(suppliersResult.data);
 
-    const resolvedRole =
-      membershipRole ?? organizations.find((membership) => membership.organization.id === orgValue)?.role ?? null;
-    if (resolvedRole === "owner") {
-      await loadOrganizationMembers(orgValue, tokenOverride);
+    const ownerMembership = organizations.find((membership) => membership.role === "owner") ?? null;
+    if (ownerMembership) {
+      await loadOwnedGroupMembers(ownerMembership, tokenOverride);
     } else {
       setOrganizationMembers([]);
     }
@@ -1376,7 +1414,8 @@ export function LockstockWorkbench() {
         addActivity(`Workspace ready: ${selectedMembership.organization.name} (${selectedMembership.role}).`);
       }
 
-      await refreshCoreData(selectedMembership.organization.id, effectiveToken, selectedMembership.role);
+      await refreshCoreData(selectedMembership.organization.id, effectiveToken);
+      await loadOwnedGroupMembers(ownedMembership, effectiveToken);
     } catch (error) {
       const message = (error as Error).message;
       if (isAuthTokenError(message)) {
@@ -1556,9 +1595,7 @@ export function LockstockWorkbench() {
         body: { email, role: memberInviteRole }
       });
       setMemberInviteEmail("");
-      if (inviteOrgId === orgId) {
-        await loadOrganizationMembers();
-      }
+      await loadOwnedGroupMembers(targetGroup);
       await loadPendingInvitations();
       const deliveryMessage =
         response.data.email_delivery === "sent"
@@ -1591,7 +1628,8 @@ export function LockstockWorkbench() {
       });
       setOrganizations(organizationsResponse.data);
       setActiveOrgId(response.data.org_id);
-      await refreshCoreData(response.data.org_id, undefined, response.data.membership_role as OrganizationMember["role"]);
+      await syncPublicProfile();
+      await refreshCoreData(response.data.org_id);
     } catch (error) {
       addActivity(`Accept invitation failed: ${(error as Error).message}`);
     } finally {
@@ -1616,17 +1654,20 @@ export function LockstockWorkbench() {
   }
 
   async function handleRemoveOrganizationMember(userId: string) {
-    if (!orgId) {
-      addActivity("Remove member failed: no active group.");
+    const targetGroup = ownedGroup;
+    if (!targetGroup) {
+      addActivity("Remove member failed: owned group is not available.");
       return;
     }
 
     try {
       setBusy(true);
-      await apiRequest(`/api/organizations/${orgId}/members/${userId}`, {
-        method: "DELETE"
+      const targetOrgId = targetGroup.organization.id;
+      await apiRequest(`/api/organizations/${targetOrgId}/members/${userId}`, {
+        method: "DELETE",
+        orgOverride: targetOrgId
       });
-      await loadOrganizationMembers();
+      await loadOwnedGroupMembers(targetGroup);
       addActivity("Group member removed.");
     } catch (error) {
       addActivity(`Remove member failed: ${(error as Error).message}`);
@@ -1986,70 +2027,57 @@ export function LockstockWorkbench() {
     }
   }
 
-  const organizationTableRows = sortRowsByKey(
-    organizations.flatMap((item) => {
+  const ownedGroupName = ownedGroup?.organization.name ?? "my group";
+  const canViewOwnedGroupMembers = Boolean(ownedGroup);
+  const ownedGroupMemberRows =
+    ownedGroup && organizationMembers.length > 0
+      ? organizationMembers.filter((member) => member.role !== "owner").map((member) => ({
+          key: `${ownedGroup.organization.id}-${member.user_id}`,
+          member: member.full_name?.trim() || "-",
+          email: member.email?.trim() || "-",
+          role: member.role,
+          joined: formatDateLabel(member.created_at),
+          actionLabel: "Remove",
+          action: (
+            <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRemoveOrganizationMember(member.user_id)}>
+              Remove
+            </button>
+          )
+        }))
+      : [];
+  const organizationMemberTableRows = sortRowsByKey(
+    ownedGroupMemberRows,
+    tableSorts["organization-members"],
+    (row, key) => row[key as keyof typeof row] as CsvCell
+  );
+  const membershipTableRows = sortRowsByKey(
+    organizations.map((item) => {
       const isActiveOrganization = item.organization.id === orgId;
-      const actionLabel = !isActiveOrganization ? "Open Group" : item.role !== "owner" ? "Current" : item.role === "owner" ? "Rename Group" : "";
-      const groupAction = (
-        <div className="actions">
-          {!isActiveOrganization ? (
-            <button
-              type="button"
-              className="ghost-btn"
-              disabled={busy}
-              onClick={() => {
-                setActiveOrgId(item.organization.id);
-                addActivity(`Switched group to ${item.organization.name}.`);
-                void refreshCoreData(item.organization.id, undefined, item.role);
-              }}
-            >
-              Open Group
-            </button>
-          ) : item.role !== "owner" ? (
-            "Current"
-          ) : null}
-          {item.role === "owner" ? (
-            <button type="button" className="ghost-btn" disabled={busy} onClick={() => startRenameGroup(item)}>
-              Rename Group
-            </button>
-          ) : null}
-        </div>
-      );
-      const rows =
-        isActiveOrganization && canManageMembers && organizationMembers.length > 0
-          ? organizationMembers.map((member) => ({
-              key: `${item.organization.id}-${member.user_id}`,
-              organization: item.organization.name,
-              member: formatPersonLabel(member),
-              access: formatGroupAccess(item.role),
-              role: member.role,
-              joined: formatDateLabel(member.created_at),
-              actionLabel: member.role === "owner" ? actionLabel : "Remove",
-              action:
-                member.role === "owner" ? (
-                  groupAction
-                ) : (
-                  <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRemoveOrganizationMember(member.user_id)}>
-                    Remove
-                  </button>
-                )
-            }))
-          : [
-              {
-                key: item.organization.id,
-                organization: item.organization.name,
-                member: formatPersonLabel({ email: signedInAs || email }),
-                access: formatGroupAccess(item.role),
-                role: item.role,
-                joined: formatDateLabel(item.organization.created_at),
-                actionLabel,
-                action: groupAction
-              }
-            ];
-
-      return rows;
+      return {
+        key: item.organization.id,
+        group: item.organization.name,
+        role: item.role,
+        joined: formatDateLabel(item.organization.created_at),
+        actionLabel: isActiveOrganization ? "Current" : "Open Group",
+        action: !isActiveOrganization ? (
+          <button
+            type="button"
+            className="ghost-btn"
+            disabled={busy}
+            onClick={() => {
+              setActiveOrgId(item.organization.id);
+              addActivity(`Switched group to ${item.organization.name}.`);
+              void refreshCoreData(item.organization.id);
+            }}
+          >
+            Open Group
+          </button>
+        ) : (
+          <span className="subtle-line">Current</span>
+        )
+      };
     }),
-    tableSorts.organizations,
+    tableSorts.memberships,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
   const invitationTableRows = sortRowsByKey(
@@ -2103,7 +2131,7 @@ export function LockstockWorkbench() {
       minStock: formatNumberLabel(material.min_stock),
       status: material.is_active === false ? "Blocked" : "Active",
       createdAt: material.created_at ? formatDateTimeLabel(material.created_at) : "-",
-      actionLabel: canManageCatalog ? "Edit Block" : "Block",
+      actionLabel: canManageCatalog ? "Edit Block" : "No actions",
       material
     })),
     tableSorts.materials,
@@ -2339,7 +2367,7 @@ export function LockstockWorkbench() {
                 setActiveOrgId(nextOrgId);
                 const nextMembership = organizations.find((item) => item.organization.id === nextOrgId);
                 addActivity(`Switched group to ${nextMembership?.organization.name ?? "selected group"}.`);
-                void refreshCoreData(nextOrgId, undefined, nextMembership?.role);
+                void refreshCoreData(nextOrgId);
               }}
             >
               {organizations.map((item) => (
@@ -2381,17 +2409,23 @@ export function LockstockWorkbench() {
         <section className="card">
           <div className="title-row">
             <div>
-              <h3>Groups & Members</h3>
+              <h3>Members of my group {ownedGroupName}</h3>
             </div>
             <div className="actions">
-              <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
-                Refresh Groups
+              <button
+                type="button"
+                disabled={busy || !ownedGroup}
+                onClick={() => {
+                  if (ownedGroup) {
+                    startRenameGroup(ownedGroup);
+                  }
+                }}
+              >
+                Rename Group
               </button>
-              {canManageMembers ? (
-                <button type="button" disabled={busy} onClick={() => loadOrganizationMembers()}>
-                  Refresh Members
-                </button>
-              ) : null}
+              <button type="button" disabled={busy || !ownedGroup} onClick={() => loadOwnedGroupMembers()}>
+                Refresh Members
+              </button>
             </div>
           </div>
 
@@ -2420,34 +2454,82 @@ export function LockstockWorkbench() {
             </div>
           ) : null}
 
-          {!activeMembership ? <p className="subtle-line">No active group membership found.</p> : null}
+          {!ownedGroup ? <p className="subtle-line">No owned group found.</p> : null}
 
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
-                  <SortableHeader tableId="organizations" sortKey="organization" label="Group" sortState={tableSorts.organizations} onSort={handleTableSort} />
-                  <SortableHeader tableId="organizations" sortKey="member" label="Member" sortState={tableSorts.organizations} onSort={handleTableSort} />
-                  <SortableHeader tableId="organizations" sortKey="access" label="Your Access" sortState={tableSorts.organizations} onSort={handleTableSort} />
-                  <SortableHeader tableId="organizations" sortKey="role" label="Role" sortState={tableSorts.organizations} onSort={handleTableSort} />
-                  <SortableHeader tableId="organizations" sortKey="joined" label="Joined" sortState={tableSorts.organizations} onSort={handleTableSort} />
-                  <th>Actions</th>
+                  <SortableHeader tableId="organization-members" sortKey="member" label="Member" sortState={tableSorts["organization-members"]} onSort={handleTableSort} />
+                  <SortableHeader tableId="organization-members" sortKey="email" label="Member email" sortState={tableSorts["organization-members"]} onSort={handleTableSort} />
+                  <SortableHeader tableId="organization-members" sortKey="role" label="Role" sortState={tableSorts["organization-members"]} onSort={handleTableSort} />
+                  <SortableHeader tableId="organization-members" sortKey="joined" label="Joined" sortState={tableSorts["organization-members"]} onSort={handleTableSort} />
+                  <th><span className="table-static-head">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
-                {organizationTableRows.length === 0 ? (
+                {!canViewOwnedGroupMembers ? (
                   <tr>
-                    <td colSpan={6}>No groups in workspace yet.</td>
+                    <td colSpan={5}>No owned group found.</td>
+                  </tr>
+                ) : organizationMemberTableRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>No invited members found for this group.</td>
                   </tr>
                 ) : (
-                  organizationTableRows.map((row) => (
+                  organizationMemberTableRows.map((row) => (
                     <tr key={row.key}>
-                      <td>{row.organization}</td>
                       <td>{row.member}</td>
-                      <td>{row.access}</td>
+                      <td>{row.email}</td>
                       <td>{row.role}</td>
                       <td>{row.joined}</td>
-                      <td>{row.action}</td>
+                      <td>
+                        <div className="row-actions table-action-buttons">{row.action}</div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="members-section-divider" />
+
+          <div className="title-row">
+            <div>
+              <h3>My memberships</h3>
+            </div>
+            <div className="actions">
+              <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
+                Refresh Groups
+              </button>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="compact-table">
+              <thead>
+                <tr>
+                  <SortableHeader tableId="memberships" sortKey="group" label="Group" sortState={tableSorts.memberships} onSort={handleTableSort} />
+                  <SortableHeader tableId="memberships" sortKey="role" label="My role" sortState={tableSorts.memberships} onSort={handleTableSort} />
+                  <SortableHeader tableId="memberships" sortKey="joined" label="Joined" sortState={tableSorts.memberships} onSort={handleTableSort} />
+                  <th><span className="table-static-head">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {membershipTableRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4}>No group memberships found.</td>
+                  </tr>
+                ) : (
+                  membershipTableRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.group}</td>
+                      <td>{row.role}</td>
+                      <td>{row.joined}</td>
+                      <td>
+                        <div className="row-actions table-action-buttons">{row.action}</div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -2459,12 +2541,16 @@ export function LockstockWorkbench() {
             <p className="subtle-line">Your default group is being prepared. Invitations are available after it is ready.</p>
           ) : null}
 
+          <div className="members-section-divider" />
+
+          <h3>Invitations</h3>
+
           {ownedGroup ? (
             <>
               <p className="subtle-line">
-                Invite people to your default group: <strong>{ownedGroup.organization.name}</strong>.
+                Invite people to your group <strong>{ownedGroup.organization.name}</strong>
               </p>
-              <div className="grid grid-2">
+              <div className="members-invite-row">
                 <label className="field">
                   <span>Invite by email</span>
                   <input
@@ -2487,32 +2573,28 @@ export function LockstockWorkbench() {
                     <option value="manager">Manager</option>
                   </select>
                 </label>
-                <div className="actions">
-                  <button
-                    type="button"
-                    disabled={busy || !memberInviteEmail.trim() || !memberInviteRole}
-                    onClick={handleInviteMemberByEmail}
-                  >
-                    Send Invitation
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="members-inline-button"
+                  disabled={busy || !memberInviteEmail.trim() || !memberInviteRole}
+                  onClick={handleInviteMemberByEmail}
+                >
+                  Send Invitation
+                </button>
+                <button
+                  type="button"
+                  className="members-inline-button"
+                  disabled={busy || !accessToken}
+                  onClick={() => loadPendingInvitations()}
+                >
+                  Refresh Invitations
+                </button>
               </div>
 
             </>
           ) : null}
 
-          <div className="members-section-divider" />
-
-          <div className="title-row">
-            <div>
-              <h4>Invitations</h4>
-            </div>
-            <div className="actions">
-              <button type="button" disabled={busy || !accessToken} onClick={() => loadPendingInvitations()}>
-                Refresh Invitations
-              </button>
-            </div>
-          </div>
+          <h3 className="members-table-title">Invitations sent and received</h3>
 
           <div className="table-wrap">
             <table className="compact-table">
@@ -2523,7 +2605,7 @@ export function LockstockWorkbench() {
                   <SortableHeader tableId="invitations" sortKey="person" label="Person" sortState={tableSorts.invitations} onSort={handleTableSort} />
                   <SortableHeader tableId="invitations" sortKey="role" label="Role" sortState={tableSorts.invitations} onSort={handleTableSort} />
                   <SortableHeader tableId="invitations" sortKey="expires" label="Expires" sortState={tableSorts.invitations} onSort={handleTableSort} />
-                  <th>Actions</th>
+                  <th><span className="table-static-head">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -2541,7 +2623,7 @@ export function LockstockWorkbench() {
                       <td>{row.expires}</td>
                       <td>
                         {row.invitation.direction === "received" ? (
-                          <div className="actions">
+                          <div className="row-actions table-action-buttons">
                             <button type="button" disabled={busy} onClick={() => handleAcceptInvitation(row.invitation)}>
                               Accept
                             </button>
@@ -2556,6 +2638,35 @@ export function LockstockWorkbench() {
                     </tr>
                   ))
                 )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="members-section-divider members-role-divider" />
+
+          <h3 className="members-table-title">Role Authorizations</h3>
+
+          <div className="table-wrap">
+            <table className="compact-table role-authorizations-table">
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th>Viewer</th>
+                  <th>Member</th>
+                  <th>Manager</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ROLE_AUTHORIZATIONS.map(([capability, viewer, member, manager, owner]) => (
+                  <tr key={capability}>
+                    <td>{capability}</td>
+                    <td>{viewer}</td>
+                    <td>{member}</td>
+                    <td>{manager}</td>
+                    <td>{owner}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -2598,23 +2709,27 @@ export function LockstockWorkbench() {
             <div className="table-section-head">
               <h2>Location Management</h2>
               <div className="actions table-head-actions inventory-table-actions">
-                <button type="button" className="ghost-btn" onClick={openCreateLocationForm}>
-                  Add Location
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={locationTableRows.length === 0}
-                  onClick={() =>
-                    exportTableCsv(
-                      "locations.csv",
-                      ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"],
-                      locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
-                    )
-                  }
-                >
-                  Export CSV
-                </button>
+                {canManageCatalog ? (
+                  <button type="button" className="ghost-btn" onClick={openCreateLocationForm}>
+                    Add Location
+                  </button>
+                ) : null}
+                {canExportCsv ? (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={locationTableRows.length === 0}
+                    onClick={() =>
+                      exportTableCsv(
+                        "locations.csv",
+                        ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"],
+                        locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
+                      )
+                    }
+                  >
+                    Export CSV
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -2648,19 +2763,23 @@ export function LockstockWorkbench() {
                       <td>{row.lowStock}</td>
                       <td>{row.outOfStock}</td>
                       <td>
-                        <div className="row-actions table-action-buttons">
-                          <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditLocationForm(row.location)}>
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-btn"
-                            disabled={busy}
-                            onClick={() => setPendingLocationUsageChange(row.location)}
-                          >
-                            {row.location.is_active === false ? "Unblock" : "Block"}
-                          </button>
-                        </div>
+                        {canManageCatalog ? (
+                          <div className="row-actions table-action-buttons">
+                            <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditLocationForm(row.location)}>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-btn"
+                              disabled={busy}
+                              onClick={() => setPendingLocationUsageChange(row.location)}
+                            >
+                              {row.location.is_active === false ? "Unblock" : "Block"}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="subtle-line">No actions</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -2683,7 +2802,7 @@ export function LockstockWorkbench() {
             <p className="subtle-line">Page {locationPage}/{locationTotalPages}</p>
           </div>
 
-          {showLocationForm ? (
+          {showLocationForm && canManageCatalog ? (
             <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingLocationId ? "Edit location" : "Add location"}>
               <div className="modal-card">
                 <div className="title-row">
@@ -2827,30 +2946,32 @@ export function LockstockWorkbench() {
                     Create Material
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={materialTableRows.length === 0}
-                  onClick={() =>
-                    exportTableCsv(
-                      "materials.csv",
-                      ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"],
-                      materialTableRows.map((row) => [
-                        row.sku,
-                        row.name,
-                        row.category,
-                        row.subcategory,
-                        row.description,
-                        row.uom,
-                        row.minStock,
-                        row.status,
-                        row.createdAt
-                      ])
-                    )
-                  }
-                >
-                  Export CSV
-                </button>
+                {canExportCsv ? (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={materialTableRows.length === 0}
+                    onClick={() =>
+                      exportTableCsv(
+                        "materials.csv",
+                        ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"],
+                        materialTableRows.map((row) => [
+                          row.sku,
+                          row.name,
+                          row.category,
+                          row.subcategory,
+                          row.description,
+                          row.uom,
+                          row.minStock,
+                          row.status,
+                          row.createdAt
+                        ])
+                      )
+                    }
+                  >
+                    Export CSV
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -2888,8 +3009,8 @@ export function LockstockWorkbench() {
                         <td>{row.status}</td>
                         <td>{row.createdAt}</td>
                         <td>
-                          <div className="row-actions table-action-buttons">
-                            {canManageCatalog ? (
+                          {canManageCatalog ? (
+                            <div className="row-actions table-action-buttons">
                               <button
                                 type="button"
                                 className="ghost-btn"
@@ -2898,16 +3019,18 @@ export function LockstockWorkbench() {
                               >
                                 Edit
                               </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              className="ghost-btn"
-                              disabled={busy}
-                              onClick={() => setPendingMaterialUsageChange(row.material)}
-                            >
-                              {row.material.is_active === false ? "Unblock" : "Block"}
-                            </button>
-                          </div>
+                              <button
+                                type="button"
+                                className="ghost-btn"
+                                disabled={busy}
+                                onClick={() => setPendingMaterialUsageChange(row.material)}
+                              >
+                                {row.material.is_active === false ? "Unblock" : "Block"}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="subtle-line">No actions</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -2929,7 +3052,7 @@ export function LockstockWorkbench() {
               <p className="subtle-line">Page {materialPage}/{materialTotalPages}</p>
             </div>
           </section>
-          {showMaterialCreateForm ? (
+          {showMaterialCreateForm && canManageCatalog ? (
             <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create material">
               <div className="modal-card">
                 <div className="title-row">
@@ -3218,36 +3341,40 @@ export function LockstockWorkbench() {
           <div className="table-section-head stock-movements-table-head">
             <h2>Material movements</h2>
             <div className="actions table-head-actions inventory-table-actions">
-              <button type="button" className="ghost-btn" onClick={() => setShowMovementForm(true)}>
-                Move Material
-              </button>
-              <button
-                type="button"
-                className="ghost-btn"
-                disabled={movementTableRows.length === 0}
-                onClick={() =>
-                  exportTableCsv(
-                    "material-movements.csv",
-                    ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"],
-                    movementTableRows.map((row) => [
-                      row.createdAt,
-                      row.materialLabel,
-                      row.locationLabel,
-                      row.quantity,
-                      row.uom,
-                      row.category,
-                      row.reason,
-                      row.comments
-                    ])
-                  )
-                }
-              >
-                Export CSV
-              </button>
+              {canCreateStockMovement ? (
+                <button type="button" className="ghost-btn" onClick={() => setShowMovementForm(true)}>
+                  Move Material
+                </button>
+              ) : null}
+              {canExportCsv ? (
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={movementTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "material-movements.csv",
+                      ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"],
+                      movementTableRows.map((row) => [
+                        row.createdAt,
+                        row.materialLabel,
+                        row.locationLabel,
+                        row.quantity,
+                        row.uom,
+                        row.category,
+                        row.reason,
+                        row.comments
+                      ])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              ) : null}
             </div>
           </div>
 
-          {showMovementForm ? (
+          {showMovementForm && canCreateStockMovement ? (
             <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Move material">
               <div className="modal-card">
                 <div className="title-row">
@@ -3464,33 +3591,37 @@ export function LockstockWorkbench() {
             <div className="table-section-head">
               <h2>Vendor Management</h2>
               <div className="actions table-head-actions inventory-table-actions">
-                <button type="button" onClick={openCreateSupplierForm}>
-                  Add Vendor
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={supplierTableRows.length === 0}
-                  onClick={() =>
-                    exportTableCsv(
-                      "vendors.csv",
-                      ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
-                      supplierTableRows.map((row) => [
-                        row.vendorId,
-                        row.name,
-                        row.phone,
-                        row.address,
-                        row.leadTimeDays,
-                        row.status,
-                        row.openOrders,
-                        row.receivedOrders,
-                        row.totalOrders
-                      ])
-                    )
-                  }
-                >
-                  Export CSV
-                </button>
+                {canManageCatalog ? (
+                  <button type="button" onClick={openCreateSupplierForm}>
+                    Add Vendor
+                  </button>
+                ) : null}
+                {canExportCsv ? (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={supplierTableRows.length === 0}
+                    onClick={() =>
+                      exportTableCsv(
+                        "vendors.csv",
+                        ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
+                        supplierTableRows.map((row) => [
+                          row.vendorId,
+                          row.name,
+                          row.phone,
+                          row.address,
+                          row.leadTimeDays,
+                          row.status,
+                          row.openOrders,
+                          row.receivedOrders,
+                          row.totalOrders
+                        ])
+                      )
+                    }
+                  >
+                    Export CSV
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -3536,7 +3667,7 @@ export function LockstockWorkbench() {
                           <td>{supplier.receivedOrders}</td>
                           <td>{supplier.totalOrders}</td>
                           <td>
-                            {editableSupplier ? (
+                            {editableSupplier && canManageCatalog ? (
                               <div className="row-actions table-action-buttons">
                                 <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditSupplierForm(editableSupplier)}>
                                   Edit
@@ -3551,7 +3682,7 @@ export function LockstockWorkbench() {
                                 </button>
                               </div>
                             ) : (
-                              "-"
+                              <span className="subtle-line">No actions</span>
                             )}
                           </td>
                         </tr>
@@ -3576,7 +3707,7 @@ export function LockstockWorkbench() {
               <p className="subtle-line">Page {supplierPage}/{supplierTotalPages}</p>
             </div>
 
-          {showSupplierForm ? (
+          {showSupplierForm && canManageCatalog ? (
             <div
               className="modal-backdrop"
               role="dialog"
@@ -3799,34 +3930,40 @@ export function LockstockWorkbench() {
             <div className="title-row">
               <h3>All Purchase Orders</h3>
               <div className="actions table-head-actions purchase-actions">
-                <button type="button" className="ghost-btn" onClick={() => setShowPoReceiveForm(true)}>
-                  Receive order
-                </button>
-                <button type="button" onClick={() => setShowPoCreateForm(true)}>
-                  Create PO
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={purchaseOrderTableRows.length === 0}
-                  onClick={() =>
-                    exportTableCsv(
-                      "purchase-orders.csv",
-                      ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"],
-                      purchaseOrderTableRows.map((row) => [
-                        row.poNumber,
-                        row.supplier,
-                        row.status,
-                        row.lines,
-                        row.progress,
-                        row.totalExport,
-                        row.expected
-                      ])
-                    )
-                  }
-                >
-                  Export CSV
-                </button>
+                {canReceivePurchaseOrders ? (
+                  <button type="button" className="ghost-btn" onClick={() => setShowPoReceiveForm(true)}>
+                    Receive order
+                  </button>
+                ) : null}
+                {canManageCatalog ? (
+                  <button type="button" onClick={() => setShowPoCreateForm(true)}>
+                    Create PO
+                  </button>
+                ) : null}
+                {canExportCsv ? (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={purchaseOrderTableRows.length === 0}
+                    onClick={() =>
+                      exportTableCsv(
+                        "purchase-orders.csv",
+                        ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"],
+                        purchaseOrderTableRows.map((row) => [
+                          row.poNumber,
+                          row.supplier,
+                          row.status,
+                          row.lines,
+                          row.progress,
+                          row.totalExport,
+                          row.expected
+                        ])
+                      )
+                    }
+                  >
+                    Export CSV
+                  </button>
+                ) : null}
               </div>
             </div>
             {purchaseOrderTableRows.length === 0 ? (
@@ -3852,8 +3989,9 @@ export function LockstockWorkbench() {
                   </thead>
                   <tbody>
 	                    {purchaseOrderTableRows.map(({ po, summary }) => {
-	                      const canReceive = po.status === "sent" || po.status === "partial";
-	                      const canCancel = po.status === "draft" || po.status === "sent" || po.status === "partial";
+	                      const canReceive = canReceivePurchaseOrders && (po.status === "sent" || po.status === "partial");
+	                      const canMarkSent = canManageCatalog && po.status === "draft";
+	                      const canCancel = canManageCatalog && (po.status === "draft" || po.status === "sent" || po.status === "partial");
 	                      return (
 	                        <tr
 	                          key={po.id}
@@ -3900,7 +4038,7 @@ export function LockstockWorkbench() {
                           </td>
 	                          <td onDoubleClick={(event) => event.stopPropagation()}>
 	                            <div className="row-actions">
-                              {po.status === "draft" ? (
+                              {canMarkSent ? (
                                 <button
                                   type="button"
                                   disabled={busy}
@@ -4102,7 +4240,7 @@ export function LockstockWorkbench() {
 	            </div>
 	          ) : null}
 
-	          {showPoCreateForm ? (
+	          {showPoCreateForm && canManageCatalog ? (
 	            <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create purchase order">
               <div className="modal-card po-modal-card">
                 <div className="title-row po-modal-head">
@@ -4279,7 +4417,7 @@ export function LockstockWorkbench() {
             </div>
           ) : null}
 
-          {showPoReceiveForm ? (
+          {showPoReceiveForm && canReceivePurchaseOrders ? (
             <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Receive purchase order">
               <div className="modal-card po-modal-card">
                 <div className="title-row po-modal-head">
@@ -4496,40 +4634,48 @@ export function LockstockWorkbench() {
             <div className="table-section-head">
               <h2>Inventory status</h2>
               <div className="actions table-head-actions inventory-table-actions">
-                <Link className="ghost-btn link-button" href="/materials">
-                  Create Material
-                </Link>
-                <Link className="ghost-btn link-button" href="/stock-movements">
-                  Move Material
-                </Link>
-                <Link className="ghost-btn link-button" href="/purchase-orders">
-                  Order Material
-                </Link>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={inventoryTableRows.length === 0}
-                  onClick={() =>
-                    exportTableCsv(
-                      "inventory.csv",
-                      ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"],
-                      inventoryTableRows.map((row) => [
-                        row.sku,
-                        row.name,
-                        row.category,
-                        row.subcategory,
-                        row.quantity,
-                        row.uom,
-                        row.pricePerUnitExport,
-                        row.totalExport,
-                        row.location,
-                        row.statusLabel
-                      ])
-                    )
-                  }
-                >
-                  Export CSV
-                </button>
+                {canManageCatalog ? (
+                  <Link className="ghost-btn link-button" href="/materials">
+                    Create Material
+                  </Link>
+                ) : null}
+                {canCreateStockMovement ? (
+                  <Link className="ghost-btn link-button" href="/stock-movements">
+                    Move Material
+                  </Link>
+                ) : null}
+                {canManageCatalog ? (
+                  <Link className="ghost-btn link-button" href="/purchase-orders">
+                    Order Material
+                  </Link>
+                ) : null}
+                {canExportCsv ? (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    disabled={inventoryTableRows.length === 0}
+                    onClick={() =>
+                      exportTableCsv(
+                        "inventory.csv",
+                        ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"],
+                        inventoryTableRows.map((row) => [
+                          row.sku,
+                          row.name,
+                          row.category,
+                          row.subcategory,
+                          row.quantity,
+                          row.uom,
+                          row.pricePerUnitExport,
+                          row.totalExport,
+                          row.location,
+                          row.statusLabel
+                        ])
+                      )
+                    }
+                  >
+                    Export CSV
+                  </button>
+                ) : null}
               </div>
             </div>
             {inventoryTableRows.length === 0 ? (

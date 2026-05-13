@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -65,7 +65,7 @@ function formatAuditDate(value: string) {
 }
 
 function canExportAuditLog(role: OrgRole | "") {
-  return role === "owner" || role === "manager";
+  return role === "owner" || role === "manager" || role === "member";
 }
 
 export function LockstockAccount() {
@@ -104,6 +104,20 @@ export function LockstockAccount() {
     setAccountJobTitle(metadataValue(session.user.user_metadata, "job_title"));
   }
 
+  const syncPublicProfile = useCallback(async (tokenOverride?: string) => {
+    const effectiveToken = tokenOverride ?? accessToken;
+    if (!effectiveToken) {
+      return;
+    }
+
+    await fetch("/api/account/profile", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${effectiveToken}`
+      }
+    });
+  }, [accessToken]);
+
   useEffect(() => {
     let unmounted = false;
     let unsubscribe = () => {};
@@ -130,6 +144,7 @@ export function LockstockAccount() {
               user_metadata: data.session.user.user_metadata as Record<string, unknown>
             }
           });
+          void syncPublicProfile(data.session.access_token);
           setAuthResolved(true);
         })
         .catch(() => {
@@ -153,6 +168,7 @@ export function LockstockAccount() {
               user_metadata: session.user.user_metadata as Record<string, unknown>
             }
           });
+          void syncPublicProfile(session.access_token);
           setAuthResolved(true);
         }
 
@@ -183,7 +199,7 @@ export function LockstockAccount() {
       unmounted = true;
       unsubscribe();
     };
-  }, [addActivity]);
+  }, [addActivity, syncPublicProfile]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -289,6 +305,7 @@ export function LockstockAccount() {
       setAccountCompany(metadataValue(data.user.user_metadata, "company"));
       setAccountPhone(metadataValue(data.user.user_metadata, "phone"));
       setAccountJobTitle(metadataValue(data.user.user_metadata, "job_title"));
+      await syncPublicProfile();
       addActivity("Private profile information updated.");
     } catch (error) {
       addActivity(`Update profile failed: ${(error as Error).message}`);

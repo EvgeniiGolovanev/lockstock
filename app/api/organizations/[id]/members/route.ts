@@ -46,6 +46,22 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       }
     }
 
+    const profileByUserId = new Map<string, { email: string | null; full_name: string | null }>();
+    const { data: accountProfiles, error: accountProfilesError } = await supabase.rpc("get_org_member_account_profiles", {
+      target_org_id: orgId
+    });
+
+    if (accountProfilesError) {
+      console.error("Member account profile lookup failed:", accountProfilesError.message);
+    } else {
+      for (const profile of accountProfiles ?? []) {
+        profileByUserId.set(profile.user_id as string, {
+          email: (profile.email as string | null | undefined) ?? null,
+          full_name: (profile.full_name as string | null | undefined) ?? null
+        });
+      }
+    }
+
     const { data: authUserData, error: authUserError } = await supabase.auth.getUser();
     const callerEmail = authUserError ? null : (authUserData.user?.email ?? null);
     const callerFullName =
@@ -56,11 +72,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const enrichedMembers = (members ?? []).map((member) => {
       const memberUserId = member.user_id as string;
       const isCaller = memberUserId === userId;
+      const profile = profileByUserId.get(memberUserId);
 
       return {
         user_id: memberUserId,
-        email: isCaller ? callerEmail : acceptedInvitationEmailByUserId.get(memberUserId) ?? null,
-        full_name: isCaller ? callerFullName : null,
+        email: isCaller ? callerEmail : profile?.email ?? acceptedInvitationEmailByUserId.get(memberUserId) ?? null,
+        full_name: isCaller ? callerFullName : profile?.full_name ?? null,
         role: member.role,
         created_at: member.created_at
       };
