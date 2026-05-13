@@ -133,7 +133,7 @@ type PurchaseOrder = {
 };
 
 type PurchaseOrderFilterStatus = "all" | PurchaseOrder["status"];
-type ManualMovementReason = "adjustment" | "transfer";
+type ManualMovementReason = "adjustment" | "consumption" | "transfer";
 type MovementReason = ManualMovementReason | "purchase_receive" | "transfer_in" | "transfer_out" | "correction";
 
 type MaterialMovement = {
@@ -916,6 +916,9 @@ export function LockstockWorkbench() {
     }
     if (reason === "correction") {
       return "Correction";
+    }
+    if (reason === "consumption") {
+      return "Consumption";
     }
     return "Adjustment";
   }
@@ -1971,6 +1974,15 @@ export function LockstockWorkbench() {
           addActivity("Stock movement failed: transfer quantity must be greater than zero.");
           return false;
         }
+      } else if (movementReason === "consumption") {
+        if (!movementLocationId) {
+          addActivity("Stock movement failed: select a location.");
+          return false;
+        }
+        if (Number(movementQuantity) >= 0) {
+          addActivity("Stock movement failed: consumption quantity must be less than zero.");
+          return false;
+        }
       } else if (!movementLocationId || Number(movementQuantity) === 0) {
         addActivity("Stock movement failed: select a location and non-zero quantity.");
         return false;
@@ -1992,7 +2004,7 @@ export function LockstockWorkbench() {
             : {
                 material_id: movementMaterialId,
                 location_id: movementLocationId,
-                quantity_delta: Number(movementQuantity),
+                quantity_delta: movementReason === "consumption" ? -Math.abs(Number(movementQuantity)) : Number(movementQuantity),
                 reason: movementReason,
                 note: trimmedComment || undefined
               }
@@ -3380,7 +3392,7 @@ export function LockstockWorkbench() {
                 <div className="title-row">
                   <div>
                     <h4>Move Material</h4>
-                    <p className="subtle-line">Add stock to a location or transfer it between locations.</p>
+                    <p className="subtle-line">Add stock to a location, consume it for works, or transfer it between locations.</p>
                   </div>
                   <button type="button" className="ghost-btn" disabled={busy} onClick={() => setShowMovementForm(false)}>
                     Close
@@ -3402,14 +3414,26 @@ export function LockstockWorkbench() {
                       </label>
                       <label className="field">
                         <span>Reason</span>
-                        <select value={movementReason} onChange={(event) => setMovementReason(event.target.value as ManualMovementReason)}>
+                        <select
+                          value={movementReason}
+                          onChange={(event) => {
+                            const nextReason = event.target.value as ManualMovementReason;
+                            setMovementReason(nextReason);
+                            if (nextReason === "consumption") {
+                              setMovementQuantity(-1);
+                            } else if (nextReason === "transfer" && Number(movementQuantity) <= 0) {
+                              setMovementQuantity(1);
+                            }
+                          }}
+                        >
                           <option value="adjustment">Adjustment</option>
+                          <option value="consumption">Consumption</option>
                           <option value="transfer">Transfer</option>
                         </select>
                       </label>
                     </div>
 
-                    {movementReason === "adjustment" ? (
+                    {movementReason !== "transfer" ? (
                       <div className="stock-movement-row stock-movement-row-single">
                         <label className="field">
                           <span>Location</span>
@@ -3455,12 +3479,16 @@ export function LockstockWorkbench() {
 
                     <div className="stock-movement-row stock-movement-row-single">
                       <label className="field">
-                        <span>{movementReason === "transfer" ? "Quantity" : "Quantity Delta"}</span>
+                        <span>{movementReason === "adjustment" ? "Quantity Delta" : "Quantity"}</span>
                         <input
                           type="number"
                           min={movementReason === "transfer" ? 1 : undefined}
+                          max={movementReason === "consumption" ? -1 : undefined}
                           value={movementQuantity}
-                          onChange={(event) => setMovementQuantity(Number(event.target.value))}
+                          onChange={(event) => {
+                            const nextQuantity = Number(event.target.value);
+                            setMovementQuantity(movementReason === "consumption" ? Math.min(-1, nextQuantity) : nextQuantity);
+                          }}
                         />
                       </label>
                     </div>
@@ -3485,7 +3513,7 @@ export function LockstockWorkbench() {
                           !movementToLocationId ||
                           movementFromLocationId === movementToLocationId ||
                           Number(movementQuantity) <= 0
-                        : !movementLocationId || Number(movementQuantity) === 0)
+                        : !movementLocationId || (movementReason === "consumption" ? Number(movementQuantity) >= 0 : Number(movementQuantity) === 0))
                     }
                     onClick={async () => {
                       const success = await handleCreateMovement();
@@ -3494,7 +3522,7 @@ export function LockstockWorkbench() {
                       }
                     }}
                   >
-                    Add to Stock
+                    {movementReason === "consumption" ? "Record Consumption" : "Add to Stock"}
                   </button>
                   <button type="button" className="ghost-btn" disabled={busy} onClick={() => setShowMovementForm(false)}>
                     Cancel

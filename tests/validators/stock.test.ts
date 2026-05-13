@@ -39,6 +39,40 @@ describe("createStockMovementSchema", () => {
     expect(parsed.quantity).toBe(7);
   });
 
+  it("accepts consumption movements only with a negative quantity delta", () => {
+    const parsed = createStockMovementSchema.parse({
+      material_id: baseUuid.material_id,
+      location_id: baseUuid.location_id,
+      quantity_delta: -1,
+      reason: "consumption",
+      note: "Released to site works"
+    });
+
+    expect(parsed.reason).toBe("consumption");
+    if (parsed.reason !== "consumption") {
+      throw new Error("Expected consumption movement");
+    }
+    expect(parsed.quantity_delta).toBe(-1);
+
+    expect(() =>
+      createStockMovementSchema.parse({
+        material_id: baseUuid.material_id,
+        location_id: baseUuid.location_id,
+        quantity_delta: 0,
+        reason: "consumption"
+      })
+    ).toThrow();
+
+    expect(() =>
+      createStockMovementSchema.parse({
+        material_id: baseUuid.material_id,
+        location_id: baseUuid.location_id,
+        quantity_delta: 1,
+        reason: "consumption"
+      })
+    ).toThrow();
+  });
+
   it("rejects manual purchase receive and correction reasons", () => {
     expect(() =>
       createStockMovementSchema.parse({
