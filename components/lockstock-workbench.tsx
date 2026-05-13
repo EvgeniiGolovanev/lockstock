@@ -2729,7 +2729,7 @@ export function LockstockWorkbench() {
                 {canExportCsv ? (
                   <button
                     type="button"
-                    className="ghost-btn"
+                    className="ghost-btn export-csv-btn"
                     disabled={locationTableRows.length === 0}
                     onClick={() =>
                       exportTableCsv(
@@ -2961,7 +2961,7 @@ export function LockstockWorkbench() {
                 {canExportCsv ? (
                   <button
                     type="button"
-                    className="ghost-btn"
+                    className="ghost-btn export-csv-btn"
                     disabled={materialTableRows.length === 0}
                     onClick={() =>
                       exportTableCsv(
@@ -3361,7 +3361,7 @@ export function LockstockWorkbench() {
               {canExportCsv ? (
                 <button
                   type="button"
-                  className="ghost-btn"
+                  className="ghost-btn export-csv-btn"
                   disabled={movementTableRows.length === 0}
                   onClick={() =>
                     exportTableCsv(
@@ -3627,7 +3627,7 @@ export function LockstockWorkbench() {
                 {canExportCsv ? (
                   <button
                     type="button"
-                    className="ghost-btn"
+                    className="ghost-btn export-csv-btn"
                     disabled={supplierTableRows.length === 0}
                     onClick={() =>
                       exportTableCsv(
@@ -3971,7 +3971,7 @@ export function LockstockWorkbench() {
                 {canExportCsv ? (
                   <button
                     type="button"
-                    className="ghost-btn"
+                    className="ghost-btn export-csv-btn"
                     disabled={purchaseOrderTableRows.length === 0}
                     onClick={() =>
                       exportTableCsv(
@@ -4680,7 +4680,7 @@ export function LockstockWorkbench() {
                 {canExportCsv ? (
                   <button
                     type="button"
-                    className="ghost-btn"
+                    className="ghost-btn export-csv-btn"
                     disabled={inventoryTableRows.length === 0}
                     onClick={() =>
                       exportTableCsv(

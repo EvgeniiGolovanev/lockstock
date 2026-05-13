@@ -313,6 +313,7 @@ button:disabled {
 .actions {
   margin-top: 0.75rem;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
@@ -326,6 +327,11 @@ button:disabled {
   color: var(--ls-text-muted);
   font-size: 0.78rem;
   margin-top: 0.18rem;
+}
+
+.actions > .subtle-line {
+  margin: 0;
+  line-height: 1;
 }
 
 .table-wrap {
@@ -2729,23 +2735,43 @@ button {
   border-color: #f26522;
 }
 
-button:hover:not(:disabled),
+button:hover:not(:disabled):not(.export-csv-btn),
 .action-link:hover {
   color: #111111;
   background: #f26522;
   border-color: #f26522;
 }
 
-.ghost-btn,
+.ghost-btn:not(.export-csv-btn),
 .tab-btn {
+  color: #ffffff;
+  background: #111111;
+  border: 2px solid #111111;
+}
+
+.ghost-btn:hover:not(:disabled):not(.export-csv-btn),
+.tab-btn:hover:not(:disabled) {
+  color: #111111;
+  background: #f26522;
+  border-color: #f26522;
+}
+
+button:not(.export-csv-btn):disabled,
+.ghost-btn:not(.export-csv-btn):disabled,
+.tab-btn:disabled {
+  color: #ffffff;
+  background: #6f6f6f;
+  border-color: #6f6f6f;
+  opacity: 1;
+}
+
+.export-csv-btn {
   color: #111111;
   background: #fffdf9;
   border: 2px solid #111111;
 }
 
-.ghost-btn:hover:not(:disabled),
-.tab-btn:hover:not(:disabled),
-.tab-btn-active {
+.export-csv-btn:hover:not(:disabled) {
   color: #111111;
   background: #fff0e7;
   border-color: #f26522;
