@@ -81,10 +81,31 @@ function createSupabaseForRole(role: Role) {
     })
   };
 
+  const rpc = vi.fn((fn: string) => {
+    if (fn === "get_org_member_account_profiles") {
+      return Promise.resolve({
+        data: [
+          {
+            user_id: "owner-1",
+            email: "owner@example.com",
+            full_name: "Owner User"
+          },
+          {
+            user_id: "member-1",
+            email: "member@example.com",
+            full_name: "Member User"
+          }
+        ],
+        error: null
+      });
+    }
+    throw new Error(`Unexpected rpc call in test: ${fn}`);
+  });
+
   return {
     auth: {
       getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: "owner-1", email: "owner@example.com" } },
+        data: { user: { id: "owner-1", email: "owner@example.com", user_metadata: { full_name: "Owner User" } } },
         error: null
       })
     },
@@ -100,10 +121,22 @@ function createSupabaseForRole(role: Role) {
       }
       throw new Error(`Unexpected table access in test: ${table}`);
     }),
+    rpc,
     orgUsersTable,
     organizationsTable,
     orgInvitationsTable
   };
+}
+
+function createSupabaseWithAccountProfileLookupFailure(role: Role) {
+  const supabase = createSupabaseForRole(role);
+  supabase.rpc.mockImplementationOnce(() =>
+    Promise.resolve({
+      data: null,
+      error: { message: "function get_org_member_account_profiles does not exist" }
+    }) as never
+  );
+  return supabase;
 }
 
 describe("POST /api/organizations/[id]/members owner-only management", () => {
@@ -133,14 +166,14 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
       {
         user_id: "owner-1",
         email: "owner@example.com",
-        full_name: null,
+        full_name: "Owner User",
         role: "owner",
         created_at: "2026-03-01T00:00:00Z"
       },
       {
         user_id: "member-1",
         email: "member@example.com",
-        full_name: null,
+        full_name: "Member User",
         role: "member",
         created_at: "2026-03-02T00:00:00Z"
       }
@@ -162,6 +195,35 @@ describe("POST /api/organizations/[id]/members owner-only management", () => {
 
     expect(response.status).toBe(200);
     expect(supabase.orgUsersTable.order).toHaveBeenCalledOnce();
+  });
+
+  it("loads organization members even when account profile lookup fails", async () => {
+    vi.mocked(extractBearerToken).mockReturnValue("token");
+    vi.mocked(requireAuthenticatedUserId).mockResolvedValue("owner-1");
+    const supabase = createSupabaseWithAccountProfileLookupFailure("owner");
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const request = new NextRequest(`http://localhost:3000/api/organizations/${orgId}/members`, {
+      method: "GET",
+      headers: { "x-org-id": orgId, Authorization: "Bearer token" }
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ id: orgId }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        user_id: "owner-1",
+        email: "owner@example.com",
+        full_name: "Owner User"
+      }),
+      expect.objectContaining({
+        user_id: "member-1",
+        email: "member@example.com",
+        full_name: null
+      })
+    ]);
   });
 
   it("returns 403 when caller is not owner", async () => {

@@ -21,7 +21,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const userId = await requireAuthenticatedUserId(request);
     const { id } = invitationIdParamSchema.parse(await context.params);
     const supabase = getSupabaseUserClient(token);
-    void userId;
     const { data, error } = await supabase.rpc("accept_org_invitation", {
       p_invitation_id: id
     });
@@ -36,6 +35,40 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const typedInvitation = (Array.isArray(data) ? data[0] : data) as AcceptedInvitationRow | null;
     if (!typedInvitation) {
       throw new ApiError(500, "Failed to accept invitation.");
+    }
+
+    try {
+      if (!supabase.auth?.getUser) {
+        return NextResponse.json({
+          data: {
+            invitation_id: typedInvitation.id,
+            org_id: typedInvitation.org_id,
+            organization_name: typedInvitation.org_name,
+            membership_role: typedInvitation.membership_role
+          }
+        });
+      }
+      const { data: authUserData } = await supabase.auth.getUser();
+      const fullName =
+        typeof authUserData.user?.user_metadata?.full_name === "string" && authUserData.user.user_metadata.full_name.trim()
+          ? authUserData.user.user_metadata.full_name.trim()
+          : null;
+      const email =
+        typeof authUserData.user?.email === "string" && authUserData.user.email.trim() ? authUserData.user.email.trim() : null;
+      const { error: profileError } = await supabase.from("user_profiles").upsert(
+        {
+          user_id: userId,
+          email,
+          full_name: fullName,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: "user_id" }
+      );
+      if (profileError) {
+        console.error("Accepted invitation profile sync failed:", profileError.message);
+      }
+    } catch (profileSyncError) {
+      console.error("Accepted invitation profile sync failed:", (profileSyncError as Error).message);
     }
 
     return NextResponse.json({
