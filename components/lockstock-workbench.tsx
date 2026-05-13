@@ -3702,16 +3702,7 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="title-row">
               <div>
-                <h3>Purchase Orders</h3>
-                <p className="subtle-line">Create and manage purchase orders for materials.</p>
-              </div>
-              <div className="actions purchase-actions">
-                <button type="button" className="ghost-btn" onClick={() => setShowPoReceiveForm(true)}>
-                  Receive
-                </button>
-                <button type="button" onClick={() => setShowPoCreateForm(true)}>
-                  Create PO
-                </button>
+                <h3>Purchase Orders Status</h3>
               </div>
             </div>
             <div className="kpi-grid purchase-kpi-grid">
@@ -3768,8 +3759,8 @@ export function LockstockWorkbench() {
                 />
               </div>
               <label className="field">
-                <span>Status</span>
                 <select
+                  aria-label="Status"
                   value={poFilterStatus}
                   onChange={(event) => {
                     setPoFilterStatus(event.target.value as PurchaseOrderFilterStatus);
@@ -3785,8 +3776,8 @@ export function LockstockWorkbench() {
                 </select>
               </label>
               <label className="field">
-                <span>Supplier</span>
                 <select
+                  aria-label="Supplier"
                   value={poFilterSupplierId}
                   onChange={(event) => {
                     setPoFilterSupplierId(event.target.value);
@@ -3807,28 +3798,36 @@ export function LockstockWorkbench() {
           <section className="card">
             <div className="title-row">
               <h3>All Purchase Orders</h3>
-              <button
-                type="button"
-                className="ghost-btn"
-                disabled={purchaseOrderTableRows.length === 0}
-                onClick={() =>
-                  exportTableCsv(
-                    "purchase-orders.csv",
-                    ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"],
-                    purchaseOrderTableRows.map((row) => [
-                      row.poNumber,
-                      row.supplier,
-                      row.status,
-                      row.lines,
-                      row.progress,
-                      row.totalExport,
-                      row.expected
-                    ])
-                  )
-                }
-              >
-                Export CSV
-              </button>
+              <div className="actions table-head-actions purchase-actions">
+                <button type="button" className="ghost-btn" onClick={() => setShowPoReceiveForm(true)}>
+                  Receive order
+                </button>
+                <button type="button" onClick={() => setShowPoCreateForm(true)}>
+                  Create PO
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={purchaseOrderTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "purchase-orders.csv",
+                      ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"],
+                      purchaseOrderTableRows.map((row) => [
+                        row.poNumber,
+                        row.supplier,
+                        row.status,
+                        row.lines,
+                        row.progress,
+                        row.totalExport,
+                        row.expected
+                      ])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
             {purchaseOrderTableRows.length === 0 ? (
               <div className="po-empty">
@@ -3846,7 +3845,9 @@ export function LockstockWorkbench() {
                       <SortableHeader tableId="purchase-orders" sortKey="progress" label="Progress" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
                       <SortableHeader tableId="purchase-orders" sortKey="total" label="Total" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
                       <SortableHeader tableId="purchase-orders" sortKey="expected" label="Expected" sortState={tableSorts["purchase-orders"]} onSort={handleTableSort} />
-                      <th>Actions</th>
+                      <th>
+                        <span className="table-static-head">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
