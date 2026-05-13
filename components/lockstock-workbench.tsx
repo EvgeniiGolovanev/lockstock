@@ -316,6 +316,7 @@ export function LockstockWorkbench() {
   const [supplierAddress, setSupplierAddress] = useState("");
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
   const [supplierSearch, setSupplierSearch] = useState("");
+  const [supplierStatusFilter, setSupplierStatusFilter] = useState("all");
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
@@ -502,15 +503,17 @@ export function LockstockWorkbench() {
   const supplierById = useMemo(() => new Map(suppliers.map((supplier) => [supplier.id, supplier])), [suppliers]);
   const filteredSupplierRows = useMemo(() => {
     const query = supplierSearch.trim().toLowerCase();
-    if (!query) {
-      return supplierRows;
-    }
-    return supplierRows.filter((row) =>
-      [row.name, row.phone, row.address, formatVendorNumber(row.vendorNumber)]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query))
-    );
-  }, [supplierRows, supplierSearch]);
+    return supplierRows.filter((row) => {
+      const matchesQuery =
+        !query ||
+        [row.name, row.phone, row.address, formatVendorNumber(row.vendorNumber)]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(query));
+      const status = row.isActive ? "active" : "blocked";
+      const matchesStatus = supplierStatusFilter === "all" || status === supplierStatusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [supplierRows, supplierSearch, supplierStatusFilter]);
   const materialTotalPages = Math.max(1, Math.ceil(materialTotal / MATERIALS_PAGE_SIZE));
   const movementTotalPages = Math.max(1, Math.ceil(movementTotal / MOVEMENTS_PAGE_SIZE));
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
@@ -3425,46 +3428,11 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showSupplierSection ? (
-        <section className="card">
-          <div className="title-row">
-            <div>
-              <h3>Vendor Management</h3>
-              <p className="subtle-line">Manage your material suppliers and vendors.</p>
-            </div>
-            <div className="actions table-head-actions">
-              <button type="button" onClick={openCreateSupplierForm}>
-                Add Vendor
-              </button>
-              <button
-                type="button"
-                className="ghost-btn"
-                disabled={supplierTableRows.length === 0}
-                onClick={() =>
-                  exportTableCsv(
-                    "vendors.csv",
-                    ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
-                    supplierTableRows.map((row) => [
-                      row.vendorId,
-                      row.name,
-                      row.phone,
-                      row.address,
-                      row.leadTimeDays,
-                      row.status,
-                      row.openOrders,
-                      row.receivedOrders,
-                      row.totalOrders
-                    ])
-                  )
-                }
-              >
-                Export CSV
-              </button>
-            </div>
-          </div>
-
-          <div className="vendors-table-head">
-            <label className="field">
-              <span>Search Vendor</span>
+        <>
+          <section className="card">
+            <div className="inventory-toolbar location-toolbar">
+              <div className="search-input-wrap">
+                <SearchFieldIcon />
                 <input
                   value={supplierSearch}
                   onChange={(event) => {
@@ -3473,88 +3441,140 @@ export function LockstockWorkbench() {
                   }}
                   placeholder="Filter by vendor name, ID, phone, or address"
                 />
-              </label>
+              </div>
+              <div className="category-wrap">
+                <SelectFieldIcon />
+                <select
+                  value={supplierStatusFilter}
+                  onChange={(event) => {
+                    setSupplierStatusFilter(event.target.value);
+                    setSupplierPage(1);
+                  }}
+                  aria-label="Status"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="table-section-head">
+              <h2>Vendor Management</h2>
+              <div className="actions table-head-actions inventory-table-actions">
+                <button type="button" onClick={openCreateSupplierForm}>
+                  Add Vendor
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={supplierTableRows.length === 0}
+                  onClick={() =>
+                    exportTableCsv(
+                      "vendors.csv",
+                      ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
+                      supplierTableRows.map((row) => [
+                        row.vendorId,
+                        row.name,
+                        row.phone,
+                        row.address,
+                        row.leadTimeDays,
+                        row.status,
+                        row.openOrders,
+                        row.receivedOrders,
+                        row.totalOrders
+                      ])
+                    )
+                  }
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
 
-          <div className="table-wrap">
-            <table className="compact-table">
-              <thead>
-                <tr>
-                  <SortableHeader tableId="suppliers" sortKey="vendorId" label="Vendor ID" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="name" label="Vendor Name" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="phone" label="Phone" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="address" label="Address" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="leadTimeDays" label="Lead Time (days)" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="status" label="Status" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="openOrders" label="Open POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="receivedOrders" label="Received POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <SortableHeader tableId="suppliers" sortKey="totalOrders" label="Total POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {supplierTableRows.length === 0 ? (
+            <div className="table-wrap">
+              <table className="compact-table vendors-table">
+                <thead>
                   <tr>
-                    <td colSpan={10}>No suppliers created yet.</td>
+                    <SortableHeader tableId="suppliers" sortKey="vendorId" label="Vendor ID" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="name" label="Vendor Name" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="phone" label="Phone" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="address" label="Address" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="leadTimeDays" label="Lead Time (days)" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="status" label="Status" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="openOrders" label="Open POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="receivedOrders" label="Received POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <SortableHeader tableId="suppliers" sortKey="totalOrders" label="Total POs" sortState={tableSorts.suppliers} onSort={handleTableSort} />
+                    <th>
+                      <span className="table-static-head">Actions</span>
+                    </th>
                   </tr>
-                ) : (
-                  paginatedSupplierTableRows.map((supplier) => {
-                    const editableSupplier = supplier.editableSupplier;
-                    return (
-                      <tr key={supplier.supplierId}>
-                        <td className="mono-line">{supplier.vendorId}</td>
-                        <td>{supplier.name}</td>
-                        <td>{supplier.phone}</td>
-                        <td>{supplier.address}</td>
-                        <td>{supplier.leadTimeDays}</td>
-                        <td>
-                          <span className={`status-pill ${supplier.status === "Active" ? "status-received" : "status-cancelled"}`}>
-                            {supplier.status}
-                          </span>
-                        </td>
-                        <td>{supplier.openOrders}</td>
-                        <td>{supplier.receivedOrders}</td>
-                        <td>{supplier.totalOrders}</td>
-                        <td>
-                          {editableSupplier ? (
-                            <div className="actions">
-                              <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditSupplierForm(editableSupplier)}>
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="ghost-btn"
-                                disabled={busy}
-                                onClick={() => setPendingSupplierUsageChange(editableSupplier)}
-                              >
-                                {editableSupplier.is_active === false ? "Unblock" : "Block"}
-                              </button>
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {supplierTableRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={10}>No suppliers match these filters.</td>
+                    </tr>
+                  ) : (
+                    paginatedSupplierTableRows.map((supplier) => {
+                      const editableSupplier = supplier.editableSupplier;
+                      return (
+                        <tr key={supplier.supplierId}>
+                          <td className="mono-line">{supplier.vendorId}</td>
+                          <td>{supplier.name}</td>
+                          <td>{supplier.phone}</td>
+                          <td>{supplier.address}</td>
+                          <td>{supplier.leadTimeDays}</td>
+                          <td>
+                            <span className={`status-pill ${supplier.status === "Active" ? "status-received" : "status-cancelled"}`}>
+                              {supplier.status}
+                            </span>
+                          </td>
+                          <td>{supplier.openOrders}</td>
+                          <td>{supplier.receivedOrders}</td>
+                          <td>{supplier.totalOrders}</td>
+                          <td>
+                            {editableSupplier ? (
+                              <div className="row-actions table-action-buttons">
+                                <button type="button" className="ghost-btn" disabled={busy} onClick={() => openEditSupplierForm(editableSupplier)}>
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost-btn"
+                                  disabled={busy}
+                                  onClick={() => setPendingSupplierUsageChange(editableSupplier)}
+                                >
+                                  {editableSupplier.is_active === false ? "Unblock" : "Block"}
+                                </button>
+                              </div>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          <div className="actions">
-            <button type="button" disabled={busy || supplierPage <= 1} onClick={() => setSupplierPage((prev) => Math.max(1, prev - 1))}>
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={busy || supplierPage >= supplierTotalPages}
-              onClick={() => setSupplierPage((prev) => Math.min(supplierTotalPages, prev + 1))}
-            >
-              Next
-            </button>
-            <p className="subtle-line">Page {supplierPage}/{supplierTotalPages}</p>
-          </div>
+            <div className="actions">
+              <button type="button" disabled={busy || supplierPage <= 1} onClick={() => setSupplierPage((prev) => Math.max(1, prev - 1))}>
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={busy || supplierPage >= supplierTotalPages}
+                onClick={() => setSupplierPage((prev) => Math.min(supplierTotalPages, prev + 1))}
+              >
+                Next
+              </button>
+              <p className="subtle-line">Page {supplierPage}/{supplierTotalPages}</p>
+            </div>
 
           {showSupplierForm ? (
             <div
@@ -3673,7 +3693,8 @@ export function LockstockWorkbench() {
               </div>
             </div>
           ) : null}
-        </section>
+          </section>
+        </>
       ) : null}
 
       {showPurchaseOrderSection ? (
