@@ -95,6 +95,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: { movement_ids: data } }, { status: 201 });
     }
 
+    if (payload.reason === "consumption") {
+      const { data: balance, error: balanceError } = await supabase
+        .from("inventory_balances")
+        .select("quantity")
+        .eq("org_id", orgId)
+        .eq("material_id", payload.material_id)
+        .eq("location_id", payload.location_id)
+        .maybeSingle();
+
+      if (balanceError) {
+        throw balanceError;
+      }
+      if (!balance || Number(balance.quantity) <= 0) {
+        throw new ApiError(400, "Material does not exist in the specified location.");
+      }
+      if (Number(balance.quantity) < Math.abs(payload.quantity_delta)) {
+        throw new ApiError(400, "Not enough quantity at the specified location.");
+      }
+    }
+
     const { data, error } = await supabase.rpc("create_stock_movement", {
       p_org_id: orgId,
       p_material_id: payload.material_id,
@@ -102,8 +122,8 @@ export async function POST(request: NextRequest) {
       p_quantity_delta: payload.quantity_delta,
       p_reason: payload.reason,
       p_note: payload.note ?? null,
-      p_reference_type: payload.reference_type ?? null,
-      p_reference_id: payload.reference_id ?? null,
+      p_reference_type: "reference_type" in payload ? (payload.reference_type ?? null) : null,
+      p_reference_id: "reference_id" in payload ? (payload.reference_id ?? null) : null,
       p_created_by: userId
     });
 

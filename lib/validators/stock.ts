@@ -12,6 +12,14 @@ const adjustmentMovementSchema = z.object({
   reference_id: z.string().uuid().optional()
 });
 
+const consumptionMovementSchema = z.object({
+  material_id: z.string().uuid(),
+  location_id: z.string().uuid(),
+  quantity_delta: z.number().negative("quantity_delta must be less than zero"),
+  reason: z.literal("consumption"),
+  note: stockMovementNoteSchema
+});
+
 const transferMovementSchema = z
   .object({
     material_id: z.string().uuid(),
@@ -31,4 +39,4 @@ const transferMovementSchema = z
     }
   });
 
-export const createStockMovementSchema = z.union([adjustmentMovementSchema, transferMovementSchema]);
+export const createStockMovementSchema = z.union([adjustmentMovementSchema, consumptionMovementSchema, transferMovementSchema]);

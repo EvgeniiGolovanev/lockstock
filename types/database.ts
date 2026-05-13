@@ -424,7 +424,7 @@ export type Database = {
     Enums: {
       org_role: "owner" | "manager" | "member" | "viewer";
       po_status: "draft" | "sent" | "partial" | "received" | "cancelled";
-      movement_reason: "adjustment" | "transfer_in" | "transfer_out" | "purchase_receive" | "correction";
+      movement_reason: "adjustment" | "consumption" | "transfer" | "transfer_in" | "transfer_out" | "purchase_receive" | "correction";
     };
     CompositeTypes: Record<string, never>;
   };
