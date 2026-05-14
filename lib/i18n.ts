@@ -38,36 +38,36 @@ const FR_TRANSLATIONS: Record<string, string> = {
   "Everything You Need to Manage Inventory": "Tout ce dont vous avez besoin pour gerer vos stocks",
   "Powerful features designed to streamline operations and boost efficiency.":
     "Des fonctionnalites puissantes pour simplifier les operations et ameliorer l'efficacite.",
-  "Real-Time Tracking": "Suivi en temps reel",
-  "Monitor your inventory levels in real-time across all locations with instant updates.":
-    "Surveillez vos niveaux de stock en temps reel sur tous les emplacements avec des mises a jour instantanees.",
-  "Automated Reordering": "Reapprovisionnement automatise",
-  "Set reorder points and let the system automatically generate purchase orders.":
-    "Definissez des seuils de reapprovisionnement et laissez le systeme generer automatiquement les commandes d'achat.",
-  "Advanced Analytics": "Analyses avancees",
-  "Gain insights with reports and forecasting tools to optimize stock levels.":
-    "Obtenez des insights avec des rapports et des previsions pour optimiser les niveaux de stock.",
-  "Smart Alerts": "Alertes intelligentes",
-  "Receive notifications for low stock, expiring items, and inventory discrepancies.":
-    "Recevez des notifications pour les stocks faibles, les articles proches de l'expiration et les ecarts d'inventaire.",
-  "Secure and Compliant": "Securise et conforme",
-  "Enterprise-grade security with role-based access control and audit trails.":
-    "Securite de niveau entreprise avec controle d'acces par role et traces d'audit.",
-  "Mobile Ready": "Compatible mobile",
-  "Manage inventory on-the-go with responsive workflows and real-time updates.":
-    "Gerez les stocks en deplacement avec des workflows adaptatifs et des mises a jour en temps reel.",
+  "Material Catalog": "Catalogue des materiaux",
+  "Manage SKUs, units of measure, categories, descriptions, and minimum stock thresholds in one clean catalog.":
+    "Gerez les SKU, unites de mesure, categories, descriptions et seuils de stock minimum dans un catalogue clair.",
+  "Location-Level Inventory": "Inventaire par emplacement",
+  "Track stock quantities by warehouse, zone, rack, or site location so teams know where every material sits.":
+    "Suivez les quantites par entrepot, zone, rack ou emplacement de chantier afin que les equipes sachent ou se trouve chaque materiau.",
+  "Stock Movement Control": "Controle des mouvements de stock",
+  "Record adjustments, consumption, transfers, and purchase receipts with structured movement reasons and history.":
+    "Enregistrez les ajustements, consommations, transferts et receptions d'achat avec des raisons structurees et un historique.",
+  "Purchase Order Lifecycle": "Cycle de vie des commandes d'achat",
+  "Create supplier purchase orders, move them through draft, sent, partial, received, and cancelled states, and receive stock against them.":
+    "Creez des commandes fournisseurs, faites-les passer par les statuts brouillon, envoyee, partielle, recue et annulee, puis receptionnez le stock correspondant.",
+  "Supplier Management": "Gestion des fournisseurs",
+  "Maintain vendor records, contact details, addresses, lead times, and supplier activity tied to purchasing workflows.":
+    "Tenez a jour les fiches fournisseurs, contacts, adresses, delais et activite fournisseur lies aux workflows d'achat.",
+  "Groups, Roles, and Audit Trail": "Groupes, roles et piste d'audit",
+  "Invite team members, manage roles, switch between groups, and review operational activity through audit logs.":
+    "Invitez les membres de l'equipe, gerez les roles, changez de groupe et consultez l'activite operationnelle via les journaux d'audit.",
   "Reduce Costs, Increase Efficiency": "Reduire les couts, augmenter l'efficacite",
-  "LockStock helps teams reduce inventory carrying costs while improving fill rate through practical workflow controls.":
-    "LockStock aide les equipes a reduire les couts de stockage tout en ameliorant le taux de service grace a des controles de workflow pratiques.",
-  "30% Cost Reduction": "30% de reduction des couts",
-  "Optimize stock levels and reduce waste with clearer ordering decisions.":
-    "Optimisez les niveaux de stock et reduisez le gaspillage avec des decisions d'achat plus claires.",
-  "10x Faster Processing": "Traitement 10x plus rapide",
-  "Automate repetitive updates and speed up daily purchasing operations.":
-    "Automatisez les mises a jour repetitives et accelerez les operations d'achat quotidiennes.",
-  "Better Collaboration": "Meilleure collaboration",
-  "Keep teams aligned with shared data, role-based actions, and visible activity history.":
-    "Gardez les equipes alignees avec des donnees partagees, des actions par role et un historique d'activite visible.",
+  "LockStock gives materials teams the operating structure to control stock, purchasing, locations, suppliers, and group access from one workspace.":
+    "LockStock donne aux equipes materiaux la structure operationnelle pour controler le stock, les achats, les emplacements, les fournisseurs et les acces aux groupes depuis un seul espace de travail.",
+  "One Operational Source of Truth": "Une source operationnelle unique",
+  "Connect materials, locations, suppliers, purchase orders, and stock movements so teams stop working from scattered spreadsheets.":
+    "Reliez materiaux, emplacements, fournisseurs, commandes d'achat et mouvements de stock afin que les equipes cessent de travailler dans des feuilles de calcul dispersees.",
+  "Cleaner Daily Stock Decisions": "Des decisions de stock quotidiennes plus claires",
+  "Use low-stock status, inventory filters, purchase order visibility, and movement history to decide what to reorder, receive, transfer, or consume.":
+    "Utilisez les statuts de stock faible, les filtres d'inventaire, la visibilite des commandes et l'historique des mouvements pour decider quoi recommander, receptionner, transferer ou consommer.",
+  "Controlled Collaboration": "Collaboration controlee",
+  "Give growing teams structure with role-based access, member invitations, group workspaces, workflow guides, and audit exports.":
+    "Structurez les equipes en croissance avec des acces par role, des invitations membres, des espaces de groupe, des guides de workflow et des exports d'audit.",
   "Trusted by Leading Businesses": "Adopte par des entreprises de reference",
   "See what teams say about running inventory operations on LockStock.":
     "Decouvrez ce que disent les equipes qui gerent leurs operations d'inventaire avec LockStock.",
