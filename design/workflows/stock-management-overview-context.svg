@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="820" viewBox="0 0 1440 820" role="img" aria-labelledby="title desc">
+  <title id="title">LockStock workflow overview</title>
+  <desc id="desc">Overview of setup, stock movement, purchase order, and member group workflows in the LockStock site style.</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#111111" stroke-opacity=".035" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2L12 7L2 12Z" fill="#111111"/>
+    </marker>
+    <style>
+      .bg{fill:#f4f0ea}.grid{fill:url(#grid)}.ink{fill:#111111}.orange{fill:#f26522}.paper{fill:#fffdf9}.soft{fill:#f8f5ef}.cream{fill:#fff0e7}.red{fill:#bd2634}.green{fill:#ecf6ee}
+      .frame,.card,.node,.pill{stroke:#111111;stroke-width:2;rx:0}.shadow{fill:#111111;opacity:.1}.title{font:900 46px "Segoe UI",Arial,sans-serif;letter-spacing:-2px;fill:#161412}.sub{font:600 17px "Segoe UI",Arial,sans-serif;fill:#6b6259}.eyebrow{font:900 12px "Segoe UI",Arial,sans-serif;letter-spacing:1.4px;text-transform:uppercase;fill:#6b6259}.h{font:900 18px "Segoe UI",Arial,sans-serif;fill:#111111}.t{font:600 13px "Segoe UI",Arial,sans-serif;fill:#4c453f}.tiny{font:900 11px "Segoe UI",Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;fill:#111111}.white{fill:#ffffff}.line{fill:none;stroke:#111111;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#111111;stroke-width:2;stroke-dasharray:7 7;marker-end:url(#arrow)}.bar{fill:#111111}.accent-text{fill:#f26522}
+    </style>
+  </defs>
+  <rect class="bg" width="1440" height="820"/><rect class="grid" width="1440" height="820"/>
+  <g transform="translate(64 50)">
+    <rect class="shadow" x="8" y="8" width="1312" height="112"/><rect class="frame paper" width="1312" height="112"/>
+    <g transform="translate(28 29)"><rect class="ink" width="60" height="8"/><rect class="orange" y="16" width="60" height="8"/><rect class="ink" y="32" width="60" height="8"/></g>
+    <text class="title" x="112" y="49">Workflow pictures</text><text class="sub" x="112" y="82">Typical steps users implement to manage stock in LockStock.</text>
+    <rect class="orange" x="1102" y="29" width="154" height="46" stroke="#111111" stroke-width="2"/><text class="tiny" x="1130" y="58">Stock control</text>
+  </g>
+
+  <g transform="translate(64 206)">
+    <rect class="shadow" x="8" y="8" width="1312" height="174"/><rect class="card paper" width="1312" height="174"/>
+    <rect class="bar" width="1312" height="44"/><text class="eyebrow white" x="26" y="28">01 / Master data first</text>
+    <g transform="translate(32 74)"><rect class="node soft" width="232" height="70"/><rect class="orange" width="16" height="70"/><text class="h" x="34" y="30">Create Material</text><text class="t" x="34" y="53">Stocked item definition</text></g>
+    <g transform="translate(350 74)"><rect class="node soft" width="232" height="70"/><rect class="orange" width="16" height="70"/><text class="h" x="34" y="30">Create Location</text><text class="t" x="34" y="53">Storage for balances</text></g>
+    <g transform="translate(668 74)"><rect class="node soft" width="232" height="70"/><rect class="orange" width="16" height="70"/><text class="h" x="34" y="30">Create Vendor</text><text class="t" x="34" y="53">Required before PO</text></g>
+    <g transform="translate(986 74)"><rect class="node cream" width="264" height="70"/><rect class="ink" width="16" height="70"/><text class="h" x="34" y="30">Keep records active</text><text class="t" x="34" y="53">Blocked records cannot be used</text></g>
+    <path class="line" d="M264 109H338"/><path class="line" d="M582 109H656"/><path class="line" d="M900 109H974"/>
+  </g>
+
+  <g transform="translate(64 430)">
+    <rect class="shadow" x="8" y="8" width="634" height="346"/><rect class="card paper" width="634" height="346"/>
+    <rect class="bar" width="634" height="44"/><text class="eyebrow white" x="26" y="28">02 / Manage stock</text>
+    <g transform="translate(32 74)"><rect class="node soft" width="232" height="72"/><text class="h" x="22" y="31">Check prerequisites</text><text class="t" x="22" y="54">Material + location active</text></g>
+    <g transform="translate(370 74)"><rect class="node orange" width="232" height="72"/><text class="h" x="22" y="31">Post movement</text><text class="t ink" x="22" y="54">Select valid reason</text></g>
+    <path class="line" d="M264 110H358"/>
+    <g transform="translate(32 192)"><rect class="pill green" width="122" height="48"/><text class="tiny" x="18" y="30">Adjustment</text></g>
+    <g transform="translate(176 192)"><rect class="pill soft" width="132" height="48"/><text class="tiny" x="18" y="30">Consumption</text></g>
+    <g transform="translate(330 192)"><rect class="pill soft" width="104" height="48"/><text class="tiny" x="18" y="30">Transfer</text></g>
+    <g transform="translate(456 192)"><rect class="pill soft" width="130" height="48"/><text class="tiny" x="18" y="30">Receive PO</text></g>
+    <text class="t" x="34" y="286">Adjustment is for initial load or exceptional reconciliation only.</text>
+    <text class="t" x="34" y="310">Daily operations use Consumption, Transfer, or Receive PO.</text>
+  </g>
+
+  <g transform="translate(742 430)">
+    <rect class="shadow" x="8" y="8" width="634" height="346"/><rect class="card paper" width="634" height="346"/>
+    <rect class="bar" width="634" height="44"/><text class="eyebrow white" x="26" y="28">03 / Purchase orders</text>
+    <g transform="translate(32 78)"><rect class="node soft" width="134" height="68"/><text class="h" x="22" y="29">Draft</text><text class="t" x="22" y="51">Created</text></g>
+    <g transform="translate(244 78)"><rect class="node cream" width="134" height="68"/><text class="h" x="22" y="29">Sent</text><text class="t" x="22" y="51">Mark Sent</text></g>
+    <g transform="translate(456 78)"><rect class="node cream" width="134" height="68"/><text class="h" x="22" y="29">Partial</text><text class="t" x="22" y="51">Receive some</text></g>
+    <path class="line" d="M166 112H232"/><path class="line" d="M378 112H444"/>
+    <g transform="translate(244 218)"><rect class="node green" width="134" height="68"/><text class="h" x="22" y="29">Received</text><text class="t" x="22" y="51">100% done</text></g>
+    <g transform="translate(456 218)"><rect class="node red" width="134" height="68"/><text class="h white" x="22" y="29">Cancelled</text><text class="t white" x="22" y="51">Final stop</text></g>
+    <path class="line" d="M523 146C523 190 378 174 338 206"/><path class="dash" d="M311 146C380 190 500 166 523 206"/>
+    <text class="t" x="32" y="320">Received and Cancelled are terminal states.</text>
+  </g>
+
+</svg>

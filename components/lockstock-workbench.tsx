@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
+import { WorkflowGallery, WorkflowGuideButton } from "@/components/workflow-guide";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { MATERIAL_DUPLICATE_SKU_ERROR } from "@/lib/material-errors";
@@ -31,6 +32,7 @@ import {
   type SortState
 } from "@/lib/ui/table-tools";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
+import { workflowsForPathname } from "@/lib/ui/workflows";
 import {
   DEFAULT_PHONE_COUNTRY_CODE,
   PHONE_COUNTRY_CODES,
@@ -229,7 +231,15 @@ const ROLE_AUTHORIZATIONS = [
   ["Rename group", "No", "No", "No", "Yes"]
 ] as const;
 
-type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
+type NavHref =
+  | "/inventory"
+  | "/materials"
+  | "/stock-movements"
+  | "/locations"
+  | "/vendors"
+  | "/purchase-orders"
+  | "/members"
+  | "/workflows";
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/inventory", label: "Inventory", icon: "inventory" },
@@ -238,7 +248,8 @@ const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/locations", label: "Locations", icon: "locations" },
   { href: "/vendors", label: "Vendors", icon: "vendors" },
   { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
-  { href: "/members", label: "Members", icon: "members" }
+  { href: "/members", label: "Members", icon: "members" },
+  { href: "/workflows", label: "Workflows", icon: "workflows" }
 ] as const;
 
 function SearchFieldIcon() {
@@ -556,6 +567,9 @@ export function LockstockWorkbench() {
     if (pathname === "/members") {
       return { title: "Members", subtitle: "Manage group members and invitations." };
     }
+    if (pathname === "/workflows") {
+      return { title: "Workflows", subtitle: "Review the end-to-end operating guides for stock, purchasing, and members." };
+    }
     return { title: "Inventory Management", subtitle: "Manage your stock and track inventory levels." };
   }, [pathname]);
 
@@ -565,7 +579,9 @@ export function LockstockWorkbench() {
   const showSupplierSection = pathname === "/vendors";
   const showPurchaseOrderSection = pathname === "/purchase-orders";
   const showMembersSection = pathname === "/members";
+  const showWorkflowsSection = pathname === "/workflows";
   const showSnapshotSection = pathname === "/inventory";
+  const contextualWorkflows = useMemo(() => workflowsForPathname(pathname), [pathname]);
   const showSignedOutPanels = shouldShowSignedOutPanels({
     isAuthenticated: Boolean(signedInAs),
     authResolved
@@ -2325,6 +2341,7 @@ export function LockstockWorkbench() {
               </p>
             ) : null}
           </div>
+          {!showWorkflowsSection ? <WorkflowGuideButton workflows={contextualWorkflows} /> : null}
         </div>
       </section>
 
@@ -2416,6 +2433,8 @@ export function LockstockWorkbench() {
         </div>
       </section>
       ) : null}
+
+      {showWorkflowsSection ? <WorkflowGallery /> : null}
 
       {showMembersSection && canUseMembersScreen ? (
         <section className="card">
