@@ -28,6 +28,9 @@ describe("i18n helpers", () => {
     expect(translateText("Invitation email sent.", "fr")).toBe("Email d'invitation envoye.");
     expect(translateText("My Organization Memberships", "fr")).toBe("Mes appartenances aux organisations");
     expect(translateText("No activity yet.", "fr")).toBe("Aucune activite pour le moment.");
+    expect(translateText("Material Catalog", "fr")).toBe("Catalogue des materiaux");
+    expect(translateText("Purchase Order Lifecycle", "fr")).toBe("Cycle de vie des commandes d'achat");
+    expect(translateText("Controlled Collaboration", "fr")).toBe("Collaboration controlee");
     expect(translateText("Sign In", "en")).toBe("Sign In");
   });
 

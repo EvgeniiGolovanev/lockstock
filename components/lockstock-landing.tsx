@@ -10,28 +10,28 @@ type AuthMode = "signin" | "signup";
 
 const FEATURES = [
   {
-    title: "Real-Time Tracking",
-    description: "Monitor your inventory levels in real-time across all locations with instant updates."
+    title: "Material Catalog",
+    description: "Manage SKUs, units of measure, categories, descriptions, and minimum stock thresholds in one clean catalog."
   },
   {
-    title: "Automated Reordering",
-    description: "Set reorder points and let the system automatically generate purchase orders."
+    title: "Location-Level Inventory",
+    description: "Track stock quantities by warehouse, zone, rack, or site location so teams know where every material sits."
   },
   {
-    title: "Advanced Analytics",
-    description: "Gain insights with reports and forecasting tools to optimize stock levels."
+    title: "Stock Movement Control",
+    description: "Record adjustments, consumption, transfers, and purchase receipts with structured movement reasons and history."
   },
   {
-    title: "Smart Alerts",
-    description: "Receive notifications for low stock, expiring items, and inventory discrepancies."
+    title: "Purchase Order Lifecycle",
+    description: "Create supplier purchase orders, move them through draft, sent, partial, received, and cancelled states, and receive stock against them."
   },
   {
-    title: "Secure and Compliant",
-    description: "Enterprise-grade security with role-based access control and audit trails."
+    title: "Supplier Management",
+    description: "Maintain vendor records, contact details, addresses, lead times, and supplier activity tied to purchasing workflows."
   },
   {
-    title: "Mobile Ready",
-    description: "Manage inventory on-the-go with responsive workflows and real-time updates."
+    title: "Groups, Roles, and Audit Trail",
+    description: "Invite team members, manage roles, switch between groups, and review operational activity through audit logs."
   }
 ];
 
@@ -370,21 +370,21 @@ export function LockstockLanding() {
           <div>
             <h2>Reduce Costs, Increase Efficiency</h2>
             <p>
-              LockStock helps teams reduce inventory carrying costs while improving fill rate through practical workflow
-              controls.
+              LockStock gives materials teams the operating structure to control stock, purchasing, locations, suppliers,
+              and group access from one workspace.
             </p>
             <div className="landing-benefit-list">
               <article>
-                <h3>30% Cost Reduction</h3>
-                <p>Optimize stock levels and reduce waste with clearer ordering decisions.</p>
+                <h3>One Operational Source of Truth</h3>
+                <p>Connect materials, locations, suppliers, purchase orders, and stock movements so teams stop working from scattered spreadsheets.</p>
               </article>
               <article>
-                <h3>10x Faster Processing</h3>
-                <p>Automate repetitive updates and speed up daily purchasing operations.</p>
+                <h3>Cleaner Daily Stock Decisions</h3>
+                <p>Use low-stock status, inventory filters, purchase order visibility, and movement history to decide what to reorder, receive, transfer, or consume.</p>
               </article>
               <article>
-                <h3>Better Collaboration</h3>
-                <p>Keep teams aligned with shared data, role-based actions, and visible activity history.</p>
+                <h3>Controlled Collaboration</h3>
+                <p>Give growing teams structure with role-based access, member invitations, group workspaces, workflow guides, and audit exports.</p>
               </article>
             </div>
           </div>
