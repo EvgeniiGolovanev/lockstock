@@ -294,7 +294,7 @@ export function LockstockLanding() {
           <nav className="landing-nav">
             <a href="#features">Features</a>
             <a href="#benefits">Benefits</a>
-            <a href="#pricing">Pricing</a>
+            <a href="/pricing">Pricing</a>
           </nav>
           <div className="landing-actions">
             <LanguageSwitcher />
@@ -434,12 +434,15 @@ export function LockstockLanding() {
             <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
               Watch Demo
             </button>
+            <a className="ghost-btn" href="/pricing">
+              View Pricing
+            </a>
           </div>
         </div>
       </section>
 
       <footer className="landing-footer">
-        <div className="landing-wrap landing-footer-grid">
+        <div className="landing-wrap landing-footer-grid landing-footer-grid-compact">
           <div>
             <div className="landing-brand">
               <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
@@ -456,20 +459,15 @@ export function LockstockLanding() {
           <div>
             <h4>Product</h4>
             <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
-            <a href="/inventory">App</a>
+            <a href="#benefits">Benefits</a>
+            <a href="/pricing">Pricing</a>
           </div>
           <div>
             <h4>Company</h4>
             <a href="/about">About</a>
-            <a href="#benefits">Blog</a>
             <a href="#benefits">Contact</a>
-          </div>
-          <div>
-            <h4>Legal</h4>
             <a href="#pricing">Privacy Policy</a>
             <a href="#pricing">Terms of Service</a>
-            <a href="#pricing">Security</a>
           </div>
         </div>
         <div className="landing-wrap landing-footer-bottom">(c) 2026 LockStock. All rights reserved.</div>

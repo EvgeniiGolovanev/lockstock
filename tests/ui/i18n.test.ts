@@ -33,6 +33,12 @@ describe("i18n helpers", () => {
     expect(translateText("Controlled Collaboration", "fr")).toBe("Collaboration controlee");
     expect(translateText("Watch Demo", "fr")).toBe("Voir la demo");
     expect(translateText("Schedule Demo", "fr")).toBe("Voir la demo");
+    expect(translateText("Plans for controlled inventory and purchasing operations", "fr")).toBe(
+      "Offres pour piloter les stocks et les achats avec controle"
+    );
+    expect(translateText("Limits by Plan", "fr")).toBe("Limites par offre");
+    expect(translateText("Stock movements / month", "fr")).toBe("Mouvements de stock / mois");
+    expect(translateText("Audit CSV export", "fr")).toBe("Export CSV d'audit");
     expect(translateText("Sign In", "en")).toBe("Sign In");
   });
 

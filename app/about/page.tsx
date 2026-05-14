@@ -23,7 +23,7 @@ export default function AboutPage() {
           <nav className="landing-nav">
             <Link href="/#features">Features</Link>
             <Link href="/#benefits">Benefits</Link>
-            <Link href="/#pricing">Pricing</Link>
+            <Link href="/pricing">Pricing</Link>
           </nav>
           <div className="landing-actions">
             <LanguageSwitcher />
@@ -90,7 +90,7 @@ export default function AboutPage() {
           <div>
             <h4>Product</h4>
             <Link href="/#features">Features</Link>
-            <Link href="/#pricing">Pricing</Link>
+            <Link href="/pricing">Pricing</Link>
             <Link href="/inventory">App</Link>
           </div>
           <div>
