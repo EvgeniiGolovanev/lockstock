@@ -83,6 +83,18 @@ const FR_TRANSLATIONS: Record<string, string> = {
   "Ready to Transform Your Inventory Management?": "Pret a transformer votre gestion des stocks ?",
   "Join teams that rely on LockStock to run purchasing and stock operations with confidence.":
     "Rejoignez les equipes qui font confiance a LockStock pour piloter les achats et les stocks en toute confiance.",
+  Home: "Accueil",
+  "About LockStock": "A propos de LockStock",
+  "Built by operators, technologists, and industry specialists":
+    "Cree par des operateurs, des technologues et des specialistes metiers",
+  "LockStock is shaped by a team with wide experience across several industries and markets. Our work brings together practical operating knowledge, product discipline, and technical delivery gained from projects in France and around the world.":
+    "LockStock est concu par une equipe qui possede une large experience dans plusieurs industries et marches. Notre travail reunit une connaissance operationnelle concrete, une discipline produit et une execution technique acquises sur des projets en France et dans le monde.",
+  "We have deep expertise in IT, finance, construction, and supply chain, which helps us understand how stock, purchasing, vendors, sites, approvals, and reporting connect in real organizations. That mix of backgrounds keeps the product focused on daily operational clarity rather than abstract software features.":
+    "Nous avons une expertise approfondie en informatique, finance, construction et supply chain, ce qui nous aide a comprendre comment le stock, les achats, les fournisseurs, les sites, les validations et le reporting se connectent dans les organisations reelles. Cette combinaison d'experiences garde le produit centre sur la clarte operationnelle quotidienne plutot que sur des fonctionnalites abstraites.",
+  "Our goal is to give teams a dependable system for managing materials and inventory across warehouses, projects, offices, and field operations. We design LockStock to support local French business needs while remaining practical for companies working internationally.":
+    "Notre objectif est de donner aux equipes un systeme fiable pour gerer les materiaux et les stocks dans les entrepots, projets, bureaux et operations terrain. Nous concevons LockStock pour soutenir les besoins des entreprises francaises tout en restant pratique pour les societes actives a l'international.",
+  "Team expertise": "Expertise de l'equipe",
+  "Supply Chain": "Supply chain",
   "Schedule Demo": "Voir la demo",
   "Modern inventory management for modern businesses. Track, manage, and optimize your stock with ease.":
     "Gestion des stocks moderne pour les entreprises modernes. Suivez, gerez et optimisez votre stock simplement.",
