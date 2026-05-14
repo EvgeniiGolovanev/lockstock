@@ -1,4 +1,12 @@
-export type NavIcon = "inventory" | "materials" | "stock-movements" | "locations" | "vendors" | "purchase-orders" | "members";
+export type NavIcon =
+  | "inventory"
+  | "materials"
+  | "stock-movements"
+  | "locations"
+  | "vendors"
+  | "purchase-orders"
+  | "members"
+  | "workflows";
 
 export function NavItemIcon({ icon }: { icon: NavIcon }) {
   if (icon === "inventory") {
@@ -45,6 +53,14 @@ export function NavItemIcon({ icon }: { icon: NavIcon }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M16 20a4 4 0 0 0-8 0M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 8a4 4 0 0 0-3-3.9M17 11a2.5 2.5 0 1 0 0-5M4 20a4 4 0 0 1 3-3.9M7 11a2.5 2.5 0 1 1 0-5" />
+      </svg>
+    );
+  }
+
+  if (icon === "workflows") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 5h5v5H5V5Zm9 0h5v5h-5V5ZM5 14h5v5H5v-5Zm9 2.5h5M16.5 14v5M10 7.5h4M7.5 10v4M17 10v4" />
       </svg>
     );
   }

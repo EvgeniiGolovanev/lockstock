@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">LockStock purchase order lifecycle</title>
+  <desc id="desc">Purchase order statuses and actions in the LockStock site style.</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#111" stroke-opacity=".035"/></pattern>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth"><path d="M2 2L12 7L2 12Z" fill="#111"/></marker>
+    <style>
+      .bg{fill:#f4f0ea}.grid{fill:url(#grid)}.paper{fill:#fffdf9}.soft{fill:#f8f5ef}.cream{fill:#fff0e7}.orange{fill:#f26522}.red{fill:#bd2634}.green{fill:#ecf6ee}.ink{fill:#111}.frame,.box,.pill{stroke:#111;stroke-width:2;rx:0}.shadow{fill:#111;opacity:.1}.title{font:900 46px "Segoe UI",Arial,sans-serif;letter-spacing:-2px;fill:#161412}.sub{font:600 17px "Segoe UI",Arial,sans-serif;fill:#6b6259}.eyebrow{font:900 12px "Segoe UI",Arial,sans-serif;letter-spacing:1.4px;text-transform:uppercase;fill:#6b6259}.h{font:900 18px "Segoe UI",Arial,sans-serif;fill:#111}.t{font:600 13px "Segoe UI",Arial,sans-serif;fill:#4c453f}.tiny{font:900 11px "Segoe UI",Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;fill:#111}.white{fill:#fff}.line{fill:none;stroke:#111;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#111;stroke-width:2;stroke-dasharray:7 7;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1440" height="900"/><rect class="grid" width="1440" height="900"/>
+  <g transform="translate(64 50)"><rect class="shadow" x="8" y="8" width="1312" height="110"/><rect class="frame paper" width="1312" height="110"/><text class="title" x="32" y="48">Purchase order lifecycle</text><text class="sub" x="34" y="80">Draft to Sent, then Partial, Received, or Cancelled.</text><rect class="orange frame" x="1120" y="30" width="142" height="42"/><text class="tiny" x="1155" y="56">PO status</text></g>
+  <g transform="translate(92 214)"><rect class="shadow" x="8" y="8" width="298" height="104"/><rect class="box paper" width="298" height="104"/><rect class="ink" width="298" height="18"/><text class="eyebrow" x="26" y="48">Before creating</text><text class="h" x="26" y="75">Vendor must be active</text><text class="t" x="26" y="96">Materials also must exist.</text></g>
+  <g transform="translate(470 214)"><rect class="shadow" x="8" y="8" width="230" height="104"/><rect class="box soft" width="230" height="104"/><text class="h" x="26" y="39">Create PO</text><rect class="pill soft" x="26" y="56" width="82" height="28"/><text class="tiny" x="42" y="75">Draft</text></g>
+  <g transform="translate(790 214)"><rect class="shadow" x="8" y="8" width="230" height="104"/><rect class="box cream" width="230" height="104"/><text class="h" x="26" y="39">Mark Sent</text><rect class="pill cream" x="26" y="56" width="72" height="28"/><text class="tiny" x="43" y="75">Sent</text></g>
+  <g transform="translate(1110 214)"><rect class="shadow" x="8" y="8" width="230" height="104"/><rect class="box cream" width="230" height="104"/><text class="h" x="26" y="39">Receive some</text><rect class="pill cream" x="26" y="56" width="94" height="28"/><text class="tiny" x="42" y="75">Partial</text></g>
+  <path class="line" d="M390 266H458"/><path class="line" d="M700 266H778"/><path class="line" d="M1020 266H1098"/>
+  <g transform="translate(744 520)"><rect class="shadow" x="8" y="8" width="250" height="104"/><rect class="box green" width="250" height="104"/><text class="h" x="26" y="39">Receive 100%</text><rect class="pill green" x="26" y="56" width="112" height="28"/><text class="tiny" x="42" y="75">Received</text></g>
+  <g transform="translate(1090 520)"><rect class="shadow" x="8" y="8" width="250" height="104"/><rect class="box red" width="250" height="104"/><text class="h white" x="26" y="39">Cancel PO</text><rect class="pill red" x="26" y="56" width="118" height="28"/><text class="tiny white" x="42" y="75">Cancelled</text></g>
+  <path class="line" d="M1225 318C1225 438 908 388 872 508"/><path class="dash" d="M1225 318C1225 438 1218 388 1215 508"/>
+  <path class="dash" d="M1236 520C1328 430 1310 342 1242 330"/>
+  <text class="t" x="1020" y="424">Partial can be received multiple times</text>
+  <g transform="translate(92 706)"><rect class="box paper" width="1248" height="74"/><rect class="orange" width="18" height="74"/><text class="h" x="42" y="31">Cancellation rule</text><text class="t" x="42" y="55">A PO can be cancelled while it is not 100% received. Received and Cancelled are final and cannot be reopened.</text></g>
+</svg>

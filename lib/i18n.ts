@@ -106,6 +106,27 @@ const FR_TRANSLATIONS: Record<string, string> = {
     "Compte cree. Verifiez votre email pour confirmer, puis connectez-vous.",
   Inventory: "Inventaire",
   Members: "Membres",
+  Workflows: "Workflows",
+  Workflow: "Workflow",
+  "Workflow guide": "Guide de workflow",
+  "Review the end-to-end operating guides for stock, purchasing, and members.":
+    "Consultez les guides operationnels de bout en bout pour le stock, les achats et les membres.",
+  "Stock management overview": "Vue d'ensemble de la gestion du stock",
+  "Vue d'ensemble de la gestion du stock": "Vue d'ensemble de la gestion du stock",
+  "Master data, stock, purchasing, and group prerequisites in one map.":
+    "Donnees de base, stock, achats et groupes dans une carte unique.",
+  "Stock movement workflow": "Workflow des mouvements de stock",
+  "Workflow des mouvements de stock": "Workflow des mouvements de stock",
+  "How to choose Adjustment, Consumption, Transfer, or Receive PO.":
+    "Comment choisir Ajustement, Consommation, Transfert ou Reception PO.",
+  "Purchase order lifecycle": "Cycle de vie d'une PO",
+  "Cycle de vie d'une PO": "Cycle de vie d'une PO",
+  "Draft, Sent, Partial, Received, and Cancelled status rules.":
+    "Regles des statuts Brouillon, Envoyee, Partielle, Recue et Annulee.",
+  "Members and groups workflow": "Workflow membres et groupes",
+  "Workflow membres et groupes": "Workflow membres et groupes",
+  "Invitations, roles, group switching, and member removal.":
+    "Invitations, roles, changement de groupe et retrait de membre.",
   "Materials & Stock": "Materiaux et stock",
   Materials: "Materiaux",
   "Stock Movements": "Mouvements de stock",

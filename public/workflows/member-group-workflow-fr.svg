@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="940" viewBox="0 0 1440 940" role="img" aria-labelledby="title desc">
+  <title id="title">Workflow membres et groupes LockStock</title>
+  <desc id="desc">Workflow d'invitation, rôle, changement de groupe et suppression de membre.</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#111" stroke-opacity=".035"/></pattern>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth"><path d="M2 2L12 7L2 12Z" fill="#111"/></marker>
+    <style>
+      .bg{fill:#f4f0ea}.grid{fill:url(#grid)}.paper{fill:#fffdf9}.soft{fill:#f8f5ef}.cream{fill:#fff0e7}.orange{fill:#f26522}.red{fill:#bd2634}.green{fill:#ecf6ee}.ink{fill:#111}.frame,.box,.pill{stroke:#111;stroke-width:2;rx:0}.shadow{fill:#111;opacity:.1}.title{font:900 46px "Segoe UI",Arial,sans-serif;letter-spacing:-2px;fill:#161412}.sub{font:600 17px "Segoe UI",Arial,sans-serif;fill:#6b6259}.eyebrow{font:900 12px "Segoe UI",Arial,sans-serif;letter-spacing:1.4px;text-transform:uppercase;fill:#6b6259}.h{font:900 18px "Segoe UI",Arial,sans-serif;fill:#111}.t{font:600 13px "Segoe UI",Arial,sans-serif;fill:#4c453f}.tiny{font:900 11px "Segoe UI",Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;fill:#111}.white{fill:#fff}.line{fill:none;stroke:#111;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#111;stroke-width:2;stroke-dasharray:7 7;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1440" height="940"/><rect class="grid" width="1440" height="940"/>
+  <g transform="translate(64 50)"><rect class="shadow" x="8" y="8" width="1312" height="110"/><rect class="frame paper" width="1312" height="110"/><text class="title" x="32" y="48">Membres et groupes</text><text class="sub" x="34" y="80">Les utilisateurs travaillent dans leur groupe ou dans un groupe invité selon leur rôle.</text><rect class="orange frame" x="1120" y="30" width="142" height="42"/><text class="tiny" x="1155" y="56">Accès</text></g>
+  <g transform="translate(92 202)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box paper" width="294" height="104"/><rect class="ink" width="18" height="104"/><text class="h" x="42" y="39">Compte créé</text><text class="t" x="42" y="64">Un groupe personnel est créé</text><text class="t" x="42" y="86">avec le compte utilisateur.</text></g>
+  <g transform="translate(462 202)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box soft" width="294" height="104"/><text class="h" x="26" y="39">Renommer groupe</text><text class="t" x="26" y="64">L'utilisateur peut modifier</text><text class="t" x="26" y="86">le nom affiché du groupe.</text></g>
+  <g transform="translate(832 202)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box orange" width="294" height="104"/><text class="h" x="26" y="39">Inviter par email</text><text class="t ink" x="26" y="64">Spécifier le rôle attribué</text><text class="t ink" x="26" y="86">après acceptation.</text></g>
+  <path class="line" d="M386 254H450"/><path class="line" d="M756 254H820"/>
+  <g transform="translate(462 414)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box paper" width="294" height="104"/><rect class="orange" width="294" height="16"/><text class="h" x="26" y="50">Décision invité</text><text class="t" x="26" y="75">Accepter ou refuser l'invitation.</text></g>
+  <path class="line" d="M979 306C979 382 609 354 609 402"/>
+  <g transform="translate(92 626)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box red" width="294" height="104"/><text class="h white" x="26" y="39">Refuser</text><text class="t white" x="26" y="64">Aucune adhésion n'est créée.</text></g>
+  <g transform="translate(462 626)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box green" width="294" height="104"/><text class="h" x="26" y="39">Accepter</text><text class="t" x="26" y="64">L'utilisateur rejoint avec</text><text class="t" x="26" y="86">le rôle attribué.</text></g>
+  <g transform="translate(832 626)"><rect class="shadow" x="8" y="8" width="294" height="104"/><rect class="box cream" width="294" height="104"/><text class="h" x="26" y="39">Choisir groupe actif</text><text class="t" x="26" y="64">Groupe propre ou groupe invité.</text></g>
+  <path class="line" d="M609 518C609 586 239 574 239 614"/><path class="line" d="M609 518V614"/><path class="line" d="M756 678H820"/>
+  <g transform="translate(462 804)"><rect class="box paper" width="416" height="76"/><rect class="orange" width="18" height="76"/><text class="h" x="42" y="32">Travailler selon le rôle</text><text class="t" x="42" y="56">Créer ou modifier matériels, emplacements, POs et mouvements si autorisé.</text></g>
+  <g transform="translate(970 804)"><rect class="box red" width="294" height="76"/><text class="h white" x="26" y="32">Retirer membre</text><text class="t white" x="26" y="56">L'accès au groupe se termine.</text></g>
+  <path class="line" d="M979 730C979 780 820 760 792 792"/><path class="dash" d="M979 730C1080 776 1110 760 1117 792"/>
+</svg>
