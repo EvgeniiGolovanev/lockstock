@@ -461,7 +461,7 @@ export function LockstockLanding() {
           </div>
           <div>
             <h4>Company</h4>
-            <a href="#benefits">About</a>
+            <a href="/about">About</a>
             <a href="#benefits">Blog</a>
             <a href="#benefits">Contact</a>
           </div>
