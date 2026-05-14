@@ -2,9 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildSignUpPayload } from "@/lib/auth/signup";
+import { demoVideoHref } from "@/lib/ui/demo-video";
 
 type AuthMode = "signin" | "signup";
 
@@ -144,7 +146,10 @@ function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" 
 
 export function LockstockLanding() {
   const router = useRouter();
+  const { locale } = useLanguage();
+  const demoHref = demoVideoHref(locale);
   const [authOpen, setAuthOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
   const [signedInAs, setSignedInAs] = useState("");
   const [email, setEmail] = useState("");
@@ -330,7 +335,7 @@ export function LockstockLanding() {
               <button type="button" onClick={() => openAuth("signup")}>
                 Start Free Trial
               </button>
-              <button type="button" className="ghost-btn" onClick={() => openAuth("signin")}>
+              <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
                 Watch Demo
               </button>
             </div>
@@ -426,8 +431,8 @@ export function LockstockLanding() {
             <button type="button" onClick={() => openAuth("signup")}>
               Start Free Trial
             </button>
-            <button type="button" className="ghost-btn" onClick={() => openAuth("signin")}>
-              Schedule Demo
+            <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
+              Watch Demo
             </button>
           </div>
         </div>
@@ -529,6 +534,20 @@ export function LockstockLanding() {
                 </button>
               </p>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {demoOpen ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Watch Demo">
+          <div className="modal-card landing-demo-card">
+            <div className="title-row">
+              <h4>Watch Demo</h4>
+              <button type="button" className="ghost-btn" onClick={() => setDemoOpen(false)}>
+                Close
+              </button>
+            </div>
+            <video className="landing-demo-video" src={demoHref} controls autoPlay playsInline />
           </div>
         </div>
       ) : null}

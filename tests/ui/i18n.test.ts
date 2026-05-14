@@ -31,6 +31,8 @@ describe("i18n helpers", () => {
     expect(translateText("Material Catalog", "fr")).toBe("Catalogue des materiaux");
     expect(translateText("Purchase Order Lifecycle", "fr")).toBe("Cycle de vie des commandes d'achat");
     expect(translateText("Controlled Collaboration", "fr")).toBe("Collaboration controlee");
+    expect(translateText("Watch Demo", "fr")).toBe("Voir la demo");
+    expect(translateText("Schedule Demo", "fr")).toBe("Voir la demo");
     expect(translateText("Sign In", "en")).toBe("Sign In");
   });
 

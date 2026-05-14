@@ -241,6 +241,179 @@ type NavHref =
   | "/members"
   | "/workflows";
 
+const DEMO_ORG_ID = "00000000-0000-4000-8000-000000000001";
+const DEMO_NOW = "2026-05-14T09:00:00.000Z";
+const DEMO_LOCATIONS: Location[] = [
+  { id: "loc-main", name: "Main Warehouse", code: "MAIN", address: "12 Quai de Lyon, Paris", is_active: true },
+  { id: "loc-north", name: "North Yard", code: "NORTH", address: "Zone B, north loading yard", is_active: true },
+  { id: "loc-rack", name: "Rack B4", code: "B4", address: "Main warehouse aisle B", is_active: true },
+  { id: "loc-overflow", name: "Overflow Storage", code: "OVER", address: "Temporary storage bay", is_active: false }
+];
+const DEMO_MATERIALS: Material[] = [
+  {
+    id: "mat-cement",
+    sku: "MAT-001",
+    name: "Portland Cement",
+    description: "General construction cement.",
+    uom: "BAG",
+    category: "Concrete",
+    subcategory: "Cement",
+    min_stock: 40,
+    is_active: true,
+    total_quantity: 180,
+    primary_location: "MAIN",
+    stock_status: "in-stock",
+    created_at: DEMO_NOW,
+    balances: [{ quantity: 180, location: { code: "MAIN", name: "Main Warehouse" } }]
+  },
+  {
+    id: "mat-rebar",
+    sku: "MAT-024",
+    name: "Rebar 12mm",
+    description: "Steel reinforcement bar.",
+    uom: "EA",
+    category: "Metals",
+    subcategory: "Rebar",
+    min_stock: 25,
+    is_active: true,
+    total_quantity: 9,
+    primary_location: "NORTH",
+    stock_status: "low-stock",
+    created_at: DEMO_NOW,
+    balances: [{ quantity: 9, location: { code: "NORTH", name: "North Yard" } }]
+  },
+  {
+    id: "mat-membrane",
+    sku: "MAT-112",
+    name: "Waterproof Membrane",
+    description: "Roofing and foundation membrane.",
+    uom: "ROLL",
+    category: "Insulation",
+    subcategory: "Membrane",
+    min_stock: 12,
+    is_active: true,
+    total_quantity: 47,
+    primary_location: "B4",
+    stock_status: "in-stock",
+    created_at: DEMO_NOW,
+    balances: [{ quantity: 47, location: { code: "B4", name: "Rack B4" } }]
+  },
+  {
+    id: "mat-anchor",
+    sku: "MAT-230",
+    name: "Anchor Bolt M16",
+    description: "Structural anchor bolt.",
+    uom: "EA",
+    category: "Fasteners",
+    subcategory: "Anchors",
+    min_stock: 30,
+    is_active: true,
+    total_quantity: 0,
+    primary_location: "OVER",
+    stock_status: "out-of-stock",
+    created_at: DEMO_NOW,
+    balances: [{ quantity: 0, location: { code: "OVER", name: "Overflow Storage" } }]
+  }
+];
+const DEMO_SUPPLIERS: Supplier[] = [
+  { id: "sup-acme", vendor_number: 10042, name: "Acme Supply", phone: "+33155400000", address: "8 Rue de Rivoli, Paris", lead_time_days: 5, is_active: true, created_at: DEMO_NOW },
+  { id: "sup-nord", vendor_number: 10057, name: "Nord Steel", phone: "+33155400001", address: "Dock 14, Le Havre", lead_time_days: 9, is_active: true, created_at: DEMO_NOW },
+  { id: "sup-buildchem", vendor_number: 10063, name: "BuildChem", phone: "+33155400002", address: "Chemical park, Lyon", lead_time_days: 3, is_active: true, created_at: DEMO_NOW }
+];
+const DEMO_PURCHASE_ORDERS: PurchaseOrder[] = [
+  {
+    id: "po-1048",
+    po_number: "PO-1048",
+    status: "partial",
+    currency: "EUR",
+    expected_at: "2026-05-17",
+    sent_at: "2026-05-10T10:00:00.000Z",
+    created_at: "2026-05-09T10:00:00.000Z",
+    supplier: { id: "sup-acme", name: "Acme Supply" },
+    lines: [{ id: "line-1048-1", material_id: "mat-rebar", quantity_ordered: 120, quantity_received: 60, unit_price: 68.67 }]
+  },
+  {
+    id: "po-1049",
+    po_number: "PO-1049",
+    status: "sent",
+    currency: "EUR",
+    expected_at: "2026-05-21",
+    sent_at: "2026-05-12T08:00:00.000Z",
+    created_at: "2026-05-11T12:00:00.000Z",
+    supplier: { id: "sup-nord", name: "Nord Steel" },
+    lines: [{ id: "line-1049-1", material_id: "mat-anchor", quantity_ordered: 300, quantity_received: 0, unit_price: 43 }]
+  },
+  {
+    id: "po-1050",
+    po_number: "PO-1050",
+    status: "draft",
+    currency: "USD",
+    expected_at: "2026-05-24",
+    created_at: "2026-05-13T13:00:00.000Z",
+    supplier: { id: "sup-buildchem", name: "BuildChem" },
+    lines: [{ id: "line-1050-1", material_id: "mat-membrane", quantity_ordered: 40, quantity_received: 0, unit_price: 86 }]
+  }
+];
+const DEMO_MOVEMENTS: MaterialMovement[] = [
+  {
+    id: "move-1",
+    quantity_delta: 60,
+    reason: "purchase_receive",
+    note: "Received against PO-1048",
+    created_at: "2026-05-14T08:20:00.000Z",
+    material: { sku: "MAT-024", name: "Rebar 12mm", uom: "EA", category: "Metals" },
+    location: { code: "MAIN", name: "Main Warehouse" }
+  },
+  {
+    id: "move-2",
+    quantity_delta: -24,
+    reason: "transfer_out",
+    note: "Transfer to north yard",
+    created_at: "2026-05-13T16:10:00.000Z",
+    material: { sku: "MAT-024", name: "Rebar 12mm", uom: "EA", category: "Metals" },
+    location: { code: "MAIN", name: "Main Warehouse" }
+  },
+  {
+    id: "move-3",
+    quantity_delta: 24,
+    reason: "transfer_in",
+    note: "Transfer from main warehouse",
+    created_at: "2026-05-13T16:10:00.000Z",
+    material: { sku: "MAT-024", name: "Rebar 12mm", uom: "EA", category: "Metals" },
+    location: { code: "NORTH", name: "North Yard" }
+  },
+  {
+    id: "move-4",
+    quantity_delta: -8,
+    reason: "consumption",
+    note: "Issued to site crew",
+    created_at: "2026-05-12T11:00:00.000Z",
+    material: { sku: "MAT-112", name: "Waterproof Membrane", uom: "ROLL", category: "Insulation" },
+    location: { code: "B4", name: "Rack B4" }
+  }
+];
+const DEMO_ORGANIZATIONS: OrganizationMembership[] = [
+  { role: "owner", organization: { id: DEMO_ORG_ID, name: "Northstar Materials", created_at: "2026-05-01T09:00:00.000Z" } }
+];
+const DEMO_MEMBERS: OrganizationMember[] = [
+  { user_id: "user-ava", email: "ava@northstar.build", full_name: "Ava Laurent", role: "owner", created_at: "2026-05-01T09:00:00.000Z" },
+  { user_id: "user-noah", email: "noah@northstar.build", full_name: "Noah Martin", role: "manager", created_at: "2026-05-03T09:00:00.000Z" },
+  { user_id: "user-mia", email: "mia@northstar.build", full_name: "Mia Bernard", role: "member", created_at: "2026-05-06T09:00:00.000Z" }
+];
+const DEMO_INVITATIONS: PendingInvitation[] = [
+  {
+    id: "invite-1",
+    org_id: DEMO_ORG_ID,
+    direction: "sent",
+    email: "leo@northstar.build",
+    role: "viewer",
+    status: "pending",
+    expires_at: "2026-05-21T09:00:00.000Z",
+    created_at: DEMO_NOW,
+    organization_name: "Northstar Materials"
+  }
+];
+
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/inventory", label: "Inventory", icon: "inventory" },
   { href: "/materials", label: "Materials", icon: "materials" },
@@ -306,6 +479,7 @@ export function LockstockWorkbench() {
   const pathname = usePathname();
   const router = useRouter();
   const { locale } = useLanguage();
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [orgId, setOrgId] = useState("");
@@ -583,11 +757,15 @@ export function LockstockWorkbench() {
   const showSnapshotSection = pathname === "/inventory";
   const contextualWorkflows = useMemo(() => workflowsForPathname(pathname), [pathname]);
   const showSignedOutPanels = shouldShowSignedOutPanels({
-    isAuthenticated: Boolean(signedInAs),
+    isAuthenticated: isDemoMode || Boolean(signedInAs),
     authResolved
   });
-  const showAuthPanel = showSignedOutPanels;
-  const canUseMembersScreen = Boolean(accessToken);
+  const showAuthPanel = !isDemoMode && showSignedOutPanels;
+  const canUseMembersScreen = isDemoMode || Boolean(accessToken);
+
+  useEffect(() => {
+    setIsDemoMode(new URLSearchParams(window.location.search).get("demo") === "1");
+  }, []);
 
   function applySessionState(session: {
     access_token: string;
@@ -627,13 +805,41 @@ export function LockstockWorkbench() {
   }, [accessToken, baseUrl]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setBaseUrl(window.location.origin);
+      setAccessToken("demo-token");
+      setOrgId(DEMO_ORG_ID);
+      setSignedInAs("ava@northstar.build");
+      setSignedInFullName("Ava Laurent");
+      setEmail("ava@northstar.build");
+      setOrganizations(DEMO_ORGANIZATIONS);
+      setOrganizationMembers(DEMO_MEMBERS);
+      setPendingInvitations(DEMO_INVITATIONS);
+      setMaterials(DEMO_MATERIALS);
+      setMaterialMovements(DEMO_MOVEMENTS);
+      setLocations(DEMO_LOCATIONS);
+      setSuppliers(DEMO_SUPPLIERS);
+      setPurchaseOrders(DEMO_PURCHASE_ORDERS);
+      setMaterialTotal(DEMO_MATERIALS.length);
+      setMovementTotal(DEMO_MOVEMENTS.length);
+      setPoTotal(DEMO_PURCHASE_ORDERS.length);
+      setStockHealth({ total_materials: DEMO_MATERIALS.length, total_quantity: 236, out_of_stock: 1, low_stock: 1 });
+      setLowStockCount(2);
+      setAuthResolved(true);
+      setStorageHydrated(true);
+      setMemberInviteRole("viewer");
+      return;
+    }
     setBaseUrl(window.localStorage.getItem(STORAGE_KEYS.baseUrl) ?? window.location.origin);
     setAccessToken(window.localStorage.getItem(STORAGE_KEYS.token) ?? "");
     setOrgId(window.localStorage.getItem(STORAGE_KEYS.orgId) ?? "");
     setStorageHydrated(true);
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
     let unmounted = false;
     let unsubscribe = () => {};
 
@@ -713,9 +919,12 @@ export function LockstockWorkbench() {
       unmounted = true;
       unsubscribe();
     };
-  }, [addActivity, syncPublicProfile]);
+  }, [addActivity, isDemoMode, syncPublicProfile]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
     const redirectPath = getSignedOutRedirectPath({
       pathname,
       isAuthenticated: Boolean(signedInAs),
@@ -725,70 +934,79 @@ export function LockstockWorkbench() {
     if (redirectPath) {
       router.replace(redirectPath);
     }
-  }, [authResolved, pathname, router, signedInAs]);
+  }, [authResolved, isDemoMode, pathname, router, signedInAs]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
     if (baseUrl) {
       window.localStorage.setItem(STORAGE_KEYS.baseUrl, baseUrl);
     }
-  }, [baseUrl]);
+  }, [baseUrl, isDemoMode]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
     if (storageHydrated) {
       window.localStorage.setItem(STORAGE_KEYS.token, accessToken);
     }
-  }, [accessToken, storageHydrated]);
+  }, [accessToken, isDemoMode, storageHydrated]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
     if (storageHydrated) {
       window.localStorage.setItem(STORAGE_KEYS.orgId, orgId);
     }
-  }, [orgId, storageHydrated]);
+  }, [isDemoMode, orgId, storageHydrated]);
 
   // bootstrapOrganizationContext is intentionally excluded to avoid re-bootstrap loops from function identity changes.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (!storageHydrated || !accessToken || !signedInAs || !normalizedBaseUrl) {
+    if (isDemoMode || !storageHydrated || !accessToken || !signedInAs || !normalizedBaseUrl) {
       return;
     }
     void bootstrapOrganizationContext({ tokenOverride: accessToken, announce: false, preferredOrgId: orgId });
-  }, [storageHydrated, accessToken, signedInAs, normalizedBaseUrl, orgId]);
+  }, [storageHydrated, accessToken, signedInAs, normalizedBaseUrl, orgId, isDemoMode]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // loadMaterials is intentionally excluded to avoid dependency churn on function identity.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (!isOrgScopedReady || !normalizedBaseUrl) {
+    if (isDemoMode || !isOrgScopedReady || !normalizedBaseUrl) {
       return;
     }
     void loadMaterials().catch((error) => {
       addActivity(`Loading materials failed: ${(error as Error).message}`);
     });
-  }, [isOrgScopedReady, normalizedBaseUrl, materialFilterQuery, materialCategoryFilter, materialSubcategoryFilter, materialPage]);
+  }, [isDemoMode, isOrgScopedReady, normalizedBaseUrl, materialFilterQuery, materialCategoryFilter, materialSubcategoryFilter, materialPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // loadMaterialMovements is intentionally excluded to avoid dependency churn on function identity.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (!showStockMovementsSection || !isOrgScopedReady || !normalizedBaseUrl) {
+    if (isDemoMode || !showStockMovementsSection || !isOrgScopedReady || !normalizedBaseUrl) {
       return;
     }
     void loadMaterialMovements().catch((error) => {
       addActivity(`Loading material movements failed: ${(error as Error).message}`);
     });
-  }, [showStockMovementsSection, isOrgScopedReady, normalizedBaseUrl, orgId, movementPage]);
+  }, [isDemoMode, showStockMovementsSection, isOrgScopedReady, normalizedBaseUrl, orgId, movementPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // loadPurchaseOrders is intentionally excluded to avoid dependency churn on function identity.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (!isOrgScopedReady || !normalizedBaseUrl) {
+    if (isDemoMode || !isOrgScopedReady || !normalizedBaseUrl) {
       return;
     }
     void loadPurchaseOrders().catch((error) => {
       addActivity(`Loading purchase orders failed: ${(error as Error).message}`);
     });
-  }, [isOrgScopedReady, normalizedBaseUrl, poFilterStatus, poFilterSupplierId, poFilterQuery, poPage]);
+  }, [isDemoMode, isOrgScopedReady, normalizedBaseUrl, poFilterStatus, poFilterSupplierId, poFilterQuery, poPage]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
