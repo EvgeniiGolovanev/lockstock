@@ -24,6 +24,7 @@ export function ContactForm() {
           name: formData.get("name"),
           email: formData.get("email"),
           company: formData.get("company"),
+          website: formData.get("website"),
           message: formData.get("message")
         })
       });
@@ -57,6 +58,11 @@ export function ContactForm() {
       <label className="field">
         <span>Company</span>
         <input name="company" autoComplete="organization" />
+      </label>
+
+      <label className="contact-form-honeypot" aria-hidden="true">
+        <span>Website</span>
+        <input name="website" tabIndex={-1} autoComplete="off" />
       </label>
 
       <label className="field">

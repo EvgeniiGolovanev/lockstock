@@ -2398,6 +2398,14 @@ button:disabled {
   min-height: 11rem;
 }
 
+.contact-form-honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .contact-form button {
   justify-self: start;
 }
