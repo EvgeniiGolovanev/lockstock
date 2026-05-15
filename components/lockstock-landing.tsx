@@ -465,7 +465,7 @@ export function LockstockLanding() {
           <div>
             <h4>Company</h4>
             <a href="/about">About</a>
-            <a href="#benefits">Contact</a>
+            <a href="/contact">Contact</a>
             <a href="#pricing">Privacy Policy</a>
             <a href="#pricing">Terms of Service</a>
           </div>

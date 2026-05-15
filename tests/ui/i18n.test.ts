@@ -39,6 +39,15 @@ describe("i18n helpers", () => {
     expect(translateText("Limits by Plan", "fr")).toBe("Limites par offre");
     expect(translateText("Stock movements / month", "fr")).toBe("Mouvements de stock / mois");
     expect(translateText("Audit CSV export", "fr")).toBe("Export CSV d'audit");
+    expect(translateText("Contact LockStock", "fr")).toBe("Contacter LockStock");
+    expect(translateText("Talk to us about your inventory operations", "fr")).toBe(
+      "Parlez-nous de vos operations d'inventaire"
+    );
+    expect(translateText("Send a note to the team for product questions, onboarding needs, or operational workflow discussions.", "fr")).toBe(
+      "Envoyez un message a l'equipe pour vos questions produit, vos besoins d'accompagnement ou vos discussions sur les workflows operationnels."
+    );
+    expect(translateText("Send Message", "fr")).toBe("Envoyer le message");
+    expect(translateText("Message sent. We will reply by email.", "fr")).toBe("Message envoye. Nous repondrons par email.");
     expect(translateText("Sign In", "en")).toBe("Sign In");
   });
 
