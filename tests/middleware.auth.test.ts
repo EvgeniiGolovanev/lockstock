@@ -38,4 +38,16 @@ describe("API middleware auth", () => {
     expect(response.status).toBe(401);
     expect(body.error).toContain("Invalid or expired");
   });
+
+  it("allows public contact messages without an Authorization header", async () => {
+    const request = new NextRequest("http://localhost:3000/api/contact", {
+      method: "POST"
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(extractBearerToken).not.toHaveBeenCalled();
+    expect(requireAuthenticatedUserId).not.toHaveBeenCalled();
+  });
 });

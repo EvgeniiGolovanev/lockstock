@@ -3,6 +3,7 @@ type SendEmailInput = {
   subject: string;
   text: string;
   html?: string;
+  replyTo?: string;
 };
 
 function requireEnv(name: string): string {
@@ -28,7 +29,8 @@ export async function sendTransactionalEmail(input: SendEmailInput): Promise<voi
       to: [input.to],
       subject: input.subject,
       text: input.text,
-      html: input.html ?? undefined
+      html: input.html ?? undefined,
+      reply_to: input.replyTo ?? undefined
     })
   });
 
