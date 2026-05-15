@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
+import { checkContactRateLimit, getContactRateLimitKey } from "@/lib/api/contact-rate-limit";
 import { sendTransactionalEmail } from "@/lib/api/mailer";
 import { contactMessageSchema } from "@/lib/validators/contact";
 
@@ -21,6 +22,16 @@ function escapeHtml(value: string) {
 export async function POST(request: NextRequest) {
   try {
     const payload = contactMessageSchema.parse(await request.json());
+
+    if (payload.website) {
+      throw new ApiError(400, "Could not send your message.");
+    }
+
+    const rateLimit = checkContactRateLimit(getContactRateLimitKey(request, payload.email));
+    if (!rateLimit.allowed) {
+      throw new ApiError(429, "Too many contact requests. Please try again later.");
+    }
+
     const companyLine = payload.company ? `Company: ${payload.company}\n` : "";
     const text = `Name: ${payload.name}\nEmail: ${payload.email}\n${companyLine}\nMessage:\n${payload.message}`;
     const html = `
