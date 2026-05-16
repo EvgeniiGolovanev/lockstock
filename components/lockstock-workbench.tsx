@@ -185,6 +185,11 @@ type PendingInvitation = {
   organization_name: string;
 };
 
+type PlatformMe = {
+  isPlatformAdmin: boolean;
+  role: "support" | "operator" | "admin" | null;
+};
+
 type PaginationMeta = {
   page: number;
   limit: number;
@@ -587,6 +592,7 @@ export function LockstockWorkbench() {
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [storageHydrated, setStorageHydrated] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
   const [memberInviteRole, setMemberInviteRole] = useState<OrganizationMember["role"] | "">("");
 
@@ -904,6 +910,7 @@ export function LockstockWorkbench() {
           setAccessToken("");
           setSignedInAs("");
           setSignedInFullName("");
+          setIsPlatformAdmin(false);
           clearWorkspaceData();
           setAuthResolved(true);
         }
@@ -935,6 +942,40 @@ export function LockstockWorkbench() {
       router.replace(redirectPath);
     }
   }, [authResolved, isDemoMode, pathname, router, signedInAs]);
+
+  useEffect(() => {
+    if (isDemoMode || !authResolved || !accessToken || !signedInAs || !normalizedBaseUrl) {
+      setIsPlatformAdmin(false);
+      return;
+    }
+
+    let unmounted = false;
+
+    async function loadPlatformAccess() {
+      try {
+        const response = await fetch(`${normalizedBaseUrl}/api/platform/me`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        const payload = (await response.json()) as PlatformMe;
+
+        if (!unmounted) {
+          setIsPlatformAdmin(response.ok && payload.isPlatformAdmin);
+        }
+      } catch {
+        if (!unmounted) {
+          setIsPlatformAdmin(false);
+        }
+      }
+    }
+
+    void loadPlatformAccess();
+
+    return () => {
+      unmounted = true;
+    };
+  }, [accessToken, authResolved, isDemoMode, normalizedBaseUrl, signedInAs]);
 
   useEffect(() => {
     if (isDemoMode) {
@@ -1470,6 +1511,7 @@ export function LockstockWorkbench() {
       setAccessToken("");
       setSignedInAs("");
       setSignedInFullName("");
+      setIsPlatformAdmin(false);
       clearWorkspaceData();
       setAuthResolved(true);
       addActivity("Signed out.");
@@ -2529,9 +2571,14 @@ export function LockstockWorkbench() {
             })}
           </div>
           <div className="shell-user-actions">
-            <LanguageSwitcher />
             {signedInAs ? (
               <>
+                {isPlatformAdmin ? (
+                  <Link href="/platform" className={`nav-link ${pathname === "/platform" ? "nav-link-active" : ""}`}>
+                    Platform
+                  </Link>
+                ) : null}
+                <LanguageSwitcher />
                 <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
                   Account
                 </Link>
@@ -2540,9 +2587,12 @@ export function LockstockWorkbench() {
                 </button>
               </>
             ) : (
-              <Link href="/" className="nav-link">
-                Sign In
-              </Link>
+              <>
+                <Link href="/" className="nav-link">
+                  Sign In
+                </Link>
+                <LanguageSwitcher />
+              </>
             )}
           </div>
         </div>
