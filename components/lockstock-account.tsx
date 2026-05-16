@@ -33,6 +33,11 @@ type OrganizationMembership = {
   };
 };
 
+type PlatformMe = {
+  isPlatformAdmin: boolean;
+  role: "support" | "operator" | "admin" | null;
+};
+
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
   { href: "/inventory", label: "Inventory", icon: "inventory" },
   { href: "/materials", label: "Materials", icon: "materials" },
@@ -86,6 +91,7 @@ export function LockstockAccount() {
   const [accessToken, setAccessToken] = useState("");
   const [activeOrgId, setActiveOrgId] = useState("");
   const [activeOrgRole, setActiveOrgRole] = useState<OrgRole | "">("");
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [auditStatus, setAuditStatus] = useState("");
   const [auditExportFrom, setAuditExportFrom] = useState(daysAgoDateInputValue(7));
@@ -177,6 +183,7 @@ export function LockstockAccount() {
           setAccessToken("");
           setActiveOrgId("");
           setActiveOrgRole("");
+          setIsPlatformAdmin(false);
           setAuditLog([]);
           setAccountEmail("");
           setAccountFullName("");
@@ -254,6 +261,40 @@ export function LockstockAccount() {
 
     void loadAuditContext();
   }, [accessToken, activeOrgId]);
+
+  useEffect(() => {
+    if (!authResolved || !accessToken || !signedInAs) {
+      setIsPlatformAdmin(false);
+      return;
+    }
+
+    let unmounted = false;
+
+    async function loadPlatformAccess() {
+      try {
+        const response = await fetch("/api/platform/me", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        const payload = (await response.json()) as PlatformMe;
+
+        if (!unmounted) {
+          setIsPlatformAdmin(response.ok && payload.isPlatformAdmin);
+        }
+      } catch {
+        if (!unmounted) {
+          setIsPlatformAdmin(false);
+        }
+      }
+    }
+
+    void loadPlatformAccess();
+
+    return () => {
+      unmounted = true;
+    };
+  }, [accessToken, authResolved, signedInAs]);
 
   useEffect(() => {
     const redirectPath = getSignedOutRedirectPath({
@@ -444,9 +485,14 @@ export function LockstockAccount() {
             })}
           </div>
           <div className="shell-user-actions">
-            <LanguageSwitcher />
             {signedInAs ? (
               <>
+                {isPlatformAdmin ? (
+                  <Link href="/platform" className={`nav-link ${pathname === "/platform" ? "nav-link-active" : ""}`}>
+                    Platform
+                  </Link>
+                ) : null}
+                <LanguageSwitcher />
                 <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
                   Account
                 </Link>
@@ -455,9 +501,12 @@ export function LockstockAccount() {
                 </button>
               </>
             ) : (
-              <Link href="/" className="nav-link">
-                Sign In
-              </Link>
+              <>
+                <Link href="/" className="nav-link">
+                  Sign In
+                </Link>
+                <LanguageSwitcher />
+              </>
             )}
           </div>
         </div>
