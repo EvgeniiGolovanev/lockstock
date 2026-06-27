@@ -27,12 +27,27 @@ Email integration vars:
 - `RESEND_API_KEY`: API key for sending organization invitation emails.
 - `EMAIL_FROM`: sender identity used by invitation emails (must be a verified domain in your provider).
 
-3. Apply SQL migrations in order:
+3. Start the local Supabase stack:
+
+```bash
+supabase start
+```
+
+The repository uses ports outside common Windows-managed ranges:
+
+- API: `http://127.0.0.1:55321`
+- Database: `postgresql://postgres:postgres@127.0.0.1:55322/postgres`
+- Studio: `http://127.0.0.1:55323`
+
+Set `NEXT_PUBLIC_SUPABASE_URL` to the local API URL and use the keys from
+`supabase status` in `.env.local`.
+
+4. Apply SQL migrations in order:
    - `supabase/migrations/202602231350_init.sql`
    - `supabase/migrations/202602232210_user_scoped_org_bootstrap.sql`
    - `supabase/migrations/202602240110_fix_is_org_member_rls.sql`
 
-4. Run development server:
+5. Run development server:
 
 ```bash
 npm run dev
