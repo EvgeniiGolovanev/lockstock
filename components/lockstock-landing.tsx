@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -295,6 +296,7 @@ export function LockstockLanding() {
             <a href="#features">Features</a>
             <a href="#benefits">Benefits</a>
             <a href="/pricing">Pricing</a>
+            <Link href="/france-pme">PME France</Link>
           </nav>
           <div className="landing-actions">
             <LanguageSwitcher />
@@ -461,6 +463,7 @@ export function LockstockLanding() {
             <a href="#features">Features</a>
             <a href="#benefits">Benefits</a>
             <a href="/pricing">Pricing</a>
+            <Link href="/france-pme">PME France</Link>
           </div>
           <div>
             <h4>Company</h4>
