@@ -3089,6 +3089,317 @@ button:disabled {
   border-bottom: none;
 }
 
+.france-campaign-main {
+  background:
+    linear-gradient(rgba(17, 17, 17, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.035) 1px, transparent 1px),
+    var(--landing-paper);
+  background-size: 28px 28px;
+}
+
+.france-campaign-header .landing-nav {
+  flex: 1 1 auto;
+}
+
+.france-campaign-header .landing-actions {
+  flex: 0 0 auto;
+}
+
+.france-hero {
+  padding: clamp(3rem, 7vw, 6.5rem) 0 clamp(2.8rem, 6vw, 5rem);
+  border-bottom: 2px solid var(--landing-black);
+}
+
+.france-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.58fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: center;
+}
+
+.france-hero h1 {
+  max-width: 13ch;
+  color: var(--landing-black);
+  font-size: clamp(3.1rem, 8vw, 6.6rem);
+  font-weight: 1000;
+  line-height: 0.88;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.france-hero-copy {
+  max-width: 42rem;
+  margin: 1.25rem 0 0;
+  color: #3f3933;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 750;
+}
+
+.france-primary-link {
+  background: var(--landing-orange) !important;
+  border-color: var(--landing-orange) !important;
+  color: var(--landing-black) !important;
+}
+
+.france-command-board {
+  display: grid;
+  gap: 1rem;
+  border: 2px solid var(--landing-black);
+  background: var(--landing-surface);
+  box-shadow: 10px 10px 0 rgba(17, 17, 17, 0.12);
+  padding: clamp(1rem, 2.5vw, 1.4rem);
+}
+
+.france-command-board span,
+.france-command-board dt {
+  color: var(--landing-orange);
+  font-size: 0.72rem;
+  font-weight: 1000;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.france-command-board strong {
+  display: block;
+  color: var(--landing-black);
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.france-command-board dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.france-command-board div {
+  border-top: 1px solid var(--landing-line);
+  padding-top: 0.75rem;
+}
+
+.france-command-board dd,
+.france-command-board p {
+  margin: 0.2rem 0 0;
+  color: var(--landing-muted);
+  font-weight: 750;
+}
+
+.france-segment-grid,
+.france-channel-grid,
+.france-sequence-grid,
+.france-checklist-grid,
+.france-case-study-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.france-segment-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.france-channel-grid,
+.france-sequence-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.france-checklist-grid,
+.france-case-study-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.france-segment-card,
+.france-channel-card,
+.france-sequence-card,
+.france-checklist-card,
+.france-case-study-card,
+.france-usecase-list article,
+.france-measurement-panel {
+  border: 2px solid var(--landing-black);
+  background: var(--landing-surface);
+  padding: 1rem;
+}
+
+.france-segment-card {
+  display: flex;
+  min-height: 25rem;
+  flex-direction: column;
+}
+
+.france-segment-card h3,
+.france-channel-card h3,
+.france-sequence-card h3,
+.france-checklist-card h2,
+.france-case-study-card h3,
+.france-usecase-list h3,
+.france-measurement-panel h2 {
+  color: var(--landing-black);
+  font-weight: 1000;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.france-segment-card p,
+.france-channel-card p,
+.france-sequence-card p,
+.france-checklist-card li,
+.france-case-study-card p,
+.france-usecase-list p,
+.france-measurement-panel p,
+.france-measurement-panel li {
+  color: var(--landing-muted);
+  font-weight: 700;
+}
+
+.france-segment-card ul,
+.france-channel-card ol,
+.france-checklist-card ol,
+.france-measurement-panel ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.france-segment-card .ghost-btn {
+  width: fit-content;
+  margin-top: auto;
+}
+
+.france-two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+  gap: clamp(1.2rem, 4vw, 3rem);
+  align-items: start;
+}
+
+.france-two-column h2 {
+  color: var(--landing-black);
+  font-size: clamp(2.1rem, 5vw, 4rem);
+  font-weight: 1000;
+  line-height: 0.9;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.france-two-column > div > p:not(.about-eyebrow) {
+  color: var(--landing-muted);
+  font-weight: 750;
+}
+
+.france-usecase-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.france-usecase-list small,
+.france-keyword-list li,
+.france-metric-strip span {
+  color: var(--landing-black);
+  font-size: 0.72rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.france-keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.france-keyword-list li,
+.france-metric-strip span {
+  border: 2px solid var(--landing-black);
+  background: #fff0e7;
+  padding: 0.45rem 0.55rem;
+}
+
+.france-outcome-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.france-outcome-panel article {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  border: 2px solid var(--landing-black);
+  background: var(--landing-surface);
+  padding: 0.85rem;
+}
+
+.france-outcome-panel span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--landing-orange);
+  color: var(--landing-black);
+  font-weight: 1000;
+}
+
+.france-outcome-panel p {
+  margin: 0;
+  color: var(--landing-muted);
+  font-weight: 800;
+}
+
+.france-email-step {
+  border-top: 1px solid var(--landing-line);
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+}
+
+.france-email-step strong {
+  color: var(--landing-black);
+  font-weight: 1000;
+}
+
+.france-metric-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.france-checklist-card ol {
+  padding-left: 1.35rem;
+}
+
+@media (max-width: 980px) {
+  .france-hero-grid,
+  .france-two-column,
+  .france-segment-grid,
+  .france-channel-grid,
+  .france-sequence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .france-checklist-grid,
+  .france-case-study-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .france-hero h1 {
+    font-size: clamp(2.4rem, 16vw, 4.4rem);
+  }
+
+  .france-checklist-grid,
+  .france-case-study-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .landing-auth-form {
   gap: 0.65rem;
 }
