@@ -12,6 +12,13 @@ export type AccountMetadataPayload = {
   job_title: string | null;
 };
 
+type AccountOrganizationMembership = {
+  role: string;
+  organization: {
+    id: string;
+  };
+};
+
 function toTrimmedOrNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
@@ -29,6 +36,20 @@ export function buildAccountMetadata(input: AccountMetadataInput): AccountMetada
 export function metadataValue(metadata: Record<string, unknown> | null | undefined, key: string): string {
   const value = metadata?.[key];
   return typeof value === "string" ? value : "";
+}
+
+export function chooseInitialAccountOrganizationId(
+  storedOrgId: string | null | undefined,
+  memberships: AccountOrganizationMembership[]
+): string {
+  const stored = storedOrgId?.trim();
+  if (stored && memberships.some((membership) => membership.organization.id === stored)) {
+    return stored;
+  }
+
+  return memberships.find((membership) => membership.role === "owner")?.organization.id
+    ?? memberships[0]?.organization.id
+    ?? "";
 }
 
 export function validatePasswordChange(newPassword: string, confirmPassword: string): string | null {

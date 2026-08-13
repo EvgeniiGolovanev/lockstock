@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { GET } from "@/app/api/audit-log/route";
 import { ApiError } from "@/lib/api/errors";
 import { hasMinRole, requireMinRole, requireRequestContext } from "@/lib/api/route-context";
+import { resolveEntitlements } from "@/lib/billing/entitlements";
 
 vi.mock("@/lib/api/route-context", () => ({
   requireRequestContext: vi.fn(),
@@ -11,6 +12,18 @@ vi.mock("@/lib/api/route-context", () => ({
 }));
 
 const orgId = "11111111-1111-4111-8111-111111111111";
+const operationsEntitlements = resolveEntitlements({
+  plan: "operations",
+  status: "active",
+  trialEndsAt: null,
+  currentPeriodEnd: null
+});
+const starterEntitlements = resolveEntitlements({
+  plan: "starter",
+  status: "active",
+  trialEndsAt: null,
+  currentPeriodEnd: null
+});
 
 function createAuditListSupabase() {
   const query = {
@@ -93,6 +106,7 @@ describe("GET /api/audit-log", () => {
       orgId,
       userId: "user-1",
       role: "member",
+      entitlements: starterEntitlements,
       supabase
     } as never);
 
@@ -114,6 +128,7 @@ describe("GET /api/audit-log", () => {
       orgId,
       userId: "user-1",
       role: "viewer",
+      entitlements: operationsEntitlements,
       supabase
     } as never);
 
@@ -133,6 +148,7 @@ describe("GET /api/audit-log", () => {
       orgId,
       userId: "user-1",
       role: "member",
+      entitlements: operationsEntitlements,
       supabase
     } as never);
 
@@ -151,6 +167,7 @@ describe("GET /api/audit-log", () => {
       orgId,
       userId: "user-1",
       role: "manager",
+      entitlements: operationsEntitlements,
       supabase
     } as never);
 

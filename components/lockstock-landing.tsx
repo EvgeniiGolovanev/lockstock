@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { buildSignUpPayload } from "@/lib/auth/signup";
+import { buildPostSignUpPath, buildSignUpPayload, rememberPostSignUpWorkspace } from "@/lib/auth/signup";
 import { demoVideoHref } from "@/lib/ui/demo-video";
 
 type AuthMode = "signin" | "signup";
+type SelectedPlan = "starter" | "operations" | "business" | "enterprise";
 
 const FEATURES = [
   {
@@ -157,6 +158,8 @@ export function LockstockLanding() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<SelectedPlan>("starter");
+  const [onboardingMode, setOnboardingMode] = useState<"trial" | "paid">("trial");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -165,6 +168,16 @@ export function LockstockLanding() {
     () => (authMode === "signin" ? "Welcome back" : "Create your account"),
     [authMode]
   );
+
+  useEffect(() => {
+    const requestedPlan = new URLSearchParams(window.location.search).get("plan");
+    if (["starter", "operations", "business", "enterprise"].includes(requestedPlan ?? "")) {
+      setSelectedPlan(requestedPlan as SelectedPlan);
+      setOnboardingMode("paid");
+      setAuthMode("signup");
+      setAuthOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     let unmounted = false;
@@ -241,6 +254,8 @@ export function LockstockLanding() {
           password,
           fullName,
           company,
+          selectedPlan,
+          onboardingMode,
           appOrigin: window.location.origin
         })
       );
@@ -248,14 +263,22 @@ export function LockstockLanding() {
         throw signUpError;
       }
 
-      if (data.session) {
-        setAuthOpen(false);
-        router.push("/inventory");
-        return;
+      if (onboardingMode === "trial" && data.session?.access_token) {
+        const response = await fetch("/api/billing/start-trial", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${data.session.access_token}`
+          }
+        });
+        const payload = await response.json().catch(() => ({ error: "Failed to start trial." }));
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Failed to start trial.");
+        }
+        rememberPostSignUpWorkspace(window.localStorage, payload.data?.orgId);
       }
 
-      setMessage("Account created. Check your email to confirm, then sign in.");
-      setAuthMode("signin");
+      setAuthOpen(false);
+      router.push(buildPostSignUpPath({ onboardingMode, selectedPlan }));
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
@@ -344,7 +367,7 @@ export function LockstockLanding() {
 
             <ul className="landing-checks">
               <li>No credit card required</li>
-              <li>14-day free trial</li>
+              <li>15-day free trial</li>
               <li>Cancel anytime</li>
             </ul>
           </div>
@@ -497,6 +520,21 @@ export function LockstockLanding() {
                     <span>Company Name</span>
                     <input value={company} onChange={(event) => setCompany(event.target.value)} required />
                   </label>
+                  <label className="field">
+                    <span>Start with</span>
+                    <select value={onboardingMode} onChange={(event) => setOnboardingMode(event.target.value as "trial" | "paid")}>
+                      <option value="trial">15-day Starter trial</option>
+                      <option value="paid">Paid plan</option>
+                    </select>
+                  </label>
+                  {onboardingMode === "paid" ? <label className="field">
+                    <span>Preferred plan</span>
+                    <select value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as SelectedPlan)}>
+                      <option value="starter">Starter</option>
+                      <option value="operations">Operations</option>
+                      <option value="business">Business</option>
+                    </select>
+                  </label> : null}
                 </div>
               ) : null}
 
@@ -525,7 +563,7 @@ export function LockstockLanding() {
               </button>
 
               <p className="landing-auth-switch">
-                {authMode === "signup" ? "Already have an account? " : "Don&apos;t have an account? "}
+                {authMode === "signup" ? "Already have an account? " : "Don't have an account? "}
                 <button
                   type="button"
                   className="ghost-btn"

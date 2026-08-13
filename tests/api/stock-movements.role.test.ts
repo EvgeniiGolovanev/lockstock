@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+vi.mock("@/lib/billing/server", () => ({ getOrganizationEntitlements: vi.fn().mockResolvedValue({ isReadOnly: false }) }));
 import { POST } from "@/app/api/stock/movements/route";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";

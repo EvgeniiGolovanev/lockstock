@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 const plans = [
   {
+    id: "starter",
     name: "Starter",
     price: "EUR 49",
     annual: "EUR 39/mo, billed annually",
@@ -17,6 +18,7 @@ const plans = [
     features: ["3 users included", "3 stock locations", "500 materials/SKUs", "50 purchase orders per month"]
   },
   {
+    id: "operations",
     name: "Operations",
     price: "EUR 109",
     annual: "EUR 89/mo, billed annually",
@@ -25,6 +27,7 @@ const plans = [
     features: ["8 users included", "Unlimited locations", "5,000 materials/SKUs", "Audit CSV export"]
   },
   {
+    id: "business",
     name: "Business",
     price: "EUR 219",
     annual: "EUR 179/mo, billed annually",
@@ -33,6 +36,7 @@ const plans = [
     features: ["20 users included", "3 workspaces", "25,000 materials/SKUs", "Onboarding session"]
   },
   {
+    id: "enterprise",
     name: "Enterprise",
     price: "Custom",
     annual: "Annual contract",
@@ -122,14 +126,14 @@ export default function PricingPage() {
                   {plan.price}
                   {plan.price !== "Custom" ? <span>/mo excl. VAT</span> : null}
                 </div>
-                <div className="pricing-plan-annual">{plan.annual}</div>
+                <div className="pricing-plan-annual">{plan.annual}{plan.id !== "enterprise" ? " · charged upfront" : ""}</div>
                 <ul>
                   {plan.features.map((feature) => (
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-                <Link className="ghost-btn" href="/">
-                  Start trial
+                <Link className="ghost-btn" href={plan.id === "enterprise" ? "/contact" : `/payment?onboarding=paid&plan=${plan.id}`}>
+                  {plan.id === "enterprise" ? "Contact sales" : "Choose plan"}
                 </Link>
               </article>
             ))}

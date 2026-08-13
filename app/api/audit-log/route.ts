@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { hasMinRole, requireMinRole, requireRequestContext } from "@/lib/api/route-context";
+import { requireFeature } from "@/lib/billing/entitlements";
 
 const LATEST_LIMIT = 20;
 const MAX_EXPORT_DAYS = 366;
@@ -62,11 +63,12 @@ function toCsv(rows: AuditLogRow[]) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { orgId, userId, role, supabase } = await requireRequestContext(request);
+    const { orgId, userId, role, entitlements, supabase } = await requireRequestContext(request);
     const format = request.nextUrl.searchParams.get("format");
 
     if (format === "csv") {
       requireMinRole(role, "member");
+      requireFeature(entitlements, "auditCsvExport");
 
       const fromValue = request.nextUrl.searchParams.get("from");
       const toValue = request.nextUrl.searchParams.get("to");
@@ -79,8 +81,9 @@ export async function GET(request: NextRequest) {
       }
 
       const days = (toEnd.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000);
-      if (days > MAX_EXPORT_DAYS) {
-        throw new ApiError(400, `Export range cannot exceed ${MAX_EXPORT_DAYS} days.`);
+      const exportDayLimit = Math.min(MAX_EXPORT_DAYS, entitlements.limits.auditExportDays);
+      if (days > exportDayLimit) {
+        throw new ApiError(400, `Export range cannot exceed ${exportDayLimit} days.`);
       }
 
       let query = supabase
@@ -88,7 +91,7 @@ export async function GET(request: NextRequest) {
         .select("created_at,actor_user_id,action,entity_type,entity_id,entity_label,message,metadata")
         .eq("org_id", orgId);
 
-      if (!hasMinRole(role, "manager")) {
+      if (!entitlements.features.organizationAuditLog || !hasMinRole(role, "manager")) {
         query = query.eq("actor_user_id", userId);
       }
 
@@ -115,7 +118,7 @@ export async function GET(request: NextRequest) {
       .select("*", { count: "exact" })
       .eq("org_id", orgId);
 
-    if (!hasMinRole(role, "manager")) {
+    if (!entitlements.features.organizationAuditLog || !hasMinRole(role, "manager")) {
       query = query.eq("actor_user_id", userId);
     }
 

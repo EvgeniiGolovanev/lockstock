@@ -11,6 +11,12 @@ export const platformRoleRank = {
 
 export type PlatformRole = keyof typeof platformRoleRank;
 
+export function requirePlatformMinRole(currentRole: PlatformRole, minimumRole: PlatformRole) {
+  if (platformRoleRank[currentRole] < platformRoleRank[minimumRole]) {
+    throw new ApiError(403, `This action requires platform ${minimumRole} access.`);
+  }
+}
+
 export type PlatformAdminContext = {
   userId: string;
   role: PlatformRole;

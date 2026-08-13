@@ -130,7 +130,7 @@ const FR_TRANSLATIONS: Record<string, string> = {
   "Start Free Trial": "Demarrer l'essai gratuit",
   "Watch Demo": "Voir la demo",
   "No credit card required": "Aucune carte bancaire requise",
-  "14-day free trial": "Essai gratuit de 14 jours",
+  "15-day free trial": "Essai gratuit de 15 jours",
   "Cancel anytime": "Annulez a tout moment",
   "Everything You Need to Manage Inventory": "Tout ce dont vous avez besoin pour gerer vos stocks",
   "Powerful features designed to streamline operations and boost efficiency.":

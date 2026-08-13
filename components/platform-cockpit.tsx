@@ -73,6 +73,14 @@ function formatDateTime(value: string | null) {
   }).format(new Date(value));
 }
 
+function dateTimeLocalValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 function titleCase(value: string) {
   return value
     .split("_")
@@ -111,10 +119,12 @@ export function PlatformCockpit() {
   const [session, setSession] = useState<Session | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean | null>(null);
+  const [platformRole, setPlatformRole] = useState<"support" | "operator" | "admin" | null>(null);
   const [query, setQuery] = useState("");
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [trialDrafts, setTrialDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let unmounted = false;
@@ -182,10 +192,11 @@ export function PlatformCockpit() {
       try {
         const request = buildPlatformMeRequest(session?.access_token ?? "");
         const response = await fetch(request.url, { headers: request.headers });
-        const payload = (await response.json()) as { isPlatformAdmin?: boolean };
+        const payload = (await response.json()) as { isPlatformAdmin?: boolean; role?: "support" | "operator" | "admin" | null };
 
         if (!unmounted) {
           setIsPlatformAdmin(response.ok && payload.isPlatformAdmin === true);
+          setPlatformRole(payload.role ?? null);
         }
       } catch (accessError) {
         if (!unmounted) {
@@ -231,6 +242,11 @@ export function PlatformCockpit() {
       }
 
       setOverview(payload as PlatformOverview);
+      setTrialDrafts(
+        Object.fromEntries(
+          (payload as PlatformOverview).tenants.map((tenant) => [tenant.id, dateTimeLocalValue(tenant.trialEndsAt)])
+        )
+      );
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load platform overview.");
       setOverview(null);
@@ -238,6 +254,27 @@ export function PlatformCockpit() {
       setBusy(false);
     }
   }, [isPlatformAdmin, query, session]);
+
+  const updateTrialEnd = useCallback(async (tenantId: string) => {
+    const draft = trialDrafts[tenantId];
+    if (!session?.access_token || !draft) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/platform/organizations/${tenantId}/billing`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+        body: JSON.stringify({ trialEndsAt: new Date(draft).toISOString() })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Failed to update trial end date.");
+      await loadOverview();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Failed to update trial end date.");
+    } finally {
+      setBusy(false);
+    }
+  }, [loadOverview, session?.access_token, trialDrafts]);
 
   useEffect(() => {
     if (authResolved && session?.access_token && isPlatformAdmin === true) {
@@ -372,6 +409,7 @@ export function PlatformCockpit() {
                   <th>Movements</th>
                   <th>Open POs</th>
                   <th>Last activity</th>
+                  {platformRole === "admin" ? <th>Trial control</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -395,11 +433,24 @@ export function PlatformCockpit() {
                     <td>{formatInteger(tenant.stockMovements)}</td>
                     <td>{formatInteger(tenant.openPurchaseOrders)}</td>
                     <td>{formatDateTime(tenant.lastActivityAt)}</td>
+                    {platformRole === "admin" ? (
+                      <td>
+                        <input
+                          type="datetime-local"
+                          value={trialDrafts[tenant.id] ?? ""}
+                          onChange={(event) => setTrialDrafts((current) => ({ ...current, [tenant.id]: event.target.value }))}
+                          aria-label={`Trial end for ${tenant.name}`}
+                        />
+                        <button type="button" disabled={busy || !trialDrafts[tenant.id]} onClick={() => void updateTrialEnd(tenant.id)}>
+                          Save
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
                 {overview && overview.tenants.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>No tenants match the current search.</td>
+                    <td colSpan={platformRole === "admin" ? 10 : 9}>No tenants match the current search.</td>
                   </tr>
                 ) : null}
               </tbody>

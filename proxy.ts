@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
-const PUBLIC_API_PATHS = new Set(["/api/health", "/api/contact"]);
+const PUBLIC_API_PATHS = new Set(["/api/health", "/api/contact", "/api/billing/webhook"]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

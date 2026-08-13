@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
+import { requireWithinPlanLimit } from "@/lib/billing/entitlements";
 
 type ParsedCsvRow = {
   sku: string;
@@ -43,11 +44,12 @@ function parseCsv(input: string): ParsedCsvRow[] {
 
 export async function POST(request: NextRequest) {
   try {
-    const { orgId, userId, role, supabase } = await requireRequestContext(request);
+    const { orgId, userId, role, entitlements, supabase } = await requireRequestContext(request);
     requireMinRole(role, "manager");
 
     const csv = await request.text();
     const parsed = parseCsv(csv);
+    requireWithinPlanLimit(entitlements, "csvImportRows", 0, parsed.length);
 
     const rows = parsed.map((item) => ({
       org_id: orgId,

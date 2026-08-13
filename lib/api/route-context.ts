@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
+import { getOrganizationEntitlements } from "@/lib/billing/server";
+import { requireWorkspaceWriteAccess, type PlanEntitlements } from "@/lib/billing/entitlements";
 
 export const roleRank = {
   viewer: 0,
@@ -18,6 +20,7 @@ export type RequestContext = {
   orgId: string;
   userId: string;
   role: Role;
+  entitlements: PlanEntitlements;
   supabase: ReturnType<typeof getSupabaseUserClient>;
 };
 
@@ -57,7 +60,12 @@ export async function requireRequestContext(request: NextRequest): Promise<Reque
 
   const role = data.role as Role;
 
-  return { orgId, userId, role, supabase };
+  const entitlements = await getOrganizationEntitlements(orgId);
+  if (!["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase())) {
+    requireWorkspaceWriteAccess(entitlements);
+  }
+
+  return { orgId, userId, role, entitlements, supabase };
 }
 
 export function requireMinRole(currentRole: Role, minimumRole: Role) {

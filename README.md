@@ -6,6 +6,7 @@ Starter scaffold for LockStock, a material stock management web application buil
 
 - Next.js (App Router, TypeScript)
 - Supabase (Postgres + Auth + RPC)
+- Stripe Billing, Checkout, Tax, and Customer Portal
 - Zod for request validation
 
 ## Quick Start
@@ -26,6 +27,9 @@ Email integration vars:
 
 - `RESEND_API_KEY`: API key for sending organization invitation emails.
 - `EMAIL_FROM`: sender identity used by invitation emails (must be a verified domain in your provider).
+
+Stripe billing requires the server keys and six recurring Price IDs documented
+in [`docs/billing-setup.md`](docs/billing-setup.md).
 
 3. Start the local Supabase stack:
 
@@ -82,7 +86,8 @@ curl -X POST http://localhost:3000/api/organizations \
   -d "{\"name\":\"Demo Org\"}"
 ```
 
-Account signup uses Supabase Auth email confirmation with redirect back to `/account`.
+Account signup uses Supabase Auth email confirmation with redirect to `/payment`.
+Users can then start a 15-day Starter trial or purchase a monthly or annual plan.
 
 ## Implemented Endpoints
 
@@ -112,6 +117,15 @@ Account signup uses Supabase Auth email confirmation with redirect back to `/acc
 - `POST /api/import/materials-csv` (CSV body; columns: `sku,name,uom,min_stock`)
 - `GET /api/alerts/low-stock`
 - `GET /api/reports/stock-health`
+- `GET /api/billing/summary`
+- `POST /api/billing/checkout-session`
+- `POST /api/billing/start-trial`
+- `POST /api/billing/change-preview`
+- `POST /api/billing/change`
+- `POST /api/billing/cancel`
+- `POST /api/billing/reactivate`
+- `POST /api/billing/portal-session`
+- `POST /api/billing/webhook` (Stripe signature required)
 
 List endpoint query params:
 
@@ -159,16 +173,42 @@ Run API integration-style tests for `401` auth and `403` role enforcement:
 npm run test:api
 ```
 
+## Verification
+
+Run the application verification contract locally with:
+
+```bash
+npm run verify
+```
+
+This runs typecheck, lint, the Vitest suite, and a production build in the same
+order used by CI. Each command remains individually callable.
+
+Database authorization tests require Docker and Supabase CLI `2.98.2` or newer:
+
+```bash
+npm run test:db
+```
+
+The database command copies the local Supabase project into a temporary
+directory, assigns a unique local project ID and free database port, resets it
+from all migrations, seeds it, runs the pgTAP RLS/RPC assertions, and removes
+the temporary containers and volume. It always uses `--local`; it does not use
+or modify a linked Supabase project or an already-running development stack.
+
 ## CI Pipeline Gates
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
 
-It enforces, in order:
+The application job runs `npm run verify`, which enforces, in order:
 
 1. `npm run typecheck`
 2. `npm run lint`
 3. `npm run test:api`
 4. `npm run build`
+
+The database job separately runs the same `npm run test:db` command documented
+above against a disposable local Supabase project.
 
 On pushes to `main`, it also runs a linked-database migration drift gate and fails if the remote DB is missing any local migration in `supabase/migrations`.
 

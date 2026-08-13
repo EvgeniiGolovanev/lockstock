@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
+import { buildAccountMetadata, chooseInitialAccountOrganizationId, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 
 describe("account helpers", () => {
   it("builds auth metadata payload with trimmed values", () => {
@@ -45,5 +45,17 @@ describe("account helpers", () => {
     expect(metadataValue({ full_name: "Alex" }, "full_name")).toBe("Alex");
     expect(metadataValue({ full_name: 42 }, "full_name")).toBe("");
     expect(metadataValue(null, "full_name")).toBe("");
+  });
+
+  it("keeps a valid stored account organization and otherwise falls back to the first membership", () => {
+    const memberships = [
+      { role: "member", organization: { id: "org_a" } },
+      { role: "owner", organization: { id: "org_b" } }
+    ];
+
+    expect(chooseInitialAccountOrganizationId("org_b", memberships)).toBe("org_b");
+    expect(chooseInitialAccountOrganizationId("", memberships)).toBe("org_b");
+    expect(chooseInitialAccountOrganizationId("missing", memberships)).toBe("org_b");
+    expect(chooseInitialAccountOrganizationId("", [])).toBe("");
   });
 });

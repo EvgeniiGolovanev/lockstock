@@ -493,6 +493,7 @@ export function LockstockWorkbench() {
   const [signedInAs, setSignedInAs] = useState("");
   const { addActivity } = useActivityLog(signedInAs || email);
   const [signedInFullName, setSignedInFullName] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<"starter" | "operations" | "business" | "enterprise">("starter");
   const [renamingOrgId, setRenamingOrgId] = useState("");
   const [renameOrgName, setRenameOrgName] = useState("");
 
@@ -779,9 +780,13 @@ export function LockstockWorkbench() {
   }) {
     const fullName =
       typeof session.user.user_metadata?.full_name === "string" ? session.user.user_metadata.full_name.trim() : "";
+    const metadataPlan = session.user.user_metadata?.selected_plan;
     setAccessToken(session.access_token || "");
     setSignedInAs(session.user.email ?? "");
     setSignedInFullName(fullName);
+    if (["starter", "operations", "business", "enterprise"].includes(String(metadataPlan))) {
+      setSelectedPlan(metadataPlan as "starter" | "operations" | "business" | "enterprise");
+    }
     setEmail(session.user.email ?? "");
   }
 
@@ -1666,7 +1671,7 @@ export function LockstockWorkbench() {
           method: "POST",
           requireOrg: false,
           tokenOverride: effectiveToken,
-          body: { name: defaultOrgName }
+          body: { name: defaultOrgName, plan: selectedPlan }
         });
         addActivity(`Created default group "${defaultOrgName}".`);
         organizationsResult = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {

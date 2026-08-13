@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
     const payload = createOrganizationSchema.parse(await request.json());
 
     const { data: org, error: orgError } = await supabase.rpc("create_organization_with_owner", {
-      p_name: payload.name
+      p_name: payload.name,
+      p_plan: payload.plan
     });
 
     if (orgError) {

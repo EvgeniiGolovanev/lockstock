@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
-import { buildAccountMetadata, metadataValue, validatePasswordChange } from "@/lib/auth/account";
+import { buildAccountMetadata, chooseInitialAccountOrganizationId, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { summarizeAuditMetadata } from "@/lib/ui/audit-log";
@@ -36,6 +36,20 @@ type OrganizationMembership = {
 type PlatformMe = {
   isPlatformAdmin: boolean;
   role: "support" | "operator" | "admin" | null;
+};
+
+type BillingSummary = {
+  plan: string;
+  status: string;
+  billing_interval: string;
+  current_period_end: string | null;
+  trial_ends_at: string | null;
+  past_due_since: string | null;
+  cancel_at_period_end: boolean;
+  stripe_subscription_id: string | null;
+  scheduled_plan: string | null;
+  scheduled_interval: string | null;
+  scheduled_effective_at: string | null;
 };
 
 const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
@@ -91,6 +105,13 @@ export function LockstockAccount() {
   const [accessToken, setAccessToken] = useState("");
   const [activeOrgId, setActiveOrgId] = useState("");
   const [activeOrgRole, setActiveOrgRole] = useState<OrgRole | "">("");
+  const [planAccess, setPlanAccess] = useState<{
+    selectedPlan: string;
+    effectivePlan: string;
+    isReadOnly: boolean;
+    canExportAudit: boolean;
+  } | null>(null);
+  const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [auditStatus, setAuditStatus] = useState("");
@@ -183,6 +204,8 @@ export function LockstockAccount() {
           setAccessToken("");
           setActiveOrgId("");
           setActiveOrgRole("");
+          setPlanAccess(null);
+          setBillingSummary(null);
           setIsPlatformAdmin(false);
           setAuditLog([]);
           setAccountEmail("");
@@ -217,9 +240,52 @@ export function LockstockAccount() {
   }, [signedInAs]);
 
   useEffect(() => {
+    if (!authResolved || !accessToken || activeOrgId || typeof window === "undefined") {
+      return;
+    }
+
+    let unmounted = false;
+
+    async function loadInitialOrganization() {
+      try {
+        const response = await fetch("/api/organizations", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        if (!response.ok) {
+          return;
+        }
+
+        const body = (await response.json()) as { data: OrganizationMembership[] };
+        const nextOrgId = chooseInitialAccountOrganizationId(
+          window.localStorage.getItem(STORAGE_KEYS.orgId),
+          body.data ?? []
+        );
+        if (!nextOrgId || unmounted) {
+          return;
+        }
+
+        window.localStorage.setItem(STORAGE_KEYS.orgId, nextOrgId);
+        setActiveOrgId(nextOrgId);
+      } catch {
+        // Account remains usable for profile-only tasks if workspace lookup fails.
+      }
+    }
+
+    void loadInitialOrganization();
+
+    return () => {
+      unmounted = true;
+    };
+  }, [accessToken, activeOrgId, authResolved]);
+
+  useEffect(() => {
     if (!accessToken || !activeOrgId) {
       setAuditLog([]);
       setActiveOrgRole("");
+      setPlanAccess(null);
+      setBillingSummary(null);
       setAuditStatus(accessToken ? "Open a group workspace before viewing the audit log." : "");
       return;
     }
@@ -232,20 +298,14 @@ export function LockstockAccount() {
     async function loadAuditContext() {
       try {
         setAuditStatus("Loading audit log...");
-        const [auditResponse, organizationsResponse] = await Promise.all([
+        const [auditResponse, organizationsResponse, entitlementsResponse, billingResponse] = await Promise.all([
           fetch("/api/audit-log", { headers }),
           fetch("/api/organizations", {
             headers: { Authorization: `Bearer ${accessToken}` }
-          })
+          }),
+          fetch("/api/billing/entitlements", { headers }),
+          fetch("/api/billing/summary", { headers })
         ]);
-
-        if (!auditResponse.ok) {
-          const body = await auditResponse.json().catch(() => ({ error: "Failed to load audit log." }));
-          throw new Error(body.error ?? "Failed to load audit log.");
-        }
-
-        const auditBody = (await auditResponse.json()) as { data: AuditLogEntry[] };
-        setAuditLog(auditBody.data ?? []);
 
         if (organizationsResponse.ok) {
           const organizationsBody = (await organizationsResponse.json()) as { data: OrganizationMembership[] };
@@ -253,7 +313,32 @@ export function LockstockAccount() {
           setActiveOrgRole(membership?.role ?? "");
         }
 
-        setAuditStatus("");
+        if (entitlementsResponse.ok) {
+          const entitlementsBody = (await entitlementsResponse.json()) as {
+            data: { selectedPlan: string; effectivePlan: string; isReadOnly: boolean; features: { auditCsvExport: boolean } };
+          };
+          setPlanAccess({
+            selectedPlan: entitlementsBody.data.selectedPlan,
+            effectivePlan: entitlementsBody.data.effectivePlan,
+            isReadOnly: entitlementsBody.data.isReadOnly,
+            canExportAudit: entitlementsBody.data.features.auditCsvExport
+          });
+        }
+        if (billingResponse.ok) {
+          setBillingSummary(((await billingResponse.json()) as { data: BillingSummary }).data);
+        } else {
+          setBillingSummary(null);
+        }
+
+        if (auditResponse.ok) {
+          const auditBody = (await auditResponse.json()) as { data: AuditLogEntry[] };
+          setAuditLog(auditBody.data ?? []);
+          setAuditStatus("");
+        } else {
+          const body = await auditResponse.json().catch(() => ({ error: "Failed to load audit log." }));
+          setAuditLog([]);
+          setAuditStatus(body.error ?? "Failed to load audit log.");
+        }
       } catch (error) {
         setAuditStatus((error as Error).message);
       }
@@ -451,6 +536,25 @@ export function LockstockAccount() {
     }
   }
 
+  async function handleBillingAction(action: "portal-session" | "cancel" | "reactivate") {
+    if (!accessToken || !activeOrgId) return;
+    try {
+      setBusy(true);
+      const response = await fetch(`/api/billing/${action}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": activeOrgId }
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Billing action failed.");
+      if (payload.data.url) window.location.assign(payload.data.url);
+      else setBillingSummary((current) => current ? { ...current, cancel_at_period_end: payload.data.cancelAtPeriodEnd } : current);
+    } catch (error) {
+      addActivity(`Billing action failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <section className="card shell-nav">
@@ -609,6 +713,34 @@ export function LockstockAccount() {
         )}
       </section>
 
+      {activeOrgRole === "owner" && billingSummary ? (
+        <section className="card billing-card">
+          <div className="title-row">
+            <div>
+              <h3>Subscription</h3>
+              <p>Plan, renewal, invoices, and payment method for the active workspace.</p>
+            </div>
+            <span className={`platform-status-pill platform-status-${billingSummary.status}`}>{billingSummary.status.replaceAll("_", " ")}</span>
+          </div>
+          <div className="billing-summary-grid">
+            <div><span>Current plan</span><strong>{billingSummary.plan}</strong></div>
+            <div><span>Billing</span><strong>{billingSummary.billing_interval}</strong></div>
+            <div><span>{billingSummary.status === "trialing" ? "Trial ends" : "Renews"}</span><strong>{billingSummary.status === "trialing" ? billingSummary.trial_ends_at?.slice(0, 10) ?? "-" : billingSummary.current_period_end ?? "-"}</strong></div>
+            <div><span>Access</span><strong>{planAccess?.isReadOnly ? "Read-only" : "Writable"}</strong></div>
+          </div>
+          {billingSummary.scheduled_plan ? (
+            <p className="subtle-line">Scheduled: {billingSummary.scheduled_plan} · {billingSummary.scheduled_interval} on {billingSummary.scheduled_effective_at?.slice(0, 10)}</p>
+          ) : null}
+          {billingSummary.past_due_since ? <p className="subtle-line">Payment failed. A seven-day grace period applies from {billingSummary.past_due_since.slice(0, 10)}.</p> : null}
+          <div className="button-row">
+            <Link className="ghost-btn" href="/payment">Change plan</Link>
+            {billingSummary.stripe_subscription_id ? <button type="button" className="ghost-btn" disabled={busy} onClick={() => void handleBillingAction("portal-session")}>Payment method & invoices</button> : null}
+            {billingSummary.stripe_subscription_id && !billingSummary.cancel_at_period_end ? <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleBillingAction("cancel")}>Cancel at renewal</button> : null}
+            {billingSummary.cancel_at_period_end ? <button type="button" disabled={busy} onClick={() => void handleBillingAction("reactivate")}>Reactivate</button> : null}
+          </div>
+        </section>
+      ) : null}
+
       <section className="card audit-card">
         <div className="title-row">
           <div>
@@ -617,7 +749,14 @@ export function LockstockAccount() {
           </div>
         </div>
 
-        {canExportAuditLog(activeOrgRole) ? (
+        {planAccess ? (
+          <p className="subtle-line">
+            Selected plan: {planAccess.selectedPlan}. Current access: {planAccess.effectivePlan}
+            {planAccess.isReadOnly ? " (read-only)" : ""}.
+          </p>
+        ) : null}
+
+        {canExportAuditLog(activeOrgRole) && planAccess?.canExportAudit ? (
           <div className="audit-export-row">
             <label className="field">
               <span>From</span>
@@ -631,7 +770,7 @@ export function LockstockAccount() {
               Download CSV
             </button>
           </div>
-        ) : null}
+        ) : planAccess && !planAccess.canExportAudit ? <p className="subtle-line">Audit CSV export is available on paid Operations plans and above.</p> : null}
 
         {auditStatus ? <p className="subtle-line">{auditStatus}</p> : null}
         {!auditStatus && auditLog.length === 0 ? <p>No recorded changes yet.</p> : null}
