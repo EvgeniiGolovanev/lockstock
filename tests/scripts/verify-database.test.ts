@@ -16,7 +16,7 @@ const { isPortConflictError, rewriteSupabaseConfig, startWithPortRetry } = requi
   isPortConflictError: (error: unknown) => boolean;
   rewriteSupabaseConfig: (
     originalConfig: string,
-    expected: { projectId: string; databasePort: number }
+    expected: { projectId: string; databasePort: number; apiPort?: number }
   ) => string;
   startWithPortRetry: (options: RetryOptions) => Promise<{ attempts: number; databasePort: number }>;
 };
@@ -46,6 +46,17 @@ describe("disposable database verifier", () => {
       expect(rewritten).toMatch(/\[db\]\s+port = 61234/);
       expect(rewritten).toContain("shadow_port = 55320");
       expect(rewritten).toContain("[api]\nport = 55321");
+    });
+
+    it("rewrites the API port when the disposable verifier enables the Data API", () => {
+      const rewritten = rewriteSupabaseConfig(BASE_CONFIG, {
+        projectId: "lockstock-db-verification-123",
+        databasePort: 61234,
+        apiPort: 61235
+      });
+
+      expect(rewritten).toMatch(/\[api\]\s+port = 61235/);
+      expect(rewritten).toMatch(/\[db\]\s+port = 61234/);
     });
 
     it("fails when project_id is absent even when the database port can be replaced", () => {

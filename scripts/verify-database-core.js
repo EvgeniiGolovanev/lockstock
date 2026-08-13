@@ -6,18 +6,18 @@ function readProjectId(config) {
   return match?.[1] ?? null;
 }
 
-function findDatabasePort(config) {
-  const databaseHeader = /^\[db\]\s*$/m.exec(config);
-  if (!databaseHeader) {
+function findSectionPort(config, sectionName) {
+  const sectionHeader = new RegExp(`^\\[${sectionName}\\][ \\t]*$`, "m").exec(config);
+  if (!sectionHeader) {
     return null;
   }
 
-  const sectionStart = databaseHeader.index + databaseHeader[0].length;
+  const sectionStart = sectionHeader.index + sectionHeader[0].length;
   const remainingConfig = config.slice(sectionStart);
-  const nextSection = /^\[[^\]\r\n]+\]\s*$/m.exec(remainingConfig);
+  const nextSection = /^\[[^\]\r\n]+\][ \t]*$/m.exec(remainingConfig);
   const sectionEnd = nextSection ? sectionStart + nextSection.index : config.length;
   const section = config.slice(sectionStart, sectionEnd);
-  const portMatch = /^port\s*=\s*(\d+)\s*$/m.exec(section);
+  const portMatch = /^port[ \t]*=[ \t]*(\d+)[ \t]*$/m.exec(section);
 
   if (!portMatch) {
     return null;
@@ -30,12 +30,23 @@ function findDatabasePort(config) {
   };
 }
 
-function rewriteSupabaseConfig(originalConfig, { projectId, databasePort }) {
+function replaceSectionPort(config, sectionName, port) {
+  const location = findSectionPort(config, sectionName);
+  if (location === null) {
+    throw new Error(`Could not find [${sectionName}].port in the Supabase configuration.`);
+  }
+  return config.slice(0, location.start) + `port = ${port}` + config.slice(location.end);
+}
+
+function rewriteSupabaseConfig(originalConfig, { projectId, databasePort, apiPort }) {
   if (typeof projectId !== "string" || projectId.length === 0) {
     throw new Error("Expected a non-empty disposable Supabase project_id.");
   }
   if (!Number.isInteger(databasePort) || databasePort < 1 || databasePort > 65535) {
     throw new Error("Expected [db].port to be an integer between 1 and 65535.");
+  }
+  if (apiPort !== undefined && (!Number.isInteger(apiPort) || apiPort < 1 || apiPort > 65535)) {
+    throw new Error("Expected [api].port to be an integer between 1 and 65535.");
   }
 
   const originalProjectId = readProjectId(originalConfig);
@@ -43,7 +54,7 @@ function rewriteSupabaseConfig(originalConfig, { projectId, databasePort }) {
     throw new Error("Could not find project_id in the Supabase configuration.");
   }
 
-  const originalDatabasePort = findDatabasePort(originalConfig);
+  const originalDatabasePort = findSectionPort(originalConfig, "db");
   if (originalDatabasePort === null) {
     throw new Error("Could not find [db].port in the Supabase configuration.");
   }
@@ -52,22 +63,22 @@ function rewriteSupabaseConfig(originalConfig, { projectId, databasePort }) {
     /^project_id\s*=\s*"[^"]+"\s*$/m,
     `project_id = "${projectId}"`
   );
-  const databasePortLocation = findDatabasePort(projectRewritten);
-  if (databasePortLocation === null) {
-    throw new Error("Could not find [db].port after replacing project_id.");
+  let rewrittenConfig = replaceSectionPort(projectRewritten, "db", databasePort);
+
+  if (apiPort !== undefined) {
+    rewrittenConfig = replaceSectionPort(rewrittenConfig, "api", apiPort);
   }
-  const rewrittenConfig =
-    projectRewritten.slice(0, databasePortLocation.start) +
-    `port = ${databasePort}` +
-    projectRewritten.slice(databasePortLocation.end);
 
   if (readProjectId(rewrittenConfig) !== projectId) {
     throw new Error(`Failed to replace project_id with the expected value: ${projectId}.`);
   }
 
-  const rewrittenDatabasePort = findDatabasePort(rewrittenConfig);
+  const rewrittenDatabasePort = findSectionPort(rewrittenConfig, "db");
   if (rewrittenDatabasePort?.value !== databasePort) {
     throw new Error(`Failed to replace [db].port with the expected value: ${databasePort}.`);
+  }
+  if (apiPort !== undefined && findSectionPort(rewrittenConfig, "api")?.value !== apiPort) {
+    throw new Error(`Failed to replace [api].port with the expected value: ${apiPort}.`);
   }
 
   return rewrittenConfig;

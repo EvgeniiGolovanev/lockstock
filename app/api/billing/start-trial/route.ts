@@ -3,6 +3,7 @@ import { ApiError, handleApiError } from "@/lib/api/errors";
 import { ensureOwnedOrganization } from "@/lib/billing/ownership";
 import { loadBillingRow } from "@/lib/billing/records";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
+import { requireAuthenticatedUserId } from "@/lib/api/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,14 @@ export async function POST(request: NextRequest) {
     const billing = await loadBillingRow(orgId, supabase);
     let trialEndsAt = billing.trial_ends_at;
     if (!created) {
+      const userId = await requireAuthenticatedUserId(request);
+      const { data: redemption, error: redemptionError } = await supabase
+        .from("workspace_trial_redemptions")
+        .select("user_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (redemptionError) throw new ApiError(500, "Failed to validate trial redemption.", redemptionError.message);
+      if (redemption) throw new ApiError(409, "The free trial has already been used.");
       if (billing.stripe_subscription_id || billing.status === "active") throw new ApiError(409, "This workspace already has a paid subscription.");
       if (billing.trial_ends_at) throw new ApiError(409, "The free trial has already been used.");
       trialEndsAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();

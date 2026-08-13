@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
-import { resolveEntitlements, requireFeature, requireWithinPlanLimit, requireWorkspaceWriteAccess } from "@/lib/billing/entitlements";
+import {
+  resolveEntitlements,
+  requireFeature,
+  requireWithinPlanLimit,
+  requireWorkspaceWriteAccess,
+  type BillingState
+} from "@/lib/billing/entitlements";
 
 describe("plan entitlements", () => {
   const now = new Date("2026-06-27T12:00:00.000Z");
@@ -110,5 +116,82 @@ describe("plan entitlements", () => {
     expect(duringGrace.isReadOnly).toBe(false);
     expect(duringGrace.effectivePlan).toBe("business");
     expect(afterGrace.isReadOnly).toBe(true);
+  });
+
+  const writeAccessCases: Array<{
+    name: string;
+    billing: BillingState | null;
+    writable: boolean;
+  }> = [
+    {
+      name: "active with an expired current period",
+      billing: {
+        plan: "business",
+        status: "active",
+        trialEndsAt: null,
+        currentPeriodEnd: "2026-06-26T12:00:00.000Z"
+      },
+      writable: true
+    },
+    {
+      name: "trial at the exact end boundary",
+      billing: {
+        plan: "business",
+        status: "trialing",
+        trialEndsAt: "2026-06-27T12:00:00.000Z",
+        currentPeriodEnd: null
+      },
+      writable: true
+    },
+    {
+      name: "trial one millisecond beyond the end boundary",
+      billing: {
+        plan: "business",
+        status: "trialing",
+        trialEndsAt: "2026-06-27T11:59:59.999Z",
+        currentPeriodEnd: null
+      },
+      writable: false
+    },
+    {
+      name: "past-due at the exact seven-day boundary",
+      billing: {
+        plan: "operations",
+        status: "past_due",
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        pastDueSince: "2026-06-20T12:00:00.000Z"
+      },
+      writable: true
+    },
+    {
+      name: "past-due one millisecond beyond grace",
+      billing: {
+        plan: "operations",
+        status: "past_due",
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        pastDueSince: "2026-06-20T11:59:59.999Z"
+      },
+      writable: false
+    },
+    ...(["cancelled", "unpaid", "incomplete", "incomplete_expired", "paused"] as const).map((status) => ({
+      name: `${status} subscription`,
+      billing: { plan: "starter" as const, status, trialEndsAt: null, currentPeriodEnd: null },
+      writable: false
+    })),
+    { name: "missing billing", billing: null, writable: false }
+  ];
+
+  it.each(writeAccessCases)("keeps TypeScript write access in parity for $name", ({ billing, writable }) => {
+    expect(resolveEntitlements(billing, now).isReadOnly).toBe(!writable);
+  });
+
+  it("preserves the public read-only error message", () => {
+    const entitlements = resolveEntitlements(null, now);
+
+    expect(() => requireWorkspaceWriteAccess(entitlements)).toThrow(
+      "This workspace is read-only because its trial or subscription is not active."
+    );
   });
 });

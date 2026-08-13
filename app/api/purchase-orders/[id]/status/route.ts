@@ -34,32 +34,17 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       throw new ApiError(400, `Invalid status transition: ${po.status} -> ${payload.status}.`);
     }
 
-    const now = new Date().toISOString();
-    const updatePayload =
-      payload.status === "sent"
-        ? {
-            status: payload.status,
-            sent_at: now,
-            updated_at: now
-          }
-        : {
-            status: payload.status,
-            updated_at: now
-          };
-
-    const { data: updated, error: updateError } = await supabase
-      .from("purchase_orders")
-      .update(updatePayload)
-      .eq("id", purchaseOrderId)
-      .eq("org_id", orgId)
-      .select("id,po_number,status,sent_at")
-      .single();
+    const { data: updated, error: updateError } = await supabase.rpc("transition_purchase_order_status", {
+      p_org_id: orgId,
+      p_po_id: purchaseOrderId,
+      p_status: payload.status
+    });
 
     if (updateError) {
       throw updateError;
     }
 
-    return NextResponse.json({ data: updated });
+    return NextResponse.json({ data: { id: updated.id, po_number: updated.po_number, status: updated.status, sent_at: updated.sent_at } });
   } catch (error) {
     return handleApiError(error);
   }
