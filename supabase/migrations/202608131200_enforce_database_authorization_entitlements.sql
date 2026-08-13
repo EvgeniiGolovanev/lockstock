@@ -44,19 +44,13 @@ from (
   select
     ou.user_id,
     ou.org_id,
-    ou.created_at as redeemed_at
+    billing.trial_ends_at as redeemed_at
   from public.org_users ou
+  join public.organization_billing billing
+    on billing.org_id = ou.org_id
   where ou.role = 'owner'
-
-  union all
-
-  select
-    al.entity_id as user_id,
-    al.org_id,
-    al.created_at as redeemed_at
-  from public.audit_log al
-  where al.entity_type = 'member'
-    and coalesce(al.metadata -> 'new_values' ->> 'role', al.metadata ->> 'new_role') = 'owner'
+    and billing.status = 'trialing'
+    and billing.trial_ends_at is not null
 ) as source
 order by source.user_id, source.redeemed_at asc
 on conflict (user_id) do nothing;
@@ -1048,9 +1042,9 @@ begin
   values (
     v_org.id,
     coalesce(p_plan, 'starter'),
-    'active',
+    case when p_start_trial then 'trialing'::public.billing_status else 'active'::public.billing_status end,
     'monthly',
-    null
+    case when p_start_trial then timezone('utc', now()) + interval '360 hours' else null end
   );
   insert into public.org_users (org_id, user_id, role) values (v_org.id, v_user_id, 'owner');
   insert into public.teams (org_id, name, description, created_by, is_default)

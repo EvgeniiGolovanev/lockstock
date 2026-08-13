@@ -8,6 +8,7 @@
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
     "lint": "eslint .",
     "audit:prod": "node scripts/audit-prod.mjs",
+    "report:legacy-billing": "node scripts/legacy-billing-audit.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run test:api && npm run build",
     "check:migrations:linked": "node scripts/check-linked-migrations.js",

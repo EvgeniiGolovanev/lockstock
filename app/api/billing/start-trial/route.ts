@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       if (billing.trial_ends_at) throw new ApiError(409, "The free trial has already been used.");
       trialEndsAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
       const { error } = await supabase.from("organization_billing").update({
-        plan: "starter", status: "trialing", billing_interval: "monthly", trial_ends_at: trialEndsAt,
+        plan: billing.plan, status: "trialing", billing_interval: "monthly", trial_ends_at: trialEndsAt,
         past_due_since: null, scheduled_plan: null, scheduled_interval: null, scheduled_effective_at: null
       }).eq("org_id", orgId);
       if (error) throw new ApiError(500, "Failed to start trial.", error.message);

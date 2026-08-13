@@ -47,11 +47,18 @@ export async function ensureOwnedOrganization(request: NextRequest, plan: Billin
   const company = typeof userData.user?.user_metadata?.company === "string"
     ? userData.user.user_metadata.company.trim()
     : "";
+  const selectedPlan = startTrial && isBillingPlan(userData.user?.user_metadata?.selected_plan)
+    ? userData.user.user_metadata.selected_plan
+    : plan;
   const { data: organization, error } = await userClient.rpc("create_organization_with_owner", {
     p_name: company || "My Workspace",
-    p_plan: plan,
+    p_plan: selectedPlan,
     p_start_trial: startTrial
   });
   if (error || !organization) throw new ApiError(500, "Failed to create billing workspace.", error?.message);
   return { orgId: organization.id as string, created: true };
+}
+
+function isBillingPlan(value: unknown): value is BillingPlan {
+  return value === "starter" || value === "operations" || value === "business" || value === "enterprise";
 }

@@ -39,4 +39,32 @@ describe("POST /api/billing/start-trial", () => {
     expect(select).toHaveBeenCalledWith("user_id");
     expect(maybeSingle).toHaveBeenCalledOnce();
   });
+
+  it("preserves the existing workspace plan when starting a trial on an owned workspace", async () => {
+    vi.mocked(loadBillingRow).mockResolvedValue({
+      plan: "business",
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      status: "incomplete",
+      billing_interval: "monthly"
+    } as never);
+
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    vi.mocked(getSupabaseServiceClient).mockReturnValue({ from: vi.fn().mockReturnValue({ select, update }) } as never);
+
+    const response = await POST(new NextRequest("http://localhost:3000/api/billing/start-trial", {
+      method: "POST",
+      headers: { authorization: "Bearer token" }
+    }));
+
+    expect(response.status).toBe(201);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      plan: "business",
+      status: "trialing",
+      billing_interval: "monthly"
+    }));
+  });
 });
