@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Production dependency audit
+        run: npm run audit:prod
+
       - name: Verify application
         run: npm run verify
 
