@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripeClient } from "@/lib/billing/stripe";
-import { getSupabaseServiceClient } from "@/lib/supabase-service";
 import { bindCheckoutSession, clearReleasedSchedule, markInvoiceFailed, markSubscriptionDeleted, subscriptionIdFromEventObject, syncStripeSubscription } from "@/lib/billing/webhook-sync";
+import { claimStripeWebhookEvent, completeStripeWebhookEvent, failStripeWebhookEvent } from "@/lib/billing/webhook-ledger";
 
 export const runtime = "nodejs";
 
@@ -18,27 +18,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid Stripe webhook signature." }, { status: 400 });
   }
 
-  const supabase = getSupabaseServiceClient();
-  const { error: eventError } = await supabase.from("stripe_webhook_events").insert({
-    event_id: event.id,
-    event_type: event.type,
-    event_created_at: new Date(event.created * 1000).toISOString()
-  });
-  if (eventError?.code === "23505") return NextResponse.json({ received: true, duplicate: true });
-  if (eventError) return NextResponse.json({ error: "Failed to record Stripe event." }, { status: 500 });
+  let ledger;
+  try {
+    ledger = await claimStripeWebhookEvent(event);
+  } catch (error) {
+    console.error("Stripe webhook claim failed", error);
+    return NextResponse.json({ error: "Failed to record Stripe event." }, { status: 500 });
+  }
+  if (!ledger.claimed && ledger.status === "processed") return NextResponse.json({ received: true, duplicate: true });
+  if (!ledger.claimed && ledger.status === "processing") {
+    return NextResponse.json({ error: "Stripe webhook is already being processed." }, { status: 409 });
+  }
 
   try {
     if (event.type === "checkout.session.completed") {
-      await bindCheckoutSession(event.data.object, event.created);
+      await bindCheckoutSession(event.data.object, event.created, event.id);
     } else if (event.type === "customer.subscription.deleted") {
-      await markSubscriptionDeleted(event.data.object, event.created);
+      await markSubscriptionDeleted(event.data.object, event.created, event.id);
     } else if (event.type === "invoice.payment_failed") {
       const subscriptionId = subscriptionIdFromEventObject(event.data.object);
-      if (subscriptionId) await markInvoiceFailed(subscriptionId, event.created);
+      if (subscriptionId) await markInvoiceFailed(subscriptionId, event.created, event.id);
     } else if (event.type === "subscription_schedule.released" || event.type === "subscription_schedule.canceled") {
-      await clearReleasedSchedule(event.data.object);
+      await clearReleasedSchedule(event.data.object, event.created, event.id);
       const subscriptionId = subscriptionIdFromEventObject(event.data.object);
-      if (subscriptionId) await syncStripeSubscription(subscriptionId, event.created);
+      if (subscriptionId) await syncStripeSubscription(subscriptionId, event.created, event.id);
     } else if (
       event.type === "customer.subscription.created" ||
       event.type === "customer.subscription.updated" ||
@@ -49,12 +52,24 @@ export async function POST(request: NextRequest) {
       event.type === "subscription_schedule.completed"
     ) {
       const subscriptionId = subscriptionIdFromEventObject(event.data.object);
-      if (subscriptionId) await syncStripeSubscription(subscriptionId, event.created);
+      if (subscriptionId) await syncStripeSubscription(subscriptionId, event.created, event.id);
     }
+    await completeStripeWebhookEvent(event.id);
     return NextResponse.json({ received: true });
   } catch (error) {
-    await supabase.from("stripe_webhook_events").delete().eq("event_id", event.id);
-    console.error("Stripe webhook processing failed", error);
+    const failure = error as Error & { code?: string };
+    try {
+      await failStripeWebhookEvent(event.id, failure.code ?? "processing_failed", failure.message || "Stripe webhook processing failed");
+    } catch (ledgerError) {
+      console.error("Stripe webhook failure ledger update failed", ledgerError);
+    }
+    console.error("Stripe webhook processing failed", {
+      eventId: event.id,
+      eventType: event.type,
+      attempt: ledger?.attempt_count ?? 0,
+      errorCode: failure.code ?? "processing_failed",
+      message: failure.message
+    });
     return NextResponse.json({ error: "Stripe webhook processing failed." }, { status: 500 });
   }
 }

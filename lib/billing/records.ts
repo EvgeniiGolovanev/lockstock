@@ -21,13 +21,14 @@ export type OrganizationBillingRow = {
   scheduled_interval: BillingInterval | "custom" | null;
   scheduled_effective_at: string | null;
   last_stripe_event_created_at: string | null;
+  last_stripe_event_id: string | null;
 };
 
 export const billingColumns = [
   "org_id", "plan", "status", "billing_interval", "stripe_customer_id", "stripe_subscription_id",
   "stripe_subscription_item_id", "stripe_checkout_session_id", "stripe_subscription_schedule_id", "trial_ends_at", "current_period_end",
   "past_due_since", "cancel_at_period_end", "scheduled_plan", "scheduled_interval", "scheduled_effective_at",
-  "last_stripe_event_created_at"
+  "last_stripe_event_created_at", "last_stripe_event_id"
 ].join(",");
 
 export async function loadBillingRow(orgId: string, supabase = getSupabaseServiceClient()) {

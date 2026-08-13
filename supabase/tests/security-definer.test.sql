@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(13);
 
 select set_eq(
   $$
@@ -14,6 +14,9 @@ select set_eq(
   $$
     values
       ('accept_org_invitation'::text),
+      ('claim_stripe_webhook_event'::text),
+      ('complete_stripe_webhook_event'::text),
+      ('fail_stripe_webhook_event'::text),
       ('create_organization_with_owner'::text),
       ('create_stock_movement'::text),
       ('create_stock_transfer'::text),
@@ -86,6 +89,55 @@ select ok(
     'execute'
   ),
   'authenticated cannot invoke the internal stock primitive as an RPC'
+);
+
+select set_eq(
+  $$
+    select p.proname::text
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in (
+        'claim_stripe_webhook_event',
+        'complete_stripe_webhook_event',
+        'fail_stripe_webhook_event'
+      )
+      and has_function_privilege('service_role', p.oid, 'execute')
+  $$,
+  $$
+    values
+      ('claim_stripe_webhook_event'::text),
+      ('complete_stripe_webhook_event'::text),
+      ('fail_stripe_webhook_event'::text)
+  $$,
+  'service_role can invoke the Stripe webhook ledger functions'
+);
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.claim_stripe_webhook_event(text,text,timestamptz,interval)'::regprocedure,
+    'execute'
+  ),
+  'authenticated cannot invoke the Stripe webhook ledger claim RPC'
+);
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.complete_stripe_webhook_event(text)'::regprocedure,
+    'execute'
+  ),
+  'authenticated cannot invoke the Stripe webhook ledger completion RPC'
+);
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.fail_stripe_webhook_event(text,text,text)'::regprocedure,
+    'execute'
+  ),
+  'authenticated cannot invoke the Stripe webhook ledger failure RPC'
 );
 
 select set_eq(
