@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuthenticatedUserId } from "@/lib/api/auth";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
+import type { Json } from "@/types/database";
 
 export const platformRoleRank = {
   support: 0,
@@ -49,7 +50,7 @@ export async function requirePlatformAdmin(request: NextRequest): Promise<Platfo
   };
 }
 
-export async function logPlatformAccess(context: PlatformAdminContext, action: string, metadata: Record<string, unknown> = {}) {
+export async function logPlatformAccess(context: PlatformAdminContext, action: string, metadata: Json = {}) {
   const { error } = await context.supabase.from("platform_access_log").insert({
     actor_user_id: context.userId,
     actor_role: context.role,

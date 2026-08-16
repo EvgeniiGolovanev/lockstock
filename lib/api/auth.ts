@@ -1,8 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
+import type { Database } from "@/types/database";
 
-let authClient: ReturnType<typeof createClient> | null = null;
+let authClient: SupabaseClient<Database> | null = null;
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -17,7 +18,7 @@ function getAuthClient() {
     return authClient;
   }
 
-  authClient = createClient(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
+  authClient = createClient<Database>(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
     auth: {
       persistSession: false,
       autoRefreshToken: false

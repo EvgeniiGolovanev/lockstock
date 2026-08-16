@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createPurchaseOrderSchema } from "@/lib/validators/purchase-order";
+import type { Database } from "@/types/database";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       .range(from, to);
 
     if (status && status !== "all" && PO_STATUSES.has(status)) {
-      query = query.eq("status", status);
+      query = query.eq("status", status as Database["public"]["Enums"]["po_status"]);
     }
 
     if (supplierId && supplierId !== "all") {
@@ -120,8 +121,8 @@ export async function POST(request: NextRequest) {
       p_supplier_id: payload.supplier_id,
       p_po_number: poNumber,
       p_currency: payload.currency,
-      p_expected_at: payload.expected_at ?? null,
-      p_notes: payload.notes ?? null,
+      ...(payload.expected_at ? { p_expected_at: payload.expected_at } : {}),
+      ...(payload.notes ? { p_notes: payload.notes } : {}),
       p_lines: payload.lines
     });
 

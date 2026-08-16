@@ -22,7 +22,7 @@ export async function claimStripeWebhookEvent(event: { id: string; type: string;
     p_event_created_at: new Date(event.created * 1000).toISOString()
   });
   if (error) throw error;
-  return data as StripeWebhookLedgerState;
+  return (data?.[0] ?? null) as StripeWebhookLedgerState;
 }
 
 export async function completeStripeWebhookEvent(eventId: string) {

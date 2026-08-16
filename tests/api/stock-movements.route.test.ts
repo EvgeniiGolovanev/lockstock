@@ -220,8 +220,6 @@ describe("stock movement routes", () => {
       p_quantity_delta: -3,
       p_reason: "consumption",
       p_note: "Released to site works",
-      p_reference_type: null,
-      p_reference_id: null,
       p_created_by: "user-1"
     });
     expect(body.data.movement_id).toBe("move-consumption-1");

@@ -69,3 +69,6 @@ jobs:
 
       - name: Reset and test disposable database
         run: npm run test:db
+
+      - name: Check generated database types
+        run: npm run db:types:check

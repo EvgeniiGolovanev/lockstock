@@ -13,6 +13,8 @@
     "verify": "npm run typecheck && npm run lint && npm run test:api && npm run build",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "db:types": "node scripts/database-types.mjs",
+    "db:types:check": "node scripts/database-types.mjs check",
     "check:migrations:linked": "node scripts/check-linked-migrations.js",
     "smoke:test": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1",
     "test:api": "vitest run",

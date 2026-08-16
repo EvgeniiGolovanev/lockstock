@@ -4,7 +4,7 @@ import { selectionForPriceId } from "@/lib/billing/price-ids";
 import type { BillingStatus } from "@/lib/billing/entitlements";
 import { schedulePlanChange } from "@/lib/billing/subscription-service";
 import { getStripeClient } from "@/lib/billing/stripe";
-import { billingColumns, type OrganizationBillingRow } from "@/lib/billing/records";
+import type { OrganizationBillingRow } from "@/lib/billing/records";
 
 const supportedStatuses = new Set<BillingStatus>([
   "trialing", "active", "past_due", "cancelled", "unpaid", "incomplete", "incomplete_expired", "paused"
@@ -47,28 +47,28 @@ export function subscriptionIdFromEventObject(object: unknown): string | null {
   return null;
 }
 
-async function billingBySubscription(subscriptionId: string) {
+async function billingBySubscription(subscriptionId: string): Promise<OrganizationBillingRow | null> {
   const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase.from("organization_billing").select(billingColumns)
+  const { data, error } = await supabase.from("organization_billing").select("*")
     .eq("stripe_subscription_id", subscriptionId).maybeSingle();
   if (error) throw error;
-  return data as unknown as OrganizationBillingRow | null;
+  return data;
 }
 
-async function billingBySchedule(scheduleId: string) {
+async function billingBySchedule(scheduleId: string): Promise<OrganizationBillingRow | null> {
   const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase.from("organization_billing").select(billingColumns)
+  const { data, error } = await supabase.from("organization_billing").select("*")
     .eq("stripe_subscription_schedule_id", scheduleId).maybeSingle();
   if (error) throw error;
-  return data as unknown as OrganizationBillingRow | null;
+  return data;
 }
 
-async function billingByOrg(orgId: string) {
+async function billingByOrg(orgId: string): Promise<OrganizationBillingRow | null> {
   const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase.from("organization_billing").select(billingColumns)
+  const { data, error } = await supabase.from("organization_billing").select("*")
     .eq("org_id", orgId).maybeSingle();
   if (error) throw error;
-  return data as unknown as OrganizationBillingRow | null;
+  return data;
 }
 
 function stripeEventTimestamp(eventCreated: number) {

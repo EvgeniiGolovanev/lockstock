@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -9,7 +10,7 @@ function requireEnv(name: string): string {
 }
 
 export function getSupabaseServiceClient() {
-  return createClient(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), requireEnv("SUPABASE_SERVICE_ROLE_KEY"), {
+  return createClient<Database>(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), requireEnv("SUPABASE_SERVICE_ROLE_KEY"), {
     auth: {
       persistSession: false,
       autoRefreshToken: false

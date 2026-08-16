@@ -44,7 +44,21 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       throw updateError;
     }
 
-    return NextResponse.json({ data: { id: updated.id, po_number: updated.po_number, status: updated.status, sent_at: updated.sent_at } });
+    const updatedRow = updated as
+      | { id: string; po_number: string; status: string; sent_at: string | null }
+      | null;
+    if (!updatedRow) {
+      throw new ApiError(500, "Failed to update purchase order status.");
+    }
+
+    return NextResponse.json({
+      data: {
+        id: updatedRow.id,
+        po_number: updatedRow.po_number,
+        status: updatedRow.status,
+        sent_at: updatedRow.sent_at
+      }
+    });
   } catch (error) {
     return handleApiError(error);
   }

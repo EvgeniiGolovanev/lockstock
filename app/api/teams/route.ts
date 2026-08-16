@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.rpc("create_team_with_owner", {
       p_org_id: orgId,
       p_name: payload.name,
-      p_description: payload.description ?? null
+      ...(payload.description ? { p_description: payload.description } : {})
     });
 
     if (error) {
