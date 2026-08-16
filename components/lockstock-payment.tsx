@@ -6,12 +6,9 @@ import type { Session } from "@supabase/supabase-js";
 import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { annualSavings, billingCatalog, type BillingInterval, type PaidPlan } from "@/lib/billing/catalog";
+import { buildPaymentCards } from "@/lib/billing/plan-contract";
 
-const planCopy: Record<PaidPlan, { title: string; description: string; highlights: string[] }> = {
-  starter: { title: "Starter", description: "A controlled first step away from spreadsheets.", highlights: ["3 users", "3 locations", "500 materials"] },
-  operations: { title: "Operations", description: "For teams running stock and purchasing every day.", highlights: ["8 users", "Unlimited locations", "Audit export"] },
-  business: { title: "Business", description: "For multi-site operations with deeper controls.", highlights: ["20 users", "3 workspaces", "7-year retention"] }
-};
+const planCopy = buildPaymentCards();
 
 type BillingSummary = {
   plan: string;
@@ -167,19 +164,20 @@ export function LockstockPayment() {
       ) : null}
 
       <section className="payment-grid" aria-label="Paid plans">
-        {(Object.keys(planCopy) as PaidPlan[]).map((plan) => {
-          const tariff = billingCatalog[plan];
-          const annual = annualSavings(plan);
+        {planCopy.map((plan) => {
+          const billingPlan = plan.id as PaidPlan;
+          const tariff = billingCatalog[billingPlan];
+          const annual = annualSavings(billingPlan);
           return (
-            <article className={`payment-plan ${plan === "operations" ? "featured" : ""}`} key={plan}>
-              <p>{plan === "operations" ? "Most operational" : "LockStock plan"}</p>
-              <h2>{planCopy[plan].title}</h2>
-              <p className="payment-plan-description">{planCopy[plan].description}</p>
+            <article className={`payment-plan ${billingPlan === "operations" ? "featured" : ""}`} key={billingPlan}>
+              <p>{billingPlan === "operations" ? "Most operational" : "LockStock plan"}</p>
+              <h2>{plan.title}</h2>
+              <p className="payment-plan-description">{plan.description}</p>
               <strong className="payment-price">€{interval === "monthly" ? tariff.monthly : tariff.annual}</strong>
               <span>{interval === "monthly" ? "per month, excl. VAT" : `per year · €${tariff.annualMonthlyEquivalent}/mo · save €${annual.amount}`}</span>
-              <ul>{planCopy[plan].highlights.map((item) => <li key={item}>{item}</li>)}</ul>
-              <button disabled={!session || Boolean(busy)} onClick={() => void choosePlan(plan)}>
-                {busy === plan ? "Preparing…" : summary?.stripe_subscription_id ? "Change to this plan" : "Continue to secure checkout"}
+              <ul>{plan.highlights.map((item) => <li key={item}>{item}</li>)}</ul>
+              <button disabled={!session || Boolean(busy)} onClick={() => void choosePlan(billingPlan)}>
+                {busy === billingPlan ? "Preparing…" : summary?.stripe_subscription_id ? "Change to this plan" : "Continue to secure checkout"}
               </button>
             </article>
           );

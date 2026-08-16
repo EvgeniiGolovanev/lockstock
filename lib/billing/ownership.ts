@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
-import type { BillingPlan } from "@/lib/billing/entitlements";
+import type { BillingPlan } from "@/lib/billing/plan-contract";
 
 export type BillingOwnerContext = {
   orgId: string;
@@ -44,11 +44,12 @@ export async function ensureOwnedOrganization(request: NextRequest, plan: Billin
   if (owned) return { orgId: owned.org_id as string, created: false };
 
   const { data: userData } = await userClient.auth.getUser();
-  const company = typeof userData.user?.user_metadata?.company === "string"
-    ? userData.user.user_metadata.company.trim()
+  const user = userData.user;
+  const company = typeof user?.user_metadata?.company === "string"
+    ? user.user_metadata.company.trim()
     : "";
-  const selectedPlan = startTrial && isBillingPlan(userData.user?.user_metadata?.selected_plan)
-    ? userData.user.user_metadata.selected_plan
+  const selectedPlan = startTrial && isBillingPlan(user?.user_metadata?.selected_plan)
+    ? user.user_metadata.selected_plan
     : plan;
   const { data: organization, error } = await userClient.rpc("create_organization_with_owner", {
     p_name: company || "My Workspace",

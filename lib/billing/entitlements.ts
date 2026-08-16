@@ -1,7 +1,6 @@
 import { ApiError } from "@/lib/api/errors";
+import { billingPlanContract, type BillingPlan, type PlanFeatures, type PlanLimits } from "@/lib/billing/plan-contract";
 
-export const BILLING_PLANS = ["starter", "operations", "business", "enterprise"] as const;
-export type BillingPlan = (typeof BILLING_PLANS)[number];
 export type BillingStatus = "trialing" | "active" | "past_due" | "cancelled" | "unpaid" | "incomplete" | "incomplete_expired" | "paused";
 
 export type BillingState = {
@@ -10,24 +9,6 @@ export type BillingState = {
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   pastDueSince?: string | null;
-};
-
-type PlanFeatures = {
-  organizationAuditLog: boolean;
-  auditCsvExport: boolean;
-};
-
-type PlanLimits = {
-  users: number | null;
-  workspaces: number | null;
-  teams: number | null;
-  locations: number | null;
-  materials: number | null;
-  suppliers: number | null;
-  purchaseOrdersPerMonth: number | null;
-  stockMovementsPerMonth: number | null;
-  csvImportRows: number | null;
-  auditExportDays: number;
 };
 
 export type PlanEntitlements = {
@@ -40,37 +21,6 @@ export type PlanEntitlements = {
   accessReason: "trial" | "active_subscription" | "payment_grace" | "trial_expired" | "subscription_inactive" | "billing_missing";
   features: PlanFeatures;
   limits: PlanLimits;
-};
-
-const PLAN_CONFIGURATION: Record<BillingPlan, { features: PlanFeatures; limits: PlanLimits }> = {
-  starter: {
-    features: { organizationAuditLog: false, auditCsvExport: false },
-    limits: {
-      users: 3, workspaces: 1, teams: 1, locations: 3, materials: 500, suppliers: 50,
-      purchaseOrdersPerMonth: 50, stockMovementsPerMonth: 500, csvImportRows: 100, auditExportDays: 0
-    }
-  },
-  operations: {
-    features: { organizationAuditLog: true, auditCsvExport: true },
-    limits: {
-      users: 8, workspaces: 1, teams: 5, locations: null, materials: 5000, suppliers: 500,
-      purchaseOrdersPerMonth: 500, stockMovementsPerMonth: 10000, csvImportRows: 1000, auditExportDays: 90
-    }
-  },
-  business: {
-    features: { organizationAuditLog: true, auditCsvExport: true },
-    limits: {
-      users: 20, workspaces: 3, teams: 20, locations: null, materials: 25000, suppliers: 2500,
-      purchaseOrdersPerMonth: 2500, stockMovementsPerMonth: 50000, csvImportRows: 10000, auditExportDays: 366
-    }
-  },
-  enterprise: {
-    features: { organizationAuditLog: true, auditCsvExport: true },
-    limits: {
-      users: null, workspaces: null, teams: null, locations: null, materials: null, suppliers: null,
-      purchaseOrdersPerMonth: null, stockMovementsPerMonth: null, csvImportRows: null, auditExportDays: 366
-    }
-  }
 };
 
 export function resolveEntitlements(billing: BillingState | null, now = new Date()): PlanEntitlements {
@@ -116,7 +66,7 @@ function buildEntitlements(
   isReadOnly: boolean,
   accessReason: PlanEntitlements["accessReason"]
 ): PlanEntitlements {
-  const configuration = PLAN_CONFIGURATION[effectivePlan];
+  const configuration = billingPlanContract[effectivePlan];
   return {
     selectedPlan, effectivePlan, billingStatus, trialEndsAt, currentPeriodEnd, isReadOnly, accessReason,
     features: { ...configuration.features }, limits: { ...configuration.limits }

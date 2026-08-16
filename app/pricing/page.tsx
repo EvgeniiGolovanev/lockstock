@@ -1,72 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { buildPricingCards, buildPricingLimitRows } from "@/lib/billing/plan-contract";
 
 export const metadata: Metadata = {
   title: "Pricing | LockStock",
   description: "Compare LockStock plans for inventory, purchasing, teams, audit logs, and operational limits."
 };
 
-const plans = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: "EUR 49",
-    annual: "EUR 39/mo, billed annually",
-    description: "For small teams replacing spreadsheets.",
-    highlight: false,
-    features: ["3 users included", "3 stock locations", "500 materials/SKUs", "50 purchase orders per month"]
-  },
-  {
-    id: "operations",
-    name: "Operations",
-    price: "EUR 109",
-    annual: "EUR 89/mo, billed annually",
-    description: "For teams running daily stock and purchasing workflows.",
-    highlight: true,
-    features: ["8 users included", "Unlimited locations", "5,000 materials/SKUs", "Audit CSV export"]
-  },
-  {
-    id: "business",
-    name: "Business",
-    price: "EUR 219",
-    annual: "EUR 179/mo, billed annually",
-    description: "For multi-site teams that need controls and history.",
-    highlight: false,
-    features: ["20 users included", "3 workspaces", "25,000 materials/SKUs", "Onboarding session"]
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: "Custom",
-    annual: "Annual contract",
-    description: "For larger organizations with custom security and support needs.",
-    highlight: false,
-    features: ["Custom users", "Custom workspaces", "Custom retention", "SLA options"]
-  }
-];
-
-const limitRows = [
-  ["Monthly price", "EUR 49", "EUR 109", "EUR 219", "Custom"],
-  ["Annual equivalent", "EUR 39/mo", "EUR 89/mo", "EUR 179/mo", "Custom"],
-  ["Included users", "3", "8", "20", "Custom"],
-  ["Extra users", "EUR 9/user/mo", "EUR 9/user/mo", "EUR 7/user/mo", "Custom"],
-  ["Organizations / workspaces", "1", "1", "3", "Custom"],
-  ["Teams / groups", "1", "5", "20", "Custom"],
-  ["Locations", "3", "Unlimited", "Unlimited", "Unlimited"],
-  ["Materials / SKUs", "500", "5,000", "25,000", "Custom"],
-  ["Suppliers / vendors", "50", "500", "2,500", "Custom"],
-  ["Purchase orders / month", "50", "500", "2,500", "Custom"],
-  ["Stock movements / month", "500", "10,000", "50,000", "Custom"],
-  ["CSV material import", "100 rows/import", "1,000 rows/import", "10,000 rows/import", "Custom"],
-  ["Low-stock alerts", "Included", "Included", "Included", "Included"],
-  ["Stock-health report", "Included", "Included", "Included", "Included"],
-  ["Workflow guides", "Included", "Included", "Included", "Included"],
-  ["Audit log in app", "Own recent activity", "Latest 20 organization events", "Latest 20 organization events", "Custom"],
-  ["Audit CSV export", "Not included", "90 days/export", "366 days/export", "Custom"],
-  ["Data retention", "12 months", "36 months", "7 years", "Custom"],
-  ["Support", "Email", "Priority email", "Priority + onboarding", "SLA / dedicated"]
-];
+const plans = buildPricingCards();
+const limitRows = buildPricingLimitRows();
 
 export default function PricingPage() {
   return (
@@ -118,22 +61,25 @@ export default function PricingPage() {
         <section className="pricing-plans" aria-label="LockStock pricing plans">
           <div className="landing-wrap pricing-plan-grid">
             {plans.map((plan) => (
-              <article key={plan.name} className={`pricing-plan-card${plan.highlight ? " pricing-plan-card-featured" : ""}`}>
-                {plan.highlight ? <span className="pricing-plan-badge">Recommended</span> : null}
-                <h2>{plan.name}</h2>
+              <article key={plan.id} className={`pricing-plan-card${plan.recommended ? " pricing-plan-card-featured" : ""}`}>
+                {plan.recommended ? <span className="pricing-plan-badge">Recommended</span> : null}
+                <h2>{plan.title}</h2>
                 <p>{plan.description}</p>
                 <div className="pricing-plan-price">
-                  {plan.price}
-                  {plan.price !== "Custom" ? <span>/mo excl. VAT</span> : null}
+                  {plan.priceLabel}
+                  {plan.priceLabel !== "Custom" ? <span>/mo excl. VAT</span> : null}
                 </div>
-                <div className="pricing-plan-annual">{plan.annual}{plan.id !== "enterprise" ? " · charged upfront" : ""}</div>
+                <div className="pricing-plan-annual">
+                  {plan.annualLabel}
+                  {plan.id !== "enterprise" ? " · charged upfront" : ""}
+                </div>
                 <ul>
-                  {plan.features.map((feature) => (
+                  {plan.highlights.map((feature) => (
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
                 <Link className="ghost-btn" href={plan.id === "enterprise" ? "/contact" : `/payment?onboarding=paid&plan=${plan.id}`}>
-                  {plan.id === "enterprise" ? "Contact sales" : "Choose plan"}
+                  {plan.ctaLabel}
                 </Link>
               </article>
             ))}
