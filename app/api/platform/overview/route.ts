@@ -99,35 +99,44 @@ export async function GET(request: NextRequest) {
       organizationQuery = organizationQuery.ilike("name", `%${search}%`);
     }
 
-    const [
-      organizationsResult,
-      orgUsersResult,
-      userProfilesResult,
-      materialsResult,
-      locationsResult,
-      stockMovementsResult,
-      purchaseOrdersResult,
-      billingResult,
-      auditResult
-    ] = await Promise.all([
+    const [organizationsResult, userProfilesResult] = await Promise.all([
       organizationQuery,
-      context.supabase.from("org_users").select("org_id,user_id,role"),
-      context.supabase.from("user_profiles").select("user_id", { count: "exact", head: true }),
-      context.supabase.from("materials").select("org_id,id"),
-      context.supabase.from("locations").select("org_id,id"),
-      context.supabase.from("stock_movements").select("org_id,id,created_at"),
-      context.supabase.from("purchase_orders").select("org_id,id,status"),
-      context.supabase
-        .from("organization_billing")
-        .select("org_id,plan,status,billing_interval,current_period_end,trial_ends_at,updated_at"),
-      context.supabase
-        .from("audit_log")
-        .select("id,org_id,actor_user_id,action,entity_type,entity_label,message,metadata,created_at")
-        .order("created_at", { ascending: false })
-        .limit(AUDIT_LIMIT)
+      context.supabase.from("user_profiles").select("user_id", { count: "exact", head: true })
     ]);
 
     const organizations = await requireData<OrganizationRow[]>(organizationsResult, "organizations");
+
+    if (userProfilesResult.error) {
+      throw new ApiError(500, "Failed to load registered users.", userProfilesResult.error.message);
+    }
+
+    const organizationIds = organizations.map((organization) => organization.id);
+    const [orgUsersResult, materialsResult, locationsResult, stockMovementsResult, purchaseOrdersResult, billingResult, auditResult] = await Promise.all([
+      organizationIds.length
+        ? context.supabase.from("org_users").select("org_id,user_id,role").in("org_id", organizationIds)
+        : Promise.resolve({ data: [], error: null }),
+      organizationIds.length ? context.supabase.from("materials").select("org_id,id").in("org_id", organizationIds) : Promise.resolve({ data: [], error: null }),
+      organizationIds.length ? context.supabase.from("locations").select("org_id,id").in("org_id", organizationIds) : Promise.resolve({ data: [], error: null }),
+      organizationIds.length
+        ? context.supabase.from("stock_movements").select("org_id,id,created_at").in("org_id", organizationIds)
+        : Promise.resolve({ data: [], error: null }),
+      organizationIds.length ? context.supabase.from("purchase_orders").select("org_id,id,status").in("org_id", organizationIds) : Promise.resolve({ data: [], error: null }),
+      organizationIds.length
+        ? context.supabase
+            .from("organization_billing")
+            .select("org_id,plan,status,billing_interval,current_period_end,trial_ends_at,updated_at")
+            .in("org_id", organizationIds)
+        : Promise.resolve({ data: [], error: null }),
+      organizationIds.length
+        ? context.supabase
+            .from("audit_log")
+            .select("id,org_id,actor_user_id,action,entity_type,entity_label,message,metadata,created_at")
+            .in("org_id", organizationIds)
+            .order("created_at", { ascending: false })
+            .limit(AUDIT_LIMIT)
+        : Promise.resolve({ data: [], error: null })
+    ]);
+
     const orgUsers = await requireData<OrgUserRow[]>(orgUsersResult, "organization users");
     const materials = await requireData<OrgScopedRow[]>(materialsResult, "materials");
     const locations = await requireData<OrgScopedRow[]>(locationsResult, "locations");
@@ -135,10 +144,6 @@ export async function GET(request: NextRequest) {
     const purchaseOrders = await requireData<PurchaseOrderRow[]>(purchaseOrdersResult, "purchase orders");
     const billingRows = await requireData<BillingRow[]>(billingResult, "billing plans");
     const auditRows = await requireData<AuditLogRow[]>(auditResult, "audit log");
-
-    if (userProfilesResult.error) {
-      throw new ApiError(500, "Failed to load registered users.", userProfilesResult.error.message);
-    }
 
     const organizationNames = new Map(organizations.map((organization) => [organization.id, organization.name]));
     const usersByOrg = countByOrg(orgUsers.map((row) => ({ org_id: row.org_id, id: row.user_id })));

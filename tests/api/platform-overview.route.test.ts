@@ -14,6 +14,7 @@ function tableQuery(result: unknown) {
     select: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     ilike: vi.fn().mockReturnThis(),
     then: (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)
   };
@@ -143,6 +144,12 @@ describe("GET /api/platform/overview", () => {
       openPurchaseOrders: 1
     });
     expect(body.recentAudit[0].organizationName).toBe("Northstar Materials");
+    expect(supabase.queries.materials.in).toHaveBeenCalledWith("org_id", ["11111111-1111-4111-8111-111111111111"]);
+    expect(supabase.queries.locations.in).toHaveBeenCalledWith("org_id", ["11111111-1111-4111-8111-111111111111"]);
+    expect(supabase.queries.stock_movements.in).toHaveBeenCalledWith("org_id", ["11111111-1111-4111-8111-111111111111"]);
+    expect(supabase.queries.purchase_orders.in).toHaveBeenCalledWith("org_id", ["11111111-1111-4111-8111-111111111111"]);
+    expect(supabase.queries.organization_billing.in).toHaveBeenCalledWith("org_id", ["11111111-1111-4111-8111-111111111111"]);
+    expect(supabase.queries.audit_log.in).toHaveBeenCalledWith("org_id", ["11111111-1111-4111-8111-111111111111"]);
     expect(logPlatformAccess).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "platform-user", role: "operator", supabase }),
       "platform.overview.read",

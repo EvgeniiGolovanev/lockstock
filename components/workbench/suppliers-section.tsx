@@ -290,18 +290,16 @@ export function WorkbenchSuppliersSection({
           <table className="compact-table vendors-table">
             <thead>
               <tr>
-                <SortableHeader tableId="suppliers" sortKey="vendorId" label="Vendor ID" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="name" label="Vendor Name" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="phone" label="Phone" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="address" label="Address" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="leadTimeDays" label="Lead Time (days)" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="status" label="Status" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="openOrders" label="Open POs" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="receivedOrders" label="Received POs" sortState={supplierSortState} onSort={onSort} />
-                <SortableHeader tableId="suppliers" sortKey="totalOrders" label="Total POs" sortState={supplierSortState} onSort={onSort} />
-                <th>
-                  <span className="table-static-head">Actions</span>
-                </th>
+                <th><span className="table-static-head">Vendor ID</span></th>
+                <th><span className="table-static-head">Vendor Name</span></th>
+                <th><span className="table-static-head">Phone</span></th>
+                <th><span className="table-static-head">Address</span></th>
+                <th><span className="table-static-head">Lead Time (days)</span></th>
+                <th><span className="table-static-head">Status</span></th>
+                <th><span className="table-static-head">Open POs</span></th>
+                <th><span className="table-static-head">Received POs</span></th>
+                <th><span className="table-static-head">Total POs</span></th>
+                <th><span className="table-static-head">Actions</span></th>
               </tr>
             </thead>
             <tbody>

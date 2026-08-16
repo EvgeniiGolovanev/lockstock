@@ -1014,12 +1014,32 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_low_stock_materials: {
+        Args: { p_org_id: string }
+        Returns: {
+          deficit: number
+          material_id: string
+          min_stock: number
+          name: string
+          quantity: number
+          sku: string
+        }[]
+      }
       get_org_member_account_profiles: {
         Args: { target_org_id: string }
         Returns: {
           email: string
           full_name: string
           user_id: string
+        }[]
+      }
+      get_stock_health: {
+        Args: { p_org_id: string }
+        Returns: {
+          low_stock: number
+          out_of_stock: number
+          total_materials: number
+          total_quantity: number
         }[]
       }
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }

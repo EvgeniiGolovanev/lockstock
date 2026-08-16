@@ -193,6 +193,7 @@ const DEFAULT_TABLE_PAGE_SIZE = 20;
 const MATERIALS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
 const MOVEMENTS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
 const PURCHASE_ORDERS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
+const SUPPLIER_LOOKUP_LIMIT = 100;
 
 const STORAGE_KEYS = {
   baseUrl: "lockstock.baseUrl",
@@ -477,6 +478,7 @@ export function LockstockWorkbench() {
   const [movementPage, setMovementPage] = useState(1);
   const [movementTotal, setMovementTotal] = useState(0);
   const [supplierPage, setSupplierPage] = useState(1);
+  const [supplierTotal, setSupplierTotal] = useState(0);
   const [poFilterStatus, setPoFilterStatus] = useState<PurchaseOrderFilterStatus>("all");
   const [poFilterSupplierId, setPoFilterSupplierId] = useState("all");
   const [poFilterQuery, setPoFilterQuery] = useState("");
@@ -488,6 +490,7 @@ export function LockstockWorkbench() {
   const [materialMovements, setMaterialMovements] = useState<MaterialMovement[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [activeSupplierRows, setActiveSupplierRows] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [organizations, setOrganizations] = useState<OrganizationMembership[]>([]);
   const [organizationMembers, setOrganizationMembers] = useState<OrganizationMember[]>([]);
@@ -541,7 +544,10 @@ export function LockstockWorkbench() {
   );
   const activeMaterials = useMemo(() => materials.filter((material) => material.is_active !== false), [materials]);
   const activeLocations = useMemo(() => locations.filter((location) => location.is_active !== false), [locations]);
-  const activeSuppliers = useMemo(() => suppliers.filter((supplier) => supplier.is_active !== false), [suppliers]);
+  const activeSuppliers = useMemo(
+    () => activeSupplierRows.map((supplier) => ({ id: supplier.id, name: supplier.name })),
+    [activeSupplierRows]
+  );
   const inventoryLocations = useMemo(() => {
     const locationLabels = expandInventoryRows(materials).map((material) => material.location_label);
     return ["all", ...Array.from(new Set(locationLabels)).sort((a, b) => a.localeCompare(b))];
@@ -1183,6 +1189,70 @@ export function LockstockWorkbench() {
     return { count: response.data.length };
   }, [apiRequest, movementPage, orgId]);
 
+  const loadSuppliers = useCallback(
+    async (targetOrgId?: string, tokenOverride?: string, options?: { page?: number; status?: string; query?: string }) => {
+      const orgValue = targetOrgId ?? orgId;
+      if (!orgValue) {
+        return { count: 0 };
+      }
+
+      const page = options?.page ?? supplierPage;
+      const status = options?.status ?? supplierStatusFilter;
+      const query = options?.query ?? supplierSearch;
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(DEFAULT_TABLE_PAGE_SIZE)
+      });
+      if (query.trim()) {
+        params.set("q", query.trim());
+      }
+      if (status === "active" || status === "blocked") {
+        params.set("status", status);
+      }
+
+      const response = await apiRequest<{ data: Supplier[]; meta?: PaginationMeta }>(`/api/suppliers?${params.toString()}`, {
+        orgOverride: orgValue,
+        tokenOverride
+      });
+
+      setSuppliers(response.data);
+      setSupplierTotal(response.meta?.total ?? response.data.length);
+      return { count: response.data.length };
+    },
+    [apiRequest, orgId, supplierPage, supplierSearch, supplierStatusFilter]
+  );
+
+  const loadActiveSuppliers = useCallback(async (targetOrgId?: string, tokenOverride?: string) => {
+    const orgValue = targetOrgId ?? orgId;
+    if (!orgValue) {
+      return { count: 0 };
+    }
+
+    const collected: Supplier[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(SUPPLIER_LOOKUP_LIMIT),
+        status: "active"
+      });
+
+      const response = await apiRequest<{ data: Supplier[]; meta?: PaginationMeta }>(`/api/suppliers?${params.toString()}`, {
+        orgOverride: orgValue,
+        tokenOverride
+      });
+
+      collected.push(...response.data);
+      totalPages = response.meta?.total_pages ?? 1;
+      page += 1;
+    } while (page <= totalPages);
+
+    setActiveSupplierRows(collected);
+    return { count: collected.length };
+  }, [apiRequest, orgId]);
+
   const loadPurchaseOrders = useCallback(async (targetOrgId?: string, tokenOverride?: string) => {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
@@ -1226,25 +1296,25 @@ export function LockstockWorkbench() {
       return;
     }
 
-    const [materialsResult, movementsResult, locationsResult, suppliersResult, purchaseOrdersResult] = await Promise.all([
+    const [materialsResult, movementsResult, locationsResult, suppliersResult, activeSuppliersResult, purchaseOrdersResult] = await Promise.all([
       loadMaterials(orgValue, tokenOverride),
       loadMaterialMovements(orgValue, tokenOverride),
       apiRequest<{ data: Location[] }>("/api/locations", { orgOverride: orgValue, tokenOverride }),
-      apiRequest<{ data: Supplier[] }>("/api/suppliers", { orgOverride: orgValue, tokenOverride }),
+      loadSuppliers(orgValue, tokenOverride),
+      loadActiveSuppliers(orgValue, tokenOverride),
       loadPurchaseOrders(orgValue, tokenOverride)
     ]);
 
     setLocations(locationsResult.data);
-    setSuppliers(suppliersResult.data);
 
     await loadOrganizationMembers(orgValue, tokenOverride);
 
     await loadPendingInvitations(tokenOverride);
 
     addActivity(
-      `Loaded ${materialsResult.count} materials, ${movementsResult.count} movements, ${locationsResult.data.length} locations, ${suppliersResult.data.length} suppliers, ${purchaseOrdersResult.count} purchase orders.`
+      `Loaded ${materialsResult.count} materials, ${movementsResult.count} movements, ${locationsResult.data.length} locations, ${suppliersResult.count} suppliers, ${activeSuppliersResult.count} active suppliers, ${purchaseOrdersResult.count} purchase orders.`
     );
-  }, [addActivity, apiRequest, loadMaterialMovements, loadMaterials, loadOrganizationMembers, loadPendingInvitations, loadPurchaseOrders, orgId]);
+  }, [addActivity, apiRequest, loadActiveSuppliers, loadMaterialMovements, loadMaterials, loadOrganizationMembers, loadPendingInvitations, loadPurchaseOrders, loadSuppliers, orgId]);
 
   const bootstrapOrganizationContext = useCallback(async (options?: { tokenOverride?: string; announce?: boolean; preferredOrgId?: string }) => {
     const effectiveToken = options?.tokenOverride ?? accessToken;
@@ -1655,24 +1725,20 @@ export function LockstockWorkbench() {
     tableSorts.movements,
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
-  const supplierTableRows = sortRowsByKey(
-    filteredSupplierRows.map((supplier) => ({
-      supplierId: supplier.supplierId,
-      vendorId: formatVendorNumber(supplier.vendorNumber) || "-",
-      name: supplier.name,
-      phone: supplier.phone || "-",
-      address: supplier.address || "-",
-      leadTimeDays: supplier.leadTimeDays,
-      status: supplier.isActive ? "Active" : "Blocked",
-      openOrders: supplier.openOrders,
-      receivedOrders: supplier.receivedOrders,
-      totalOrders: supplier.totalOrders,
-      actionLabel: supplierById.has(supplier.supplierId) ? "Edit Block" : "-",
-      editableSupplier: supplierById.get(supplier.supplierId)
-    })),
-    tableSorts.suppliers,
-    (row, key) => row[key as keyof typeof row] as CsvCell
-  );
+  const supplierTableRows = filteredSupplierRows.map((supplier) => ({
+    supplierId: supplier.supplierId,
+    vendorId: formatVendorNumber(supplier.vendorNumber) || "-",
+    name: supplier.name,
+    phone: supplier.phone || "-",
+    address: supplier.address || "-",
+    leadTimeDays: supplier.leadTimeDays,
+    status: supplier.isActive ? "Active" : "Blocked",
+    openOrders: supplier.openOrders,
+    receivedOrders: supplier.receivedOrders,
+    totalOrders: supplier.totalOrders,
+    actionLabel: supplierById.has(supplier.supplierId) ? "Edit Block" : "-",
+    editableSupplier: supplierById.get(supplier.supplierId)
+  }));
   const purchaseOrderTableRows = sortRowsByKey(
     poTableRows.map(({ po, summary }) => ({
       id: po.id,
@@ -1722,7 +1788,7 @@ export function LockstockWorkbench() {
     (row, key) => row[key as keyof typeof row] as CsvCell
   );
   const locationTotalPages = totalPagesForRows(locationTableRows.length, DEFAULT_TABLE_PAGE_SIZE);
-  const supplierTotalPages = totalPagesForRows(supplierTableRows.length, DEFAULT_TABLE_PAGE_SIZE);
+  const supplierTotalPages = Math.max(1, Math.ceil(supplierTotal / DEFAULT_TABLE_PAGE_SIZE));
   useEffect(() => {
     setLocationPage((current) => Math.min(current, locationTotalPages));
   }, [locationTotalPages]);
@@ -2178,7 +2244,7 @@ export function LockstockWorkbench() {
               busy={busy}
               canExportCsv={canExportCsv}
               canManageCatalog={canManageCatalog}
-              hasSuppliers={suppliers.length > 0}
+              hasSuppliers={supplierTotal > 0}
               isOrgScopedReady={isOrgScopedReady}
               apiRequest={apiRequest}
               onActivity={addActivity}
@@ -2218,12 +2284,33 @@ export function LockstockWorkbench() {
               onSupplierSearchChange={(nextValue: string) => {
                 setSupplierSearch(nextValue);
                 setSupplierPage(1);
+                if (!orgId) {
+                  return;
+                }
+                void loadSuppliers(orgId, accessToken, { page: 1, status: supplierStatusFilter, query: nextValue }).catch((error) => {
+                  addActivity(`Loading suppliers failed: ${(error as Error).message}`);
+                });
               }}
               onSupplierStatusFilterChange={(nextValue: string) => {
                 setSupplierStatusFilter(nextValue);
                 setSupplierPage(1);
+                if (!orgId) {
+                  return;
+                }
+                void loadSuppliers(orgId, accessToken, { page: 1, status: nextValue, query: supplierSearch }).catch((error) => {
+                  addActivity(`Loading suppliers failed: ${(error as Error).message}`);
+                });
               }}
-              onSupplierPageChange={setSupplierPage}
+              onSupplierPageChange={(updater) => {
+                const nextPage = typeof updater === "function" ? updater(supplierPage) : updater;
+                setSupplierPage(nextPage);
+                if (!orgId) {
+                  return;
+                }
+                void loadSuppliers(orgId, accessToken, { page: nextPage, status: supplierStatusFilter, query: supplierSearch }).catch((error) => {
+                  addActivity(`Loading suppliers failed: ${(error as Error).message}`);
+                });
+              }}
               onSort={handleTableSort}
             />
           </section>
