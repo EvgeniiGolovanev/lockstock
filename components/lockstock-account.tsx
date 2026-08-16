@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { buildAccountMetadata, chooseInitialAccountOrganizationId, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
+import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { summarizeAuditMetadata } from "@/lib/ui/audit-log";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
@@ -132,18 +133,11 @@ export function LockstockAccount() {
   }
 
   const syncPublicProfile = useCallback(async (tokenOverride?: string) => {
-    const effectiveToken = tokenOverride ?? accessToken;
-    if (!effectiveToken) {
-      return;
-    }
-
-    await fetch("/api/account/profile", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${effectiveToken}`
-      }
+    void tokenOverride;
+    await browserApiRequest("/api/account/profile", {
+      method: "POST"
     });
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     let unmounted = false;
@@ -248,16 +242,7 @@ export function LockstockAccount() {
 
     async function loadInitialOrganization() {
       try {
-        const response = await fetch("/api/organizations", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
-        if (!response.ok) {
-          return;
-        }
-
-        const body = (await response.json()) as { data: OrganizationMembership[] };
+        const body = await browserApiRequest<{ data: OrganizationMembership[] }>("/api/organizations");
         const nextOrgId = chooseInitialAccountOrganizationId(
           window.localStorage.getItem(STORAGE_KEYS.orgId),
           body.data ?? []
@@ -290,55 +275,49 @@ export function LockstockAccount() {
       return;
     }
 
-    const headers = {
-      Authorization: `Bearer ${accessToken}`,
-      "x-org-id": activeOrgId
-    };
-
     async function loadAuditContext() {
       try {
         setAuditStatus("Loading audit log...");
-        const [auditResponse, organizationsResponse, entitlementsResponse, billingResponse] = await Promise.all([
-          fetch("/api/audit-log", { headers }),
-          fetch("/api/organizations", {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          }),
-          fetch("/api/billing/entitlements", { headers }),
-          fetch("/api/billing/summary", { headers })
+        const [auditResponse, organizationsResponse, entitlementsResponse, billingResponse] = await Promise.allSettled([
+          browserApiRequest<{ data: AuditLogEntry[] }>("/api/audit-log", { orgId: activeOrgId }),
+          browserApiRequest<{ data: OrganizationMembership[] }>("/api/organizations"),
+          browserApiRequest<{ data: { selectedPlan: string; effectivePlan: string; isReadOnly: boolean; features: { auditCsvExport: boolean } } }>("/api/billing/entitlements", { orgId: activeOrgId }),
+          browserApiRequest<{ data: BillingSummary }>("/api/billing/summary", { orgId: activeOrgId })
         ]);
 
-        if (organizationsResponse.ok) {
-          const organizationsBody = (await organizationsResponse.json()) as { data: OrganizationMembership[] };
-          const membership = organizationsBody.data.find((item) => item.organization.id === activeOrgId);
+        const errors: string[] = [];
+
+        if (organizationsResponse.status === "fulfilled") {
+          const membership = organizationsResponse.value.data.find((item) => item.organization.id === activeOrgId);
           setActiveOrgRole(membership?.role ?? "");
+        } else {
+          errors.push(organizationsResponse.reason instanceof Error ? organizationsResponse.reason.message : "Unable to load organization context.");
         }
 
-        if (entitlementsResponse.ok) {
-          const entitlementsBody = (await entitlementsResponse.json()) as {
-            data: { selectedPlan: string; effectivePlan: string; isReadOnly: boolean; features: { auditCsvExport: boolean } };
-          };
+        if (entitlementsResponse.status === "fulfilled") {
           setPlanAccess({
-            selectedPlan: entitlementsBody.data.selectedPlan,
-            effectivePlan: entitlementsBody.data.effectivePlan,
-            isReadOnly: entitlementsBody.data.isReadOnly,
-            canExportAudit: entitlementsBody.data.features.auditCsvExport
+            selectedPlan: entitlementsResponse.value.data.selectedPlan,
+            effectivePlan: entitlementsResponse.value.data.effectivePlan,
+            isReadOnly: entitlementsResponse.value.data.isReadOnly,
+            canExportAudit: entitlementsResponse.value.data.features.auditCsvExport
           });
-        }
-        if (billingResponse.ok) {
-          setBillingSummary(((await billingResponse.json()) as { data: BillingSummary }).data);
         } else {
-          setBillingSummary(null);
+          errors.push(entitlementsResponse.reason instanceof Error ? entitlementsResponse.reason.message : "Unable to load entitlement context.");
         }
 
-        if (auditResponse.ok) {
-          const auditBody = (await auditResponse.json()) as { data: AuditLogEntry[] };
-          setAuditLog(auditBody.data ?? []);
-          setAuditStatus("");
+        if (billingResponse.status === "fulfilled") {
+          setBillingSummary(billingResponse.value.data);
         } else {
-          const body = await auditResponse.json().catch(() => ({ error: "Failed to load audit log." }));
-          setAuditLog([]);
-          setAuditStatus(body.error ?? "Failed to load audit log.");
+          errors.push(billingResponse.reason instanceof Error ? billingResponse.reason.message : "Unable to load billing summary.");
         }
+
+        if (auditResponse.status === "fulfilled") {
+          setAuditLog(auditResponse.value.data ?? []);
+        } else {
+          errors.push(auditResponse.reason instanceof Error ? auditResponse.reason.message : "Unable to load audit log.");
+        }
+
+        setAuditStatus(errors[0] ?? "");
       } catch (error) {
         setAuditStatus((error as Error).message);
       }
@@ -357,15 +336,9 @@ export function LockstockAccount() {
 
     async function loadPlatformAccess() {
       try {
-        const response = await fetch("/api/platform/me", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
-        const payload = (await response.json()) as PlatformMe;
-
+        const payload = await browserApiRequest<PlatformMe>("/api/platform/me");
         if (!unmounted) {
-          setIsPlatformAdmin(response.ok && payload.isPlatformAdmin);
+          setIsPlatformAdmin(payload.isPlatformAdmin);
         }
       } catch {
         if (!unmounted) {
@@ -507,19 +480,10 @@ export function LockstockAccount() {
         from: auditExportFrom,
         to: auditExportTo
       });
-      const response = await fetch(`/api/audit-log?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "x-org-id": activeOrgId
-        }
+      const blob = await browserApiRequest<Blob>(`/api/audit-log?${params.toString()}`, {
+        orgId: activeOrgId,
+        responseType: "blob"
       });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({ error: "Audit export failed." }));
-        throw new Error(body.error ?? "Audit export failed.");
-      }
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -540,14 +504,20 @@ export function LockstockAccount() {
     if (!accessToken || !activeOrgId) return;
     try {
       setBusy(true);
-      const response = await fetch(`/api/billing/${action}`, {
+      const payload = await browserApiRequest<{ data: { url?: string; cancelAtPeriodEnd?: boolean } }>(`/api/billing/${action}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "x-org-id": activeOrgId }
+        orgId: activeOrgId
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Billing action failed.");
       if (payload.data.url) window.location.assign(payload.data.url);
-      else setBillingSummary((current) => current ? { ...current, cancel_at_period_end: payload.data.cancelAtPeriodEnd } : current);
+      else setBillingSummary((current) => {
+        if (!current) {
+          return current;
+        }
+        return {
+          ...current,
+          cancel_at_period_end: payload.data.cancelAtPeriodEnd ?? current.cancel_at_period_end
+        };
+      });
     } catch (error) {
       addActivity(`Billing action failed: ${(error as Error).message}`);
     } finally {

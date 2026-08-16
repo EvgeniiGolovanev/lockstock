@@ -4,13 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
-import {
-  buildPlatformMeRequest,
-  buildPlatformOverviewRequest,
-  platformAccessState,
-  platformSessionStatus
-} from "@/lib/ui/platform-cockpit";
+import { platformAccessState, platformSessionStatus } from "@/lib/ui/platform-cockpit";
 
 type PlatformMetrics = {
   totalOrganizations: number;
@@ -190,12 +186,10 @@ export function PlatformCockpit() {
 
     async function loadPlatformAccess() {
       try {
-        const request = buildPlatformMeRequest(session?.access_token ?? "");
-        const response = await fetch(request.url, { headers: request.headers });
-        const payload = (await response.json()) as { isPlatformAdmin?: boolean; role?: "support" | "operator" | "admin" | null };
+        const payload = await browserApiRequest<{ isPlatformAdmin?: boolean; role?: "support" | "operator" | "admin" | null }>("/api/platform/me");
 
         if (!unmounted) {
-          setIsPlatformAdmin(response.ok && payload.isPlatformAdmin === true);
+          setIsPlatformAdmin(payload.isPlatformAdmin === true);
           setPlatformRole(payload.role ?? null);
         }
       } catch (accessError) {
@@ -229,22 +223,18 @@ export function PlatformCockpit() {
     setError("");
 
     try {
-      const request = buildPlatformOverviewRequest({
-        accessToken: session.access_token,
-        query
-      });
-
-      const response = await fetch(request.url, { headers: request.headers });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load platform overview.");
+      const params = new URLSearchParams();
+      const trimmedQuery = query.trim();
+      if (trimmedQuery) {
+        params.set("q", trimmedQuery);
       }
 
-      setOverview(payload as PlatformOverview);
+      const payload = await browserApiRequest<PlatformOverview>(`/api/platform/overview${params.size ? `?${params.toString()}` : ""}`);
+
+      setOverview(payload);
       setTrialDrafts(
         Object.fromEntries(
-          (payload as PlatformOverview).tenants.map((tenant) => [tenant.id, dateTimeLocalValue(tenant.trialEndsAt)])
+          payload.tenants.map((tenant) => [tenant.id, dateTimeLocalValue(tenant.trialEndsAt)])
         )
       );
     } catch (loadError) {
@@ -261,13 +251,10 @@ export function PlatformCockpit() {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/platform/organizations/${tenantId}/billing`, {
+      await browserApiRequest(`/api/platform/organizations/${tenantId}/billing`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-        body: JSON.stringify({ trialEndsAt: new Date(draft).toISOString() })
+        body: { trialEndsAt: new Date(draft).toISOString() }
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Failed to update trial end date.");
       await loadOverview();
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Failed to update trial end date.");

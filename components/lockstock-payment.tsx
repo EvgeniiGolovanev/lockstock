@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
+import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { annualSavings, billingCatalog, type BillingInterval, type PaidPlan } from "@/lib/billing/catalog";
 
@@ -65,17 +66,17 @@ export function LockstockPayment() {
   }, []);
 
   const orgId = typeof window === "undefined" ? "" : window.localStorage.getItem("lockstock.orgId") ?? "";
-  const headers = useMemo(() => session?.access_token ? {
-    Authorization: `Bearer ${session.access_token}`,
-    ...(orgId ? { "x-org-id": orgId } : {})
-  } : null, [orgId, session?.access_token]);
 
   useEffect(() => {
-    if (!headers || !orgId) return;
-    void fetch("/api/billing/summary", { headers }).then(async (response) => {
-      if (response.ok) setSummary(((await response.json()) as { data: BillingSummary }).data);
-    });
-  }, [headers, orgId]);
+    if (!orgId) return;
+    void browserApiRequest<{ data: BillingSummary }>("/api/billing/summary", { orgId })
+      .then((response) => {
+        setSummary(response.data);
+      })
+      .catch(() => {
+        setSummary(null);
+      });
+  }, [orgId]);
 
   async function signIn(event: FormEvent) {
     event.preventDefault();
@@ -86,54 +87,56 @@ export function LockstockPayment() {
   }
 
   async function startTrial() {
-    if (!headers) return;
+    if (!orgId) return;
     setBusy("trial"); setMessage("");
-    const response = await fetch("/api/billing/start-trial", { method: "POST", headers });
-    const payload = await response.json();
-    if (!response.ok) setMessage(payload.error ?? "Failed to start trial.");
-    else {
+    try {
+      const payload = await browserApiRequest<{ data: { orgId: string } }>("/api/billing/start-trial", { method: "POST", orgId });
       window.localStorage.setItem("lockstock.orgId", payload.data.orgId);
       window.location.assign("/inventory");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to start trial.");
+    } finally {
+      setBusy("");
     }
-    setBusy("");
   }
 
   async function choosePlan(plan: PaidPlan) {
-    if (!headers) return;
+    if (!orgId) return;
     setBusy(plan); setMessage("");
-    const existingSubscription = Boolean(summary?.stripe_subscription_id);
-    const endpoint = existingSubscription ? "/api/billing/change-preview" : "/api/billing/checkout-session";
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { ...headers, "content-type": "application/json" },
-      body: JSON.stringify({ plan, interval })
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      setMessage(payload.error ?? "Billing request failed.");
+    try {
+      const existingSubscription = Boolean(summary?.stripe_subscription_id);
+      const endpoint = existingSubscription ? "/api/billing/change-preview" : "/api/billing/checkout-session";
+      const payload = await browserApiRequest<{ data: { orgId?: string; url?: string; amountDue?: number; currency?: string; effectiveAt?: string; prorationDate?: string; transition?: { mode: "scheduled" | "immediate" } } }>(endpoint, {
+        method: "POST",
+        orgId,
+        body: { plan, interval }
+      });
+      if (!existingSubscription) {
+        if (payload.data.orgId) {
+          window.localStorage.setItem("lockstock.orgId", payload.data.orgId);
+        }
+        if (payload.data.url) {
+          window.location.assign(payload.data.url);
+        }
+        return;
+      }
+      const preview = payload.data;
+      const amount = new Intl.NumberFormat("en", { style: "currency", currency: preview.currency ?? "EUR" }).format((preview.amountDue ?? 0) / 100);
+      if (!window.confirm(preview.transition?.mode === "scheduled" ? `Schedule this change for ${preview.effectiveAt ? new Date(preview.effectiveAt).toLocaleDateString() : "the selected date"}?` : `Confirm the prorated charge of ${amount}?`)) {
+        return;
+      }
+      const changePayload = await browserApiRequest<{ data: { paymentUrl?: string; mode: "scheduled" | "submitted" } }>("/api/billing/change", {
+        method: "POST",
+        orgId,
+        body: { plan, interval, prorationDate: preview.prorationDate }
+      });
+      if (changePayload.data.paymentUrl) window.location.assign(changePayload.data.paymentUrl);
+      else setMessage(`Plan change ${changePayload.data.mode === "scheduled" ? "scheduled" : "submitted"}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Billing request failed.");
+    } finally {
       setBusy("");
-      return;
     }
-    if (!existingSubscription) {
-      window.localStorage.setItem("lockstock.orgId", payload.data.orgId);
-      window.location.assign(payload.data.url);
-      return;
-    }
-    const preview = payload.data;
-    const amount = new Intl.NumberFormat("en", { style: "currency", currency: preview.currency ?? "EUR" }).format((preview.amountDue ?? 0) / 100);
-    if (!window.confirm(preview.transition.mode === "scheduled" ? `Schedule this change for ${new Date(preview.effectiveAt).toLocaleDateString()}?` : `Confirm the prorated charge of ${amount}?`)) {
-      setBusy(""); return;
-    }
-    const changeResponse = await fetch("/api/billing/change", {
-      method: "POST",
-      headers: { ...headers, "content-type": "application/json" },
-      body: JSON.stringify({ plan, interval, prorationDate: preview.prorationDate })
-    });
-    const changePayload = await changeResponse.json();
-    if (!changeResponse.ok) setMessage(changePayload.error ?? "Plan change failed.");
-    else if (changePayload.data.paymentUrl) window.location.assign(changePayload.data.paymentUrl);
-    else setMessage(`Plan change ${changePayload.data.mode === "scheduled" ? "scheduled" : "submitted"}.`);
-    setBusy("");
   }
 
   return (

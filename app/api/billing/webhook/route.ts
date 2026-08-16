@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createCorrelationId } from "@/lib/api/correlation-id";
 import { getStripeClient } from "@/lib/billing/stripe";
 import { bindCheckoutSession, clearReleasedSchedule, markInvoiceFailed, markSubscriptionDeleted, subscriptionIdFromEventObject, syncStripeSubscription } from "@/lib/billing/webhook-sync";
 import { claimStripeWebhookEvent, completeStripeWebhookEvent, failStripeWebhookEvent } from "@/lib/billing/webhook-ledger";
@@ -57,13 +58,15 @@ export async function POST(request: NextRequest) {
     await completeStripeWebhookEvent(event.id);
     return NextResponse.json({ received: true });
   } catch (error) {
+    const requestId = createCorrelationId("req");
     const failure = error as Error & { code?: string };
     try {
       await failStripeWebhookEvent(event.id, failure.code ?? "processing_failed", failure.message || "Stripe webhook processing failed");
     } catch (ledgerError) {
-      console.error("Stripe webhook failure ledger update failed", ledgerError);
+      console.error("Stripe webhook failure ledger update failed", { requestId, ledgerError });
     }
     console.error("Stripe webhook processing failed", {
+      requestId,
       eventId: event.id,
       eventType: event.type,
       attempt: ledger?.attempt_count ?? 0,

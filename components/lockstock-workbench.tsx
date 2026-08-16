@@ -17,6 +17,7 @@ import { WorkbenchSnapshotSection } from "@/components/workbench/snapshot-sectio
 import { WorkbenchSuppliersSection } from "@/components/workbench/suppliers-section";
 import { WorkflowGallery, WorkflowGuideButton } from "@/components/workflow-guide";
 import { getSignedOutRedirectPath, shouldShowSignedOutPanels } from "@/lib/auth/route-guards";
+import { browserApiRequest } from "@/lib/api/browser-request";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { formatMaterialUnitLabel } from "@/lib/material-units";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -195,7 +196,6 @@ const PURCHASE_ORDERS_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
 
 const STORAGE_KEYS = {
   baseUrl: "lockstock.baseUrl",
-  token: "lockstock.accessToken",
   orgId: "lockstock.orgId"
 } as const;
 
@@ -505,7 +505,14 @@ export function LockstockWorkbench() {
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
   const [memberInviteRole, setMemberInviteRole] = useState<OrganizationMember["role"] | "">("");
 
-  const normalizedBaseUrl = useMemo(() => baseUrl.replace(/\/+$/, ""), [baseUrl]);
+  const isProduction = process.env.NODE_ENV === "production";
+  const normalizedBaseUrl = useMemo(() => {
+    if (typeof window !== "undefined" && isProduction) {
+      return window.location.origin;
+    }
+
+    return baseUrl.replace(/\/+$/, "");
+  }, [baseUrl, isProduction]);
   const isOrgScopedReady = Boolean(accessToken && orgId);
   const activeMembership = useMemo(
     () => organizations.find((item) => item.organization.id === orgId) ?? null,
@@ -678,19 +685,12 @@ export function LockstockWorkbench() {
   }
 
   const syncPublicProfile = useCallback(async (tokenOverride?: string) => {
-    const effectiveToken = tokenOverride ?? accessToken;
-    if (!effectiveToken) {
-      return;
-    }
-
-    const syncBaseUrl = (baseUrl || window.location.origin).replace(/\/+$/, "");
-    await fetch(`${syncBaseUrl}/api/account/profile`, {
+    void tokenOverride;
+    await browserApiRequest("/api/account/profile", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${effectiveToken}`
-      }
+      baseUrl: normalizedBaseUrl
     });
-  }, [accessToken, baseUrl]);
+  }, [normalizedBaseUrl]);
 
   useEffect(() => {
     if (isDemoMode) {
@@ -718,11 +718,11 @@ export function LockstockWorkbench() {
       setMemberInviteRole("viewer");
       return;
     }
-    setBaseUrl(window.localStorage.getItem(STORAGE_KEYS.baseUrl) ?? window.location.origin);
-    setAccessToken(window.localStorage.getItem(STORAGE_KEYS.token) ?? "");
+    const storedBaseUrl = window.localStorage.getItem(STORAGE_KEYS.baseUrl);
+    setBaseUrl(isProduction ? window.location.origin : storedBaseUrl ?? window.location.origin);
     setOrgId(window.localStorage.getItem(STORAGE_KEYS.orgId) ?? "");
     setStorageHydrated(true);
-  }, [isDemoMode]);
+  }, [isDemoMode, isProduction]);
 
   useEffect(() => {
     if (isDemoMode) {
@@ -741,13 +741,10 @@ export function LockstockWorkbench() {
             return;
           }
           if (!data.session) {
-            if (window.localStorage.getItem(STORAGE_KEYS.token)) {
-              setAccessToken("");
-              setSignedInAs("");
-              setSignedInFullName("");
-              clearWorkspaceData();
-              addActivity("No active Supabase session. Cleared saved token.");
-            }
+            setAccessToken("");
+            setSignedInAs("");
+            setSignedInFullName("");
+            clearWorkspaceData();
             setAuthResolved(true);
             return;
           }
@@ -835,15 +832,10 @@ export function LockstockWorkbench() {
 
     async function loadPlatformAccess() {
       try {
-        const response = await fetch(`${normalizedBaseUrl}/api/platform/me`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
-        const payload = (await response.json()) as PlatformMe;
+        const payload = await browserApiRequest<PlatformMe>("/api/platform/me", { baseUrl: normalizedBaseUrl });
 
         if (!unmounted) {
-          setIsPlatformAdmin(response.ok && payload.isPlatformAdmin);
+          setIsPlatformAdmin(payload.isPlatformAdmin);
         }
       } catch {
         if (!unmounted) {
@@ -860,22 +852,13 @@ export function LockstockWorkbench() {
   }, [accessToken, authResolved, isDemoMode, normalizedBaseUrl, signedInAs]);
 
   useEffect(() => {
-    if (isDemoMode) {
+    if (isDemoMode || isProduction) {
       return;
     }
     if (baseUrl) {
       window.localStorage.setItem(STORAGE_KEYS.baseUrl, baseUrl);
     }
-  }, [baseUrl, isDemoMode]);
-
-  useEffect(() => {
-    if (isDemoMode) {
-      return;
-    }
-    if (storageHydrated) {
-      window.localStorage.setItem(STORAGE_KEYS.token, accessToken);
-    }
-  }, [accessToken, isDemoMode, storageHydrated]);
+  }, [baseUrl, isDemoMode, isProduction]);
 
   useEffect(() => {
     if (isDemoMode) {
@@ -1034,50 +1017,23 @@ export function LockstockWorkbench() {
       body?: Record<string, unknown>;
       orgOverride?: string;
       requireOrg?: boolean;
+      signal?: AbortSignal;
       tokenOverride?: string;
     }
   ): Promise<T> => {
-    const method = options?.method ?? "GET";
     const requireOrg = options?.requireOrg ?? true;
     const effectiveOrgId = options?.orgOverride ?? orgId;
-    const effectiveToken = options?.tokenOverride ?? accessToken;
-
-    if (!effectiveToken) {
-      throw new Error("Access token is required.");
-    }
     if (requireOrg && !effectiveOrgId) {
       throw new Error("Group ID is required.");
     }
-    if (!normalizedBaseUrl) {
-      throw new Error("Base URL is required.");
-    }
-
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${effectiveToken}`
-    };
-
-    if (requireOrg) {
-      headers["x-org-id"] = effectiveOrgId;
-    }
-    if (options?.body) {
-      headers["Content-Type"] = "application/json";
-    }
-
-    const response = await fetch(`${normalizedBaseUrl}${path}`, {
-      method,
-      headers,
-      body: options?.body ? JSON.stringify(options.body) : undefined
+    return browserApiRequest<T>(path, {
+      method: options?.method,
+      body: options?.body ?? null,
+      baseUrl: normalizedBaseUrl,
+      orgId: requireOrg ? effectiveOrgId : null,
+      signal: options?.signal
     });
-
-    const raw = await response.text();
-    const payload = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-
-    if (!response.ok) {
-      throw new Error(String(payload.error ?? `Request failed with status ${response.status}.`));
-    }
-
-    return payload as T;
-  }, [accessToken, normalizedBaseUrl, orgId]);
+  }, [normalizedBaseUrl, orgId]);
 
   const loadOrganizationMembers = useCallback(async (targetOrgId?: string, tokenOverride?: string) => {
     const orgValue = targetOrgId ?? orgId;
@@ -1856,10 +1812,12 @@ export function LockstockWorkbench() {
         <h2>Access & Environment</h2>
         <p>Sign in and the workspace will auto-bootstrap group context.</p>
         <div className="grid grid-2">
-          <label className="field">
-            <span>Base URL</span>
-            <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="http://localhost:3000" />
-          </label>
+          {!isProduction ? (
+            <label className="field">
+              <span>Base URL</span>
+              <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="http://localhost:3000" />
+            </label>
+          ) : null}
           <label className="field">
             <span>Active Group ID</span>
             <input value={orgId} readOnly placeholder="auto-selected" />
@@ -1913,23 +1871,7 @@ export function LockstockWorkbench() {
             </select>
           </label>
         ) : null}
-          <label className="field">
-            <span>Access Token (Supabase JWT)</span>
-            <input
-              value={accessToken}
-              onChange={(event) => setAccessToken(event.target.value)}
-              placeholder="eyJ..."
-              autoCapitalize="none"
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              type="text"
-            />
-          </label>
         <div className="actions">
-          <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
-            Sync Workspace
-          </button>
           <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => refreshCoreData()}>
             Refresh Data
           </button>

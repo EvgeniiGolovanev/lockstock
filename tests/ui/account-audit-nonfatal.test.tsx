@@ -155,4 +155,73 @@ describe("LockstockAccount", () => {
     });
     expect(await screen.findByRole("button", { name: "Download CSV" })).toBeInTheDocument();
   });
+
+  it("keeps the subscription section when the audit log request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/api/audit-log")) {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({ error: "Unexpected server error." }),
+            text: async () => JSON.stringify({ error: "Unexpected server error." }),
+            headers: { get: () => null }
+          } as unknown as Response;
+        }
+
+        if (url.includes("/api/organizations")) {
+          return mockJsonResponse({
+            data: [
+              { role: "owner", organization: { id: "org-1", name: "Northstar Materials", created_at: "2026-08-01T09:00:00.000Z" } }
+            ]
+          });
+        }
+
+        if (url.includes("/api/billing/entitlements")) {
+          return mockJsonResponse({
+            data: {
+              selectedPlan: "business",
+              effectivePlan: "starter",
+              isReadOnly: false,
+              canExportAudit: true,
+              features: { auditCsvExport: true }
+            }
+          });
+        }
+
+        if (url.includes("/api/billing/summary")) {
+          return mockJsonResponse({
+            data: {
+              plan: "business",
+              status: "trialing",
+              billing_interval: "monthly",
+              current_period_end: null,
+              trial_ends_at: "2026-08-28T10:00:00.000Z",
+              past_due_since: null,
+              cancel_at_period_end: false,
+              stripe_subscription_id: null,
+              scheduled_plan: null,
+              scheduled_interval: null,
+              scheduled_effective_at: null
+            }
+          });
+        }
+
+        if (url.includes("/api/account/profile")) {
+          return mockJsonResponse({ data: { ok: true } });
+        }
+
+        return mockJsonResponse({ data: {} });
+      })
+    );
+
+    render(<LockstockAccount />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription" })).toBeInTheDocument();
+    expect(screen.getByText("Current plan")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected server error.")).toBeInTheDocument();
+  });
 });
