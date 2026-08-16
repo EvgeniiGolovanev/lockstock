@@ -1,0 +1,62 @@
+// @vitest-environment jsdom
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+
+const { authMock } = vi.hoisted(() => ({
+  authMock: {
+    getSession: vi.fn(),
+    onAuthStateChange: vi.fn(),
+    signInWithPassword: vi.fn()
+  }
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  )
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+}));
+
+vi.mock("@/components/language-provider", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+}));
+
+vi.mock("@/components/language-switcher", () => ({
+  LanguageSwitcher: () => <div data-testid="language-switcher" />
+}));
+
+vi.mock("@/lib/supabase-browser", () => ({
+  getSupabaseBrowserClient: () => ({ auth: authMock })
+}));
+
+vi.mock("@/lib/ui/demo-video", () => ({
+  demoVideoHref: () => "/demo.mp4"
+}));
+
+import { LockstockLanding } from "@/components/lockstock-landing";
+
+describe("LockstockLanding", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    authMock.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
+  });
+
+  it("renders the sign-in modal copy with real punctuation", async () => {
+    render(<LockstockLanding />);
+
+    await screen.findByRole("button", { name: "Sign In" });
+    screen.getByRole("button", { name: "Sign In" }).click();
+
+    expect(await screen.findByRole("dialog", { name: "Welcome back" })).toBeInTheDocument();
+    expect(screen.getByText("Don't have an account?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign up" })).toBeInTheDocument();
+  });
+});

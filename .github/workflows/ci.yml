@@ -30,6 +30,21 @@ jobs:
       - name: Verify application
         run: npm run verify
 
+      - name: Run coverage report
+        run: npm run test:coverage
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run critical E2E suite
+        run: npm run test:e2e
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockstock-coverage
+          path: coverage
+
   database:
     name: Disposable database verification
     runs-on: ubuntu-latest
