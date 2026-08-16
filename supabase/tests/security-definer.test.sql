@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(13);
+select plan(14);
 
 select set_eq(
   $$
@@ -18,6 +18,8 @@ select set_eq(
       ('complete_stripe_webhook_event'::text),
       ('fail_stripe_webhook_event'::text),
       ('create_organization_with_owner'::text),
+      ('create_purchase_order_with_lines'::text),
+      ('create_team_with_owner'::text),
       ('create_stock_movement'::text),
       ('create_stock_transfer'::text),
       ('derive_workspace_actor'::text),
@@ -29,6 +31,7 @@ select set_eq(
       ('receive_purchase_order'::text),
       ('transition_purchase_order_status'::text),
       ('reject_org_invitation'::text),
+      ('remove_org_member_with_team_memberships'::text),
       ('workspace_has_write_access'::text),
       ('write_audit_log'::text)
   $$,
@@ -149,11 +152,14 @@ select set_eq(
       and p.proname in (
         'accept_org_invitation',
         'create_organization_with_owner',
+        'create_purchase_order_with_lines',
+        'create_team_with_owner',
         'create_stock_movement',
         'create_stock_transfer',
         'receive_purchase_order',
         'transition_purchase_order_status',
-        'reject_org_invitation'
+        'reject_org_invitation',
+        'remove_org_member_with_team_memberships'
       )
       and has_function_privilege('authenticated', p.oid, 'execute')
   $$,
@@ -161,11 +167,14 @@ select set_eq(
     values
       ('accept_org_invitation'::text),
       ('create_organization_with_owner'::text),
+      ('create_purchase_order_with_lines'::text),
+      ('create_team_with_owner'::text),
       ('create_stock_movement'::text),
       ('create_stock_transfer'::text),
       ('receive_purchase_order'::text),
       ('transition_purchase_order_status'::text),
-      ('reject_org_invitation'::text)
+      ('reject_org_invitation'::text),
+      ('remove_org_member_with_team_memberships'::text)
   $$,
   'authenticated retains only the intended client mutation RPC entry points'
 );

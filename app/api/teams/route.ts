@@ -25,35 +25,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { orgId, userId, role, supabase } = await requireRequestContext(request);
+    const { orgId, role, supabase } = await requireRequestContext(request);
     requireMinRole(role, "manager");
     const payload = createTeamSchema.parse(await request.json());
 
-    const { data: team, error: teamError } = await supabase
-      .from("teams")
-      .insert({
-        org_id: orgId,
-        created_by: userId,
-        ...payload
-      })
-      .select("*")
-      .single();
-
-    if (teamError) {
-      throw teamError;
-    }
-
-    const { error: memberError } = await supabase.from("team_members").insert({
-      team_id: team.id,
-      user_id: userId,
-      created_by: userId
+    const { data, error } = await supabase.rpc("create_team_with_owner", {
+      p_org_id: orgId,
+      p_name: payload.name,
+      p_description: payload.description ?? null
     });
 
-    if (memberError) {
-      throw memberError;
+    if (error) {
+      throw error;
     }
 
-    return NextResponse.json({ data: team }, { status: 201 });
+    return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

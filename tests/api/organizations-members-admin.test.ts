@@ -49,35 +49,21 @@ function createSupabaseForRole(role: Role) {
     delete: vi.fn().mockReturnValue(orgUsersDeleteQuery)
   };
 
-  const teamsTable = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockResolvedValue({ data: [{ id: "team-default" }], error: null })
-  };
-
-  const teamMembersDeleteQuery = {
-    eq: vi.fn().mockReturnThis(),
-    in: vi.fn().mockResolvedValue({ error: null })
-  };
-
-  const teamMembersTable = {
-    delete: vi.fn().mockReturnValue(teamMembersDeleteQuery)
-  };
+  const rpc = vi.fn().mockResolvedValue({
+    data: { user_id: "target-user", removed: true },
+    error: null
+  });
 
   return {
     from: vi.fn((table: string) => {
       if (table === "org_users") {
         return orgUsersTable;
       }
-      if (table === "teams") {
-        return teamsTable;
-      }
-      if (table === "team_members") {
-        return teamMembersTable;
-      }
       throw new Error(`Unexpected table access in test: ${table}`);
     }),
+    rpc,
     orgUsersTable,
-    teamMembersTable
+    orgUsersDeleteQuery
   };
 }
 
@@ -144,7 +130,12 @@ describe("PATCH/DELETE /api/organizations/[id]/members/[userId]", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.removed).toBe(true);
-    expect(supabase.orgUsersTable.delete).toHaveBeenCalledOnce();
-    expect(supabase.teamMembersTable.delete).toHaveBeenCalledOnce();
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "remove_org_member_with_team_memberships",
+      expect.objectContaining({
+        p_org_id: orgId,
+        p_target_user_id: targetUserId
+      })
+    );
   });
 });

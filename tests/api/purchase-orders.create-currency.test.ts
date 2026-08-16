@@ -9,37 +9,25 @@ vi.mock("@/lib/api/route-context", () => ({
 }));
 
 function createSupabaseInsertHarness() {
-  let insertedCurrency = "EUR";
-  const poInsertSingle = vi.fn().mockImplementation(async () => ({
-    data: { id: "po-1", po_number: "PO-1", status: "draft", currency: insertedCurrency },
+  const rpc = vi.fn().mockImplementation(async (_fn: string, args: Record<string, unknown>) => ({
+    data: {
+      id: "po-1",
+      po_number: args.p_po_number ?? "PO-1",
+      status: "draft",
+      currency: args.p_currency ?? "EUR",
+      lines: [
+        {
+          id: "line-1",
+          purchase_order_id: "po-1",
+          material_id: "33333333-3333-4333-8333-333333333333",
+          quantity_ordered: 1,
+          quantity_received: 0,
+          unit_price: 12
+        }
+      ]
+    },
     error: null
   }));
-  const poInsertSelect = vi.fn().mockReturnValue({
-    single: poInsertSingle
-  });
-  const poInsert = vi.fn().mockImplementation((row: { currency?: string }) => {
-    insertedCurrency = row.currency ?? "EUR";
-    return {
-      select: poInsertSelect
-    };
-  });
-
-  const poLinesInsertSelect = vi.fn().mockResolvedValue({
-    data: [
-      {
-        id: "line-1",
-        purchase_order_id: "po-1",
-        material_id: "33333333-3333-4333-8333-333333333333",
-        quantity_ordered: 1,
-        quantity_received: 0,
-        unit_price: 12
-      }
-    ],
-    error: null
-  });
-  const poLinesInsert = vi.fn().mockReturnValue({
-    select: poLinesInsertSelect
-  });
   const materialsIn = vi.fn().mockResolvedValue({
     data: [{ id: "33333333-3333-4333-8333-333333333333" }],
     error: null
@@ -64,17 +52,12 @@ function createSupabaseInsertHarness() {
       if (table === "suppliers") {
         return { select: supplierSelect };
       }
-      if (table === "purchase_orders") {
-        return { insert: poInsert };
-      }
-      if (table === "po_lines") {
-        return { insert: poLinesInsert };
-      }
       throw new Error(`Unexpected table in test: ${table}`);
-    })
+    }),
+    rpc
   };
 
-  return { supabase, poInsert };
+  return { supabase, rpc };
 }
 
 describe("POST /api/purchase-orders currency persistence", () => {
@@ -84,7 +67,7 @@ describe("POST /api/purchase-orders currency persistence", () => {
   });
 
   it("uses EUR by default when currency is omitted", async () => {
-    const { supabase, poInsert } = createSupabaseInsertHarness();
+    const { supabase, rpc } = createSupabaseInsertHarness();
 
     vi.mocked(requireRequestContext).mockResolvedValue({
       orgId: "11111111-1111-4111-8111-111111111111",
@@ -112,16 +95,17 @@ describe("POST /api/purchase-orders currency persistence", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(poInsert).toHaveBeenCalledWith(
+    expect(rpc).toHaveBeenCalledWith(
+      "create_purchase_order_with_lines",
       expect.objectContaining({
-        currency: "EUR"
+        p_currency: "EUR"
       })
     );
     expect(body.data.currency).toBe("EUR");
   });
 
   it("persists USD when explicitly requested", async () => {
-    const { supabase, poInsert } = createSupabaseInsertHarness();
+    const { supabase, rpc } = createSupabaseInsertHarness();
 
     vi.mocked(requireRequestContext).mockResolvedValue({
       orgId: "11111111-1111-4111-8111-111111111111",
@@ -150,9 +134,10 @@ describe("POST /api/purchase-orders currency persistence", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(poInsert).toHaveBeenCalledWith(
+    expect(rpc).toHaveBeenCalledWith(
+      "create_purchase_order_with_lines",
       expect.objectContaining({
-        currency: "USD"
+        p_currency: "USD"
       })
     );
     expect(body.data.currency).toBe("USD");
@@ -166,7 +151,6 @@ describe("POST /api/purchase-orders currency persistence", () => {
     const materialsEqIsActive = vi.fn().mockReturnValue({ in: materialsIn });
     const materialsEqOrg = vi.fn().mockReturnValue({ eq: materialsEqIsActive });
     const materialsSelect = vi.fn().mockReturnValue({ eq: materialsEqOrg });
-    const poInsert = vi.fn();
     const supplierMaybeSingle = vi.fn().mockResolvedValue({
       data: { id: "22222222-2222-4222-8222-222222222222" },
       error: null
@@ -183,11 +167,9 @@ describe("POST /api/purchase-orders currency persistence", () => {
         if (table === "suppliers") {
           return { select: supplierSelect };
         }
-        if (table === "purchase_orders") {
-          return { insert: poInsert };
-        }
         throw new Error(`Unexpected table in test: ${table}`);
-      })
+      }),
+      rpc: vi.fn()
     };
 
     vi.mocked(requireRequestContext).mockResolvedValue({
@@ -217,7 +199,7 @@ describe("POST /api/purchase-orders currency persistence", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toContain("active materials");
-    expect(poInsert).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
   it("rejects purchase orders for blocked suppliers", async () => {
@@ -236,7 +218,6 @@ describe("POST /api/purchase-orders currency persistence", () => {
     const supplierEqOrg = vi.fn().mockReturnValue({ eq: supplierEqIsActive });
     const supplierEqId = vi.fn().mockReturnValue({ eq: supplierEqOrg });
     const supplierSelect = vi.fn().mockReturnValue({ eq: supplierEqId });
-    const poInsert = vi.fn();
     const supabase = {
       from: vi.fn((table: string) => {
         if (table === "materials") {
@@ -245,11 +226,9 @@ describe("POST /api/purchase-orders currency persistence", () => {
         if (table === "suppliers") {
           return { select: supplierSelect };
         }
-        if (table === "purchase_orders") {
-          return { insert: poInsert };
-        }
         throw new Error(`Unexpected table in test: ${table}`);
-      })
+      }),
+      rpc: vi.fn()
     };
 
     vi.mocked(requireRequestContext).mockResolvedValue({
@@ -279,6 +258,6 @@ describe("POST /api/purchase-orders currency persistence", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toContain("active suppliers");
-    expect(poInsert).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 });
