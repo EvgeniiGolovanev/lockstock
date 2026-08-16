@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const { authMock } = vi.hoisted(() => ({
@@ -58,5 +58,27 @@ describe("LockstockLanding", () => {
     expect(await screen.findByRole("dialog", { name: "Welcome back" })).toBeInTheDocument();
     expect(screen.getByText("Don't have an account?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign up" })).toBeInTheDocument();
+  });
+
+  it("announces sign-in errors through a live region and links them to inputs", async () => {
+    authMock.signInWithPassword.mockResolvedValueOnce({
+      data: null,
+      error: new Error("Invalid email or password")
+    });
+
+    const { container } = render(<LockstockLanding />);
+
+    within(container.getElementsByTagName("header")[0]).getByRole("button", { name: "Sign In" }).click();
+    const dialog = await screen.findByRole("dialog", { name: "Welcome back" });
+    const authDialog = within(dialog);
+
+    fireEvent.change(authDialog.getByRole("textbox", { name: "Email" }), { target: { value: "user@example.com" } });
+    fireEvent.change(authDialog.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(authDialog.getByRole("button", { name: "Sign In" }));
+
+    const error = await screen.findByRole("alert");
+    expect(error).toHaveTextContent("Invalid email or password");
+    expect(authDialog.getByRole("textbox", { name: "Email" })).toHaveAttribute("aria-describedby", error.id);
+    expect(authDialog.getByLabelText("Password")).toHaveAttribute("aria-describedby", error.id);
   });
 });

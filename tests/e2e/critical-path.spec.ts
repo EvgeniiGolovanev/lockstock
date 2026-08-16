@@ -367,6 +367,32 @@ async function seedSignedInPage(page: Page) {
   );
 }
 
+type A11yNode = {
+  role?: string;
+  name?: string;
+  children?: A11yNode[];
+};
+
+function collectA11yViolations(node: A11yNode | null, path: string[] = [], violations: string[] = []) {
+  if (!node) {
+    return violations;
+  }
+
+  const role = node.role ?? "";
+  const name = typeof node.name === "string" ? node.name.trim() : "";
+  const actionableRoles = new Set(["button", "checkbox", "combobox", "dialog", "link", "radio", "slider", "switch", "textbox", "tab", "menuitem"]);
+
+  if (actionableRoles.has(role) && !name) {
+    violations.push(`${[...path, role || "node"].join(" > ")} is missing an accessible name`);
+  }
+
+  for (const child of node.children ?? []) {
+    collectA11yViolations(child, [...path, role || "node"], violations);
+  }
+
+  return violations;
+}
+
 test("landing sign-in redirects into the inventory shell", async ({ page }) => {
   await installAppRoutes(page, baseAppState());
   await installAuthRoutes(page);
@@ -395,6 +421,33 @@ test("payment trial start stores the workspace and opens inventory", async ({ pa
 test("real platform me route rejects unauthenticated requests", async ({ page }) => {
   const response = await page.request.get("/api/platform/me");
   expect(response.status()).toBe(401);
+});
+
+test("critical pages stay accessible at desktop and mobile widths", async ({ page }) => {
+  await installAppRoutes(page, baseAppState());
+  await installAuthRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /Master Your Inventory/i })).toBeVisible();
+
+  await seedSignedInPage(page);
+  for (const viewportWidth of [1280, 375]) {
+    await page.setViewportSize({ width: viewportWidth, height: 1200 });
+
+    const scans: Array<{ path: string; heading: RegExp }> = [
+      { path: "/account", heading: /^Account$/ },
+      { path: "/inventory", heading: /^Inventory Management$/ },
+      { path: "/payment", heading: /Pay for the capacity you need/i }
+    ];
+
+    for (const scan of scans) {
+      await page.goto(scan.path, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: scan.heading })).toBeVisible();
+      const snapshot = await page.accessibility.snapshot({ interestingOnly: false });
+      expect(collectA11yViolations(snapshot)).toEqual([]);
+    }
+  }
 });
 
 test("inventory page can switch workspaces after login", async ({ page }) => {

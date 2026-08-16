@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AccessibilityDialog } from "@/components/accessibility-dialog";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -163,6 +164,8 @@ export function LockstockLanding() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const authErrorId = useId();
+  const authMessageId = useId();
 
   const heading = useMemo(
     () => (authMode === "signin" ? "Welcome back" : "Create your account"),
@@ -500,95 +503,100 @@ export function LockstockLanding() {
       </footer>
 
       {authOpen ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={heading}>
-          <div className="modal-card landing-auth-card">
-            <div className="title-row">
-              <h4>{heading}</h4>
-              <button type="button" className="ghost-btn" onClick={() => setAuthOpen(false)}>
-                Close
-              </button>
-            </div>
-
-            <form className="grid landing-auth-form" onSubmit={handleAuthSubmit}>
-              {authMode === "signup" ? (
-                <div className="grid grid-2">
+        <AccessibilityDialog title={heading} onClose={() => setAuthOpen(false)}>
+          <form className="grid landing-auth-form" onSubmit={handleAuthSubmit}>
+            {authMode === "signup" ? (
+              <div className="grid grid-2">
+                <label className="field">
+                  <span>Full Name</span>
+                  <input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+                </label>
+                <label className="field">
+                  <span>Company Name</span>
+                  <input value={company} onChange={(event) => setCompany(event.target.value)} required />
+                </label>
+                <label className="field">
+                  <span>Start with</span>
+                  <select value={onboardingMode} onChange={(event) => setOnboardingMode(event.target.value as "trial" | "paid")}>
+                    <option value="trial">15-day Starter trial</option>
+                    <option value="paid">Paid plan</option>
+                  </select>
+                </label>
+                {onboardingMode === "paid" ? (
                   <label className="field">
-                    <span>Full Name</span>
-                    <input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
-                  </label>
-                  <label className="field">
-                    <span>Company Name</span>
-                    <input value={company} onChange={(event) => setCompany(event.target.value)} required />
-                  </label>
-                  <label className="field">
-                    <span>Start with</span>
-                    <select value={onboardingMode} onChange={(event) => setOnboardingMode(event.target.value as "trial" | "paid")}>
-                      <option value="trial">15-day Starter trial</option>
-                      <option value="paid">Paid plan</option>
-                    </select>
-                  </label>
-                  {onboardingMode === "paid" ? <label className="field">
                     <span>Preferred plan</span>
                     <select value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as SelectedPlan)}>
                       <option value="starter">Starter</option>
                       <option value="operations">Operations</option>
                       <option value="business">Business</option>
                     </select>
-                  </label> : null}
-                </div>
-              ) : null}
-
-              <label className="field">
-                <span>Email</span>
-                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-              </label>
-              <label className="field">
-                <span>Password</span>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-              </label>
-
-              {error ? <p className="landing-auth-error">{error}</p> : null}
-              {message ? <p className="landing-auth-message">{message}</p> : null}
-
-              <button type="submit" disabled={busy || !email || !password}>
-                {busy ? "Please wait..." : authMode === "signin" ? "Sign In" : "Create Account"}
-              </button>
-
-              <div className="landing-auth-divider">
-                <span>or</span>
+                  </label>
+                ) : null}
               </div>
+            ) : null}
 
-              <button type="button" className="ghost-btn landing-google-btn" disabled>
-                Continue with Google
-              </button>
+            <label className="field">
+              <span>Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                aria-describedby={error ? authErrorId : undefined}
+              />
+            </label>
+            <label className="field">
+              <span>Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                aria-describedby={error ? authErrorId : undefined}
+              />
+            </label>
 
-              <p className="landing-auth-switch">
-                {authMode === "signup" ? "Already have an account? " : "Don't have an account? "}
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => setAuthMode((mode) => (mode === "signin" ? "signup" : "signin"))}
-                >
-                  {authMode === "signup" ? "Sign in" : "Sign up"}
-                </button>
+            {error ? (
+              <p id={authErrorId} className="landing-auth-error" role="alert">
+                {error}
               </p>
-            </form>
-          </div>
-        </div>
+            ) : null}
+            {message ? (
+              <p id={authMessageId} className="landing-auth-message" role="status" aria-live="polite">
+                {message}
+              </p>
+            ) : null}
+
+            <button type="submit" disabled={busy || !email || !password}>
+              {busy ? "Please wait..." : authMode === "signin" ? "Sign In" : "Create Account"}
+            </button>
+
+            <div className="landing-auth-divider">
+              <span>or</span>
+            </div>
+
+            <button type="button" className="ghost-btn landing-google-btn" disabled>
+              Continue with Google
+            </button>
+
+            <p className="landing-auth-switch">
+              {authMode === "signup" ? "Already have an account? " : "Don't have an account? "}
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setAuthMode((mode) => (mode === "signin" ? "signup" : "signin"))}
+              >
+                {authMode === "signup" ? "Sign in" : "Sign up"}
+              </button>
+            </p>
+          </form>
+        </AccessibilityDialog>
       ) : null}
 
       {demoOpen ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Watch Demo">
-          <div className="modal-card landing-demo-card">
-            <div className="title-row">
-              <h4>Watch Demo</h4>
-              <button type="button" className="ghost-btn" onClick={() => setDemoOpen(false)}>
-                Close
-              </button>
-            </div>
-            <video className="landing-demo-video" src={demoHref} controls autoPlay playsInline />
-          </div>
-        </div>
+        <AccessibilityDialog title="Watch Demo" onClose={() => setDemoOpen(false)}>
+          <video className="landing-demo-video" src={demoHref} controls autoPlay playsInline />
+        </AccessibilityDialog>
       ) : null}
     </div>
   );

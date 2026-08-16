@@ -4924,6 +4924,7 @@ export function LockstockWorkbench() {
                     setInventoryStatus(event.target.value);
                     setMaterialPage(1);
                   }}
+                  aria-label="Inventory status"
                 >
                   <option value="all">All Statuses</option>
                   <option value="in-stock">In Stock</option>
@@ -4939,6 +4940,7 @@ export function LockstockWorkbench() {
                     setInventoryLocation(event.target.value);
                     setMaterialPage(1);
                   }}
+                  aria-label="Location"
                 >
                   {inventoryLocations.map((location) => (
                     <option key={location} value={location}>
