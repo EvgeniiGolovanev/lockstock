@@ -1,5 +1,12 @@
 # Stage 2: Add distributed abuse controls
 
+## Status: deferred August 17, 2026
+
+This work is explicitly deferred by the product owner. Keep the current
+process-local contact limiter in place, and do not add shared rate-limit
+infrastructure until production uses multiple instances or contact abuse is
+observed. This task remains open and is not part of the current release scope.
+
 Replace process-local abuse controls only when the deployment topology or
 incident volume justifies shared infrastructure. Minimal structured diagnostics
 belong in P0-03 and P1-09, not in this Stage 2 task.
