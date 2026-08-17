@@ -27,6 +27,9 @@ jobs:
       - name: Production dependency audit
         run: npm run audit:prod
 
+      - name: Verify repository provenance and documentation
+        run: npm run repo:hygiene
+
       - name: Verify application
         run: npm run verify
 

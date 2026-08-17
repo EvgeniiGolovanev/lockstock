@@ -1,6 +1,7 @@
-# LockStock Scaffold
+# LockStock
 
-Starter scaffold for LockStock, a material stock management web application built for low-ops maintenance by a solo founder.
+LockStock is a material stock management web application designed for
+low-operations maintenance by a solo founder.
 
 ## Stack
 
@@ -46,10 +47,11 @@ The repository uses ports outside common Windows-managed ranges:
 Set `NEXT_PUBLIC_SUPABASE_URL` to the local API URL and use the keys from
 `supabase status` in `.env.local`.
 
-4. Apply SQL migrations in order:
-   - `supabase/migrations/202602231350_init.sql`
-   - `supabase/migrations/202602232210_user_scoped_org_bootstrap.sql`
-   - `supabase/migrations/202602240110_fix_is_org_member_rls.sql`
+4. Reset the local database to apply every migration and seed deterministically:
+
+```bash
+supabase db reset
+```
 
 5. Run development server:
 
@@ -132,13 +134,6 @@ List endpoint query params:
 - `GET /api/materials?q=&page=&limit=`
 - `GET /api/purchase-orders?q=&status=&supplier_id=&page=&limit=`
 
-## Suggested Next Steps
-
-1. Add audit log table + endpoint for critical stock and PO operations.
-2. Add integration workers (QBO/Shopify) behind feature flags.
-3. Add role-aware UI controls (viewer/member/manager/owner) to hide forbidden actions.
-4. Add optimistic updates to reduce full reload calls after create/receive actions.
-
 ## Smoke Test Script
 
 Run end-to-end API smoke checks with JWT auth:
@@ -210,32 +205,28 @@ The application job runs `npm run verify`, which enforces, in order:
 The database job separately runs the same `npm run test:db` command documented
 above against a disposable local Supabase project.
 
-On pushes to `main`, it also runs a linked-database migration drift gate and fails if the remote DB is missing any local migration in `supabase/migrations`.
+## Database migration workflow
 
-Required repository secrets for the migration gate:
+GitHub Actions workflow: `.github/workflows/supabase-migrations.yml`.
+It runs when a migration is pushed to `main`, applies it to the configured
+preview environment. The production job targets the GitHub `production`
+environment; configure required reviewers in that environment when manual
+approval is required. Application deployment is not automated by this
+repository.
 
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_REF`
-- `SUPABASE_DB_PASSWORD`
-
-## Release Automation
-
-GitHub Actions workflow: `.github/workflows/release.yml`
-
-Trigger:
-
-- Runs automatically after `CI` succeeds on pushes to `main`.
-
-Steps:
-
-1. Link Supabase project and apply pending migrations (`supabase db push --linked`).
-2. Build and deploy production app to Vercel.
-
-Required repository secrets:
+The migration workflow requires these repository secrets:
 
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
 - `SUPABASE_DB_PASSWORD`
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+
+## Repository assets and agent skills
+
+[`docs/repository-assets.md`](docs/repository-assets.md) records the source and
+runtime ownership of workflow diagrams, demo media, and compatibility skill
+trees. Use these commands when you change an authored asset or skill:
+
+```bash
+npm run sync:repository-assets
+npm run repo:hygiene
+```

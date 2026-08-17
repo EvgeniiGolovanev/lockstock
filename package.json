@@ -16,6 +16,8 @@
     "db:types": "node scripts/database-types.mjs",
     "db:types:check": "node scripts/database-types.mjs check",
     "check:migrations:linked": "node scripts/check-linked-migrations.js",
+    "repo:hygiene": "node scripts/repository-hygiene.mjs",
+    "sync:repository-assets": "node scripts/sync-repository-assets.mjs",
     "smoke:test": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1",
     "test:api": "vitest run",
     "test:db": "node scripts/verify-database.mjs"

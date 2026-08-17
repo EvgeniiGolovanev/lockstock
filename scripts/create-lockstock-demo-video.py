@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FRAME_DIR = ROOT / "public" / "lockstock-demo-render-frames"
+FRAME_DIR = ROOT / "design" / ".lockstock-demo-render-frames"
 WIDTH = 1920
 HEIGHT = 1080
 FPS = 30
@@ -108,17 +108,12 @@ def scenes() -> list[tuple[str, str]]:
 
 def capture_dir() -> Path:
     suffix = "-fr" if selected_locale() == "fr" else ""
-    return ROOT / "public" / f"lockstock-real-demo-captures{suffix}"
+    return ROOT / "design" / f"demo-captures{suffix}"
 
 
 def out_file() -> Path:
     suffix = "-fr" if selected_locale() == "fr" else ""
     return ROOT / "public" / f"lockstock-demo{suffix}.mp4"
-
-
-def preview_file() -> Path:
-    suffix = "-fr" if selected_locale() == "fr" else ""
-    return ROOT / "public" / f"lockstock-demo{suffix}-preview.jpg"
 
 
 def make_frames() -> None:
@@ -169,22 +164,6 @@ def render_video() -> None:
     ]
     subprocess.run(cmd, check=True)
 
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-ss",
-            "00:00:18",
-            "-i",
-            str(out_file()),
-            "-frames:v",
-            "1",
-            "-update",
-            "1",
-            str(preview_file()),
-        ],
-        check=True,
-    )
 
 
 def main() -> None:
@@ -192,7 +171,6 @@ def main() -> None:
     render_video()
     shutil.rmtree(FRAME_DIR)
     print(f"Wrote {out_file()}")
-    print(f"Wrote {preview_file()}")
 
 
 if __name__ == "__main__":

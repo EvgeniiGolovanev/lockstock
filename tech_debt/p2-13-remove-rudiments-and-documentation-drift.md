@@ -1,5 +1,12 @@
 # P2: Remove repository rudiments and documentation drift
 
+**Status: completed — 2026-08-17.** `.agents/skills` is canonical; explicit
+compatibility copies and runtime workflow SVGs are synchronized and verified.
+Source demo captures live under `design/`, public media has documented runtime
+consumers, unnamed SQL snippets are resolved, and the CI hygiene gate verifies
+provenance and Markdown links. Independent review: 5/10, request changes;
+both alignment passes were completed and the full verification gate is green.
+
 Reduce duplicated tooling, unnamed artifacts, stale instructions, and unclear
 generated assets so contributors can tell what is authoritative.
 
