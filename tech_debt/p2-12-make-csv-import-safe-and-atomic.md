@@ -1,5 +1,10 @@
 # P2: Make CSV import standards-safe and atomic
 
+**Status: completed — 2026-08-17.** UTF-8 spreadsheet CSV is parsed and
+validated before a single atomic upsert; byte, raw-row, plan, and resulting
+material-count bounds are enforced. Independent review: 6/10, request changes;
+both review-alignment passes were completed and the full verification gate is green.
+
 Make material import handle real spreadsheet CSV files, validate every row,
 and avoid partial or misleading results.
 
