@@ -1,5 +1,8 @@
 # P1: Make multi-write domain commands atomic
 
+**Status: completed — 2026-08-17.** Completed in `f01ceb4` with transactional
+domain commands and rollback regression coverage.
+
 Ensure that a domain command either completes fully or leaves no partial row.
 Focus on commands that currently perform dependent writes across multiple
 client calls.

@@ -1,5 +1,8 @@
 # P0: Patch production dependency vulnerabilities
 
+**Status: completed — 2026-08-17.** Completed in `9dd747a`; production audit is
+repeatable in CI and verification covers the upgraded dependency set.
+
 Move production dependencies to versions without the currently reported high-
 severity advisories, and make dependency auditing a repeatable CI signal.
 

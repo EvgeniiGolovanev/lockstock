@@ -1,5 +1,8 @@
 # P1: Add a critical-path test pyramid
 
+**Status: completed — 2026-08-17.** Completed in `1a33c0b` with API, database,
+and browser critical-path coverage.
+
 Create the smallest test harness that can protect billing, tenancy, and the
 workbench during refactoring. Measure coverage, but optimize for meaningful
 behavior rather than a large test count.

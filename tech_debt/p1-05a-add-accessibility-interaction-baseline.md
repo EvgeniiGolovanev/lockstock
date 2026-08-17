@@ -1,5 +1,8 @@
 # P1: Add an accessibility interaction baseline
 
+**Status: completed — 2026-08-17.** Completed in `a1749a2` with keyboard,
+dialog, focus, live-region, and interaction regression coverage.
+
 Make dialogs, forms, navigation, status messages, and busy states usable by
 keyboard and assistive-technology users before component extraction multiplies
 the current patterns.

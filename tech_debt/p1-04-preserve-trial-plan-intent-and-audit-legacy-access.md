@@ -1,5 +1,8 @@
 # P1: Preserve trial plan intent and audit legacy access
 
+**Status: completed — 2026-08-17.** Completed in `54c6a16` with separate plan
+intent, effective trial access, and legacy access audit coverage.
+
 Keep the user's selected future plan separate from effective Starter trial
 access, and make legacy active access an explicit business decision rather than
 an accidental migration default.

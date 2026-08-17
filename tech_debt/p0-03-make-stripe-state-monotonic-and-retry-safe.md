@@ -1,5 +1,8 @@
 # P0: Make Stripe state monotonic and retry-safe
 
+**Status: completed — 2026-08-17.** Completed in `4246e4a` with monotonic event
+ordering, idempotency, retry handling, and regression coverage.
+
 Stripe event handling must converge on the newest subscription state under
 duplicates, retries, concurrent delivery, and out-of-order events. A successful
 HTTP response must mean the event was processed, not merely observed.

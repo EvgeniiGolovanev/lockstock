@@ -1,5 +1,8 @@
 # P2: Create one plan and entitlement contract
 
+**Status: completed — 2026-08-17.** Completed in `5931f09` with one reviewed
+plan contract shared by billing, entitlements, and product copy.
+
 Make pricing copy, Stripe selection, TypeScript entitlements, database limits,
 trial semantics, and UI gating derive from one reviewed product contract.
 

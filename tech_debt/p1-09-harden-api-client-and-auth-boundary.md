@@ -1,5 +1,8 @@
 # P1: Harden the API client and auth boundary
 
+**Status: completed — 2026-08-17.** Completed in `1fa265b` with a single browser
+request boundary and safe, diagnosable error handling.
+
 Create one predictable request path for browser code, stop persisting a second
 manual copy of the access token, and return safe errors without hiding server
 diagnostics.

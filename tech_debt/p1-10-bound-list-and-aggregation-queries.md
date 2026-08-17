@@ -1,5 +1,8 @@
 # P1: Bound list and aggregation queries
 
+**Status: completed — 2026-08-17.** Completed in `67d52de` with bounded list and
+aggregation queries plus performance regression coverage.
+
 Prevent tenant growth from turning list pages and the platform cockpit into
 large in-memory scans while preserving existing response contracts.
 

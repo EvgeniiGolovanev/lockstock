@@ -1,5 +1,8 @@
 # P1: Decompose the workbench by vertical slice
 
+**Status: completed — 2026-08-17.** Completed in `8082aac` with local form state
+and independently tested workbench slices.
+
 Turn `LockstockWorkbench` into a thin authenticated shell plus independently
 testable feature slices. Preserve user behavior and styling throughout the
 refactor.

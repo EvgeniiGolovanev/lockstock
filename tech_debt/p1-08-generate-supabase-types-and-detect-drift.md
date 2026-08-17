@@ -1,5 +1,8 @@
 # P1: Generate Supabase types and detect drift
 
+**Status: completed — 2026-08-17.** Completed in `feb84a3` with checked-in
+generated types and CI drift detection.
+
 Make the checked-in database types a generated contract for the complete local
 schema and fail CI when migrations and TypeScript disagree.
 

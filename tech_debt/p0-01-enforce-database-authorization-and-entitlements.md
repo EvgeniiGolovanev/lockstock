@@ -1,5 +1,8 @@
 # P0: Enforce database authorization and entitlements
 
+**Status: completed — 2026-08-17.** Completed in `2a79586` with disposable
+database authorization, entitlement, Data API, concurrency, and rollback proof.
+
 Database writes must require both an authorized tenant role and writable plan
 state, even when a caller bypasses the Next.js API. Plan limits must also remain
 correct under concurrent writes.
