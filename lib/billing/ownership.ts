@@ -40,6 +40,16 @@ export async function ensureOwnedOrganization(request: NextRequest, plan: Billin
     .select("org_id,role")
     .eq("user_id", userId);
   if (membershipError) throw new ApiError(500, "Failed to load owned workspace.", membershipError.message);
+  const requestedOrgId = request.headers.get("x-org-id");
+  if (requestedOrgId) {
+    const selected = (memberships ?? []).find(
+      (membership) => membership.org_id === requestedOrgId && membership.role === "owner"
+    );
+    if (!selected) {
+      throw new ApiError(403, "Only the organization owner can manage billing.");
+    }
+    return { orgId: requestedOrgId, created: false };
+  }
   const owned = (memberships ?? []).find((membership) => membership.role === "owner");
   if (owned) return { orgId: owned.org_id as string, created: false };
 

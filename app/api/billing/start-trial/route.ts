@@ -3,31 +3,24 @@ import { ApiError, handleApiError } from "@/lib/api/errors";
 import { ensureOwnedOrganization } from "@/lib/billing/ownership";
 import { loadBillingRow } from "@/lib/billing/records";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
-import { requireAuthenticatedUserId } from "@/lib/api/auth";
 
 export async function POST(request: NextRequest) {
   try {
     const { orgId, created } = await ensureOwnedOrganization(request, "starter", true);
     const supabase = getSupabaseServiceClient();
-    const billing = await loadBillingRow(orgId, supabase);
-    let trialEndsAt = billing.trial_ends_at;
+    let trialEndsAt: string | null = null;
+    if (created) {
+      trialEndsAt = (await loadBillingRow(orgId, supabase)).trial_ends_at;
+    }
     if (!created) {
-      const userId = await requireAuthenticatedUserId(request);
-      const { data: redemption, error: redemptionError } = await supabase
-        .from("workspace_trial_redemptions")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (redemptionError) throw new ApiError(500, "Failed to validate trial redemption.", redemptionError.message);
-      if (redemption) throw new ApiError(409, "The free trial has already been used.");
-      if (billing.stripe_subscription_id || billing.status === "active") throw new ApiError(409, "This workspace already has a paid subscription.");
-      if (billing.trial_ends_at) throw new ApiError(409, "The free trial has already been used.");
-      trialEndsAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
-      const { error } = await supabase.from("organization_billing").update({
-        plan: billing.plan, status: "trialing", billing_interval: "monthly", trial_ends_at: trialEndsAt,
-        past_due_since: null, scheduled_plan: null, scheduled_interval: null, scheduled_effective_at: null
-      }).eq("org_id", orgId);
-      if (error) throw new ApiError(500, "Failed to start trial.", error.message);
+      const { data, error } = await supabase.rpc("start_workspace_trial", { p_org_id: orgId }).single();
+      if (error) {
+        if (error.message === "Trial already redeemed" || error.message === "This workspace cannot start a trial") {
+          throw new ApiError(409, error.message === "Trial already redeemed" ? "The free trial has already been used." : error.message);
+        }
+        throw new ApiError(500, "Failed to start trial.", error.message);
+      }
+      trialEndsAt = data.trial_ends_at;
     }
     return NextResponse.json({ data: { orgId, trialEndsAt } }, { status: 201 });
   } catch (error) {

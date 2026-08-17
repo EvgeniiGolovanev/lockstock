@@ -20,8 +20,9 @@ describe("billing plan contract", () => {
     expect(buildPricingCards().map((plan) => plan.id)).toEqual(BILLING_PLANS);
     expect(buildPaymentCards().map((plan) => plan.id)).toEqual(PAID_PLANS);
 
-    expect(billingPlanContract.business.public.limitLabels.workspaces).toBe("Pending Stage 2 decision");
-    expect(billingPlanContract.enterprise.public.limitLabels.workspaces).toBe("Pending Stage 2 decision");
+    expect(billingPlanContract.business.limits.workspaces).toBe(1);
+    expect(billingPlanContract.business.public.limitLabels.workspaces).toBe("1 per subscription");
+    expect(billingPlanContract.enterprise.public.limitLabels.workspaces).toBe("1 per subscription");
   });
 
   it("keeps billing catalog numbers and entitlement limits in parity with the shared contract", () => {

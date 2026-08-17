@@ -180,7 +180,7 @@ function baseAppState(): AppState {
       features: { organizationAuditLog: true, auditCsvExport: true },
       limits: {
         users: 20,
-        workspaces: 3,
+        workspaces: 1,
         teams: 20,
         locations: null,
         materials: 25000,

@@ -23,9 +23,11 @@ describe("POST /api/billing/checkout-session", () => {
   });
 
   it("creates a taxed annual Stripe subscription Checkout Session", async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn().mockReturnValue({ eq });
-    vi.mocked(getSupabaseServiceClient).mockReturnValue({ from: vi.fn().mockReturnValue({ update }) } as never);
+    const single = vi.fn().mockResolvedValue({ data: { state: "claimed", claim_token: "claim-1", stripe_customer_id: null, stripe_checkout_session_id: null }, error: null });
+    const rpc = vi.fn()
+      .mockReturnValueOnce({ single })
+      .mockResolvedValueOnce({ error: null });
+    vi.mocked(getSupabaseServiceClient).mockReturnValue({ rpc } as never);
     const createCustomer = vi.fn().mockResolvedValue({ id: "cus_1" });
     const createSession = vi.fn().mockResolvedValue({ id: "cs_1", url: "https://checkout.stripe.com/session" });
     vi.mocked(getStripeClient).mockReturnValue({
@@ -47,6 +49,9 @@ describe("POST /api/billing/checkout-session", () => {
       billing_address_collection: "required",
       tax_id_collection: { enabled: true },
       line_items: [{ price: "price_ops_year", quantity: 1 }]
-    }), expect.objectContaining({ idempotencyKey: expect.stringContaining("subscription-checkout:org-1:operations:annual") }));
+    }), expect.objectContaining({ idempotencyKey: "subscription-checkout:org-1:claim-1" }));
+    expect(rpc).toHaveBeenLastCalledWith("complete_workspace_checkout_claim", expect.objectContaining({
+      p_org_id: "org-1", p_claim_token: "claim-1", p_stripe_customer_id: "cus_1", p_stripe_checkout_session_id: "cs_1"
+    }));
   });
 });

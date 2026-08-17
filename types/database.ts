@@ -964,6 +964,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_workspace_checkout: {
+        Args: { p_org_id: string }
+        Returns: { claim_token: string | null; state: string; stripe_checkout_session_id: string | null; stripe_customer_id: string | null }[]
+      }
+      complete_workspace_checkout_claim: {
+        Args: { p_claim_token: string; p_org_id: string; p_stripe_checkout_session_id: string; p_stripe_customer_id: string | null }
+        Returns: undefined
+      }
+      release_workspace_checkout_session: {
+        Args: { p_org_id: string; p_stripe_checkout_session_id: string }
+        Returns: undefined
+      }
+      start_workspace_trial: {
+        Args: { p_org_id: string }
+        Returns: {
+          org_id: string
+          trial_ends_at: string
+        }[]
+      }
       create_purchase_order_with_lines: {
         Args: {
           p_currency: string

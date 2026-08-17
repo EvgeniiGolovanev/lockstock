@@ -1,4 +1,4 @@
-# Stage 2: Decide the multi-workspace product model
+# Stage 2: Decide the multi-workspace product model — completed August 17, 2026
 
 Resolve whether one user can own multiple workspaces before implementing the
 Business plan claim of three workspaces.
@@ -28,3 +28,10 @@ shortcut, enforce the chosen limit transactionally, and update UI and pricing.
 The decision record states the chosen model and rejected alternative. Product
 copy and backend behavior match, and tenants cannot use workspace creation to
 restart trials or bypass billing limits.
+
+## Completion record
+
+The product uses one subscription per workspace. Users can own and work in
+multiple workspaces, but each workspace has its own billing record and
+checkout. An account can redeem only one trial, including after deleting the
+trial workspace. Unpaid additional workspaces remain read-only.

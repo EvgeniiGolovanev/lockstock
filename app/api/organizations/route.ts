@@ -4,6 +4,10 @@ import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { createOrganizationSchema } from "@/lib/validators/organization";
 
+function isTrialRedeemedError(error: { message?: string } | null) {
+  return error?.message === "Trial already redeemed";
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = extractBearerToken(request);
@@ -40,10 +44,21 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseUserClient(token);
     const payload = createOrganizationSchema.parse(await request.json());
 
-    const { data: org, error: orgError } = await supabase.rpc("create_organization_with_owner", {
+    let { data: org, error: orgError } = await supabase.rpc("create_organization_with_owner", {
       p_name: payload.name,
       p_plan: payload.plan
     });
+
+    // The first workspace can receive the account-level trial. Subsequent
+    // workspaces are valid, independently billed tenants, so retry without a
+    // trial rather than returning a misleading creation failure.
+    if (isTrialRedeemedError(orgError)) {
+      ({ data: org, error: orgError } = await supabase.rpc("create_organization_with_owner", {
+        p_name: payload.name,
+        p_plan: payload.plan,
+        p_start_trial: false
+      }));
+    }
 
     if (orgError) {
       throw new ApiError(500, "Failed to create organization.", orgError.message);

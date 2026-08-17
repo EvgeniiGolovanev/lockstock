@@ -15,6 +15,8 @@ select set_eq(
     values
       ('accept_org_invitation'::text),
       ('claim_stripe_webhook_event'::text),
+      ('claim_workspace_checkout'::text),
+      ('complete_workspace_checkout_claim'::text),
       ('complete_stripe_webhook_event'::text),
       ('fail_stripe_webhook_event'::text),
       ('create_organization_with_owner'::text),
@@ -29,6 +31,8 @@ select set_eq(
       ('is_org_member'::text),
       ('is_org_role_at_least'::text),
       ('receive_purchase_order'::text),
+      ('release_workspace_checkout_session'::text),
+      ('start_workspace_trial'::text),
       ('transition_purchase_order_status'::text),
       ('reject_org_invitation'::text),
       ('remove_org_member_with_team_memberships'::text),

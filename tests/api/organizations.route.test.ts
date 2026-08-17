@@ -142,6 +142,31 @@ describe("organization group endpoints", () => {
     });
   });
 
+  it("creates an incomplete workspace after the account trial has been redeemed", async () => {
+    const supabase = createSupabaseForOrganizations();
+    supabase.rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "Trial already redeemed" } })
+      .mockResolvedValueOnce({ data: { id: "33333333-3333-4333-8333-333333333333" }, error: null });
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const response = await POST(new NextRequest("http://localhost:3000/api/organizations", {
+      method: "POST",
+      headers: { Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Second Workspace", plan: "operations" })
+    }));
+
+    expect(response.status).toBe(201);
+    expect(supabase.rpc).toHaveBeenNthCalledWith(1, "create_organization_with_owner", {
+      p_name: "Second Workspace",
+      p_plan: "operations"
+    });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, "create_organization_with_owner", {
+      p_name: "Second Workspace",
+      p_plan: "operations",
+      p_start_trial: false
+    });
+  });
+
   it("renames a group for an owner", async () => {
     const supabase = createSupabaseForOrganizations("owner");
     vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);

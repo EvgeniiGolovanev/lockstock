@@ -58,4 +58,47 @@ describe("ensureOwnedOrganization", () => {
       p_start_trial: true
     }));
   });
+
+  it("uses the explicitly selected owned workspace for an independent subscription", async () => {
+    const rpc = vi.fn();
+    vi.mocked(getSupabaseUserClient).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            data: [
+              { org_id: "org-first", role: "owner" },
+              { org_id: "org-selected", role: "owner" }
+            ],
+            error: null
+          })
+        })
+      }),
+      auth: { getUser: vi.fn() },
+      rpc
+    } as never);
+
+    await expect(ensureOwnedOrganization(
+      new NextRequest("http://localhost", { headers: { authorization: "Bearer token", "x-org-id": "org-selected" } }),
+      "operations",
+      false
+    )).resolves.toEqual({ orgId: "org-selected", created: false });
+
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a selected workspace the user does not own", async () => {
+    vi.mocked(getSupabaseUserClient).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: [{ org_id: "org-first", role: "owner" }], error: null })
+        })
+      })
+    } as never);
+
+    await expect(ensureOwnedOrganization(
+      new NextRequest("http://localhost", { headers: { authorization: "Bearer token", "x-org-id": "org-other" } }),
+      "operations",
+      false
+    )).rejects.toMatchObject({ status: 403 });
+  });
 });

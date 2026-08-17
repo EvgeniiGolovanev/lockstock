@@ -292,8 +292,8 @@ const viewerMovement = await request(restUrl, apiKey, viewerToken, "/rpc/create_
 });
 assert.equal(viewerMovement.response.status, 403, viewerMovement.body);
 
-// Workspace bootstrap itself is a check-then-create limit. Two first requests
-// for one JWT must serialize on the user id and return the same workspace.
+// Workspace bootstrap serializes trial redemption per user. Concurrent trial
+// attempts permit exactly one trial; a later non-trial workspace is independent.
 sql(
   projectId,
   `create or replace function public.p001_workspace_overlap() returns trigger language plpgsql as $$
@@ -311,17 +311,29 @@ const bootstrapRequests = await Promise.all([
     body: JSON.stringify({ p_name: "Concurrent workspace B", p_plan: "starter", p_start_trial: true })
   })
 ]);
-for (const result of bootstrapRequests) assert.equal(result.response.status, 200, result.body);
-const bootstrapOrgs = bootstrapRequests.map((result) => JSON.parse(result.body));
-assert.equal(bootstrapOrgs[0].id, bootstrapOrgs[1].id);
+const successfulTrialBootstrap = bootstrapRequests.filter((result) => result.response.status === 200);
+const rejectedTrialBootstrap = bootstrapRequests.filter((result) => result.response.status === 403);
+assert.equal(successfulTrialBootstrap.length, 1, bootstrapRequests.map((result) => result.body).join("\n"));
+assert.equal(rejectedTrialBootstrap.length, 1, bootstrapRequests.map((result) => result.body).join("\n"));
+assert.match(rejectedTrialBootstrap[0].body, /Trial already redeemed/);
+const paidBootstrap = await request(restUrl, apiKey, bootstrapToken, "/rpc/create_organization_with_owner", {
+  method: "POST",
+  body: JSON.stringify({ p_name: "Concurrent workspace paid", p_plan: "starter", p_start_trial: false })
+});
+assert.equal(paidBootstrap.response.status, 200, paidBootstrap.body);
+const trialOrg = JSON.parse(successfulTrialBootstrap[0].body);
+const paidOrg = JSON.parse(paidBootstrap.body);
+assert.notEqual(trialOrg.id, paidOrg.id);
 sql(
   projectId,
-  `do $$ declare v_owned integer; v_billing integer; v_default integer; begin
+  `do $$ declare v_owned integer; v_billing integer; v_default integer; v_trial integer; v_incomplete integer; begin
     select count(*) into v_owned from public.org_users where user_id='${bootstrapId}' and role='owner';
     select count(*) into v_billing from public.organization_billing b join public.org_users u on u.org_id=b.org_id where u.user_id='${bootstrapId}' and u.role='owner';
     select count(*) into v_default from public.teams t join public.org_users u on u.org_id=t.org_id where u.user_id='${bootstrapId}' and u.role='owner' and t.is_default;
-    if v_owned <> 1 or v_billing <> 1 or v_default <> 1 then
-      raise exception 'workspace race left owned %, billing %, default teams %', v_owned, v_billing, v_default;
+    select count(*) into v_trial from public.organization_billing where org_id in ('${trialOrg.id}'::uuid, '${paidOrg.id}'::uuid) and status='trialing';
+    select count(*) into v_incomplete from public.organization_billing where org_id in ('${trialOrg.id}'::uuid, '${paidOrg.id}'::uuid) and status='incomplete';
+    if v_owned <> 2 or v_billing <> 2 or v_default <> 2 or v_trial <> 1 or v_incomplete <> 1 then
+      raise exception 'workspace trial race left owned %, billing %, default teams %, trials %, incomplete %', v_owned, v_billing, v_default, v_trial, v_incomplete;
     end if;
   end $$;`
 );
