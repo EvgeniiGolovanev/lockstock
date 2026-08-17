@@ -4,11 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
-const { authMock } = vi.hoisted(() => ({
+const { authMock, localeMock } = vi.hoisted(() => ({
   authMock: {
     getSession: vi.fn(),
     onAuthStateChange: vi.fn()
-  }
+  },
+  localeMock: { value: "en" as "en" | "fr" }
 }));
 
 const session = {
@@ -41,7 +42,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/language-provider", () => ({
-  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+  useLanguage: () => ({ locale: localeMock.value, setLocale: vi.fn() })
 }));
 
 vi.mock("@/components/language-switcher", () => ({
@@ -73,6 +74,7 @@ function mockJsonResponse(body: unknown, ok = true) {
 describe("LockstockAccount", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localeMock.value = "en";
     window.localStorage.setItem("lockstock.accessToken", "token");
     window.localStorage.setItem("lockstock.orgId", "org-1");
     authMock.getSession.mockResolvedValue({ data: { session }, error: null });
@@ -223,5 +225,15 @@ describe("LockstockAccount", () => {
     expect(await screen.findByRole("heading", { name: "Subscription" })).toBeInTheDocument();
     expect(screen.getByText("Current plan")).toBeInTheDocument();
     expect(await screen.findByText("Unexpected server error.")).toBeInTheDocument();
+  });
+
+  it("renders account controls from French message keys", async () => {
+    localeMock.value = "fr";
+    render(<LockstockAccount />);
+
+    expect(await screen.findByRole("heading", { name: "Compte" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Abonnement" })).toBeInTheDocument();
+    expect(screen.getByText("Offre actuelle")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Télécharger le CSV" })).toBeInTheDocument();
   });
 });

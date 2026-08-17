@@ -1,14 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
 import { PHONE_COUNTRY_CODES, buildPhoneNumber, formatVendorNumber, splitPhoneNumber } from "@/lib/ui/vendor-fields";
-
-type SortDirection = "asc" | "desc";
-type TableId = "suppliers";
-
-type SortState = {
-  key: string;
-  direction: SortDirection;
-};
 
 export type WorkbenchSupplier = {
   id: string;
@@ -35,14 +29,6 @@ export type WorkbenchSupplierRow = {
   editableSupplier: WorkbenchSupplier | undefined;
 };
 
-type SortableHeaderProps = {
-  tableId: TableId;
-  sortKey: string;
-  label: string;
-  sortState?: SortState;
-  onSort: (tableId: TableId, sortKey: string) => void;
-};
-
 function SearchFieldIcon() {
   return (
     <svg className="search-field-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -56,27 +42,6 @@ function SelectFieldIcon() {
     <svg className="select-field-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M7 10l5 5 5-5H7z" />
     </svg>
-  );
-}
-
-function SortableHeader({ tableId, sortKey, label, sortState, onSort }: SortableHeaderProps) {
-  const active = sortState?.key === sortKey;
-  const direction = active ? sortState?.direction : "desc";
-  const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
-
-  return (
-    <th aria-sort={ariaSort}>
-      <button
-        type="button"
-        className={`table-sort-btn ${active ? "table-sort-active" : ""}`}
-        aria-label={`Sort by ${label}${active ? `, ${ariaSort}` : ""}`}
-        aria-pressed={active}
-        onClick={() => onSort(tableId, sortKey)}
-      >
-        <span className="table-static-head">{label}</span>
-        {active ? <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span> : null}
-      </button>
-    </th>
   );
 }
 
@@ -104,7 +69,6 @@ type WorkbenchSuppliersSectionProps = {
   supplierTableRows: WorkbenchSupplierRow[];
   supplierSearchQuery: string;
   supplierStatusFilter: string;
-  supplierSortState?: SortState;
   showSupplierForm: boolean;
   editingSupplier: WorkbenchSupplier | null;
   pendingSupplierUsageChange: WorkbenchSupplier | null;
@@ -117,7 +81,6 @@ type WorkbenchSuppliersSectionProps = {
   onSupplierSearchChange: (nextValue: string) => void;
   onSupplierStatusFilterChange: (nextValue: string) => void;
   onSupplierPageChange: (updater: number | ((prev: number) => number)) => void;
-  onSort: (tableId: TableId, sortKey: string) => void;
 };
 
 export function WorkbenchSuppliersSection({
@@ -135,7 +98,6 @@ export function WorkbenchSuppliersSection({
   supplierTableRows,
   supplierSearchQuery,
   supplierStatusFilter,
-  supplierSortState,
   showSupplierForm,
   editingSupplier,
   pendingSupplierUsageChange,
@@ -148,8 +110,10 @@ export function WorkbenchSuppliersSection({
   onSupplierSearchChange,
   onSupplierStatusFilterChange,
   onSupplierPageChange,
-  onSort
 }: WorkbenchSuppliersSectionProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const statusLabel = (status: string) => t(status === "Active" ? "workbench.location.active" : "workbench.location.blocked");
   const [supplierVendorNumber, setSupplierVendorNumber] = useState<number | null>(null);
   const [supplierName, setSupplierName] = useState("Acme Supply");
   const [supplierPhoneCountryCode, setSupplierPhoneCountryCode] = useState("+33");
@@ -250,8 +214,8 @@ export function WorkbenchSuppliersSection({
             <input
               value={supplierSearchQuery}
               onChange={(event) => onSupplierSearchChange(event.target.value)}
-              placeholder="Filter by vendor name, ID, phone, or address"
-              aria-label="Supplier search"
+              placeholder={t("workbench.supplier.searchPlaceholder")}
+              aria-label={t("workbench.supplier.searchLabel")}
             />
           </div>
           <div className="category-wrap">
@@ -259,11 +223,11 @@ export function WorkbenchSuppliersSection({
             <select
               value={supplierStatusFilter}
               onChange={(event) => onSupplierStatusFilterChange(event.target.value)}
-              aria-label="Status filter"
+              aria-label={t("workbench.location.statusFilter")}
             >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="blocked">Blocked</option>
+              <option value="all">{t("workbench.location.allStatuses")}</option>
+              <option value="active">{t("workbench.location.active")}</option>
+              <option value="blocked">{t("workbench.location.blocked")}</option>
             </select>
           </div>
         </div>
@@ -271,16 +235,16 @@ export function WorkbenchSuppliersSection({
 
       <section className="card">
         <div className="table-section-head">
-          <h2>Vendor Management</h2>
+          <h2>{t("workbench.supplier.title")}</h2>
           <div className="actions table-head-actions inventory-table-actions">
             {canManageCatalog ? (
               <button type="button" className="ghost-btn" onClick={onCreateSupplier}>
-                Add Vendor
+                {t("workbench.supplier.add")}
               </button>
             ) : null}
             {canExportCsv ? (
               <button type="button" className="ghost-btn export-csv-btn" disabled={supplierTableRows.length === 0} onClick={onExportCsv}>
-                Export CSV
+                {t("workbench.location.exportCsv")}
               </button>
             ) : null}
           </div>
@@ -290,22 +254,22 @@ export function WorkbenchSuppliersSection({
           <table className="compact-table vendors-table">
             <thead>
               <tr>
-                <th><span className="table-static-head">Vendor ID</span></th>
-                <th><span className="table-static-head">Vendor Name</span></th>
-                <th><span className="table-static-head">Phone</span></th>
-                <th><span className="table-static-head">Address</span></th>
-                <th><span className="table-static-head">Lead Time (days)</span></th>
-                <th><span className="table-static-head">Status</span></th>
-                <th><span className="table-static-head">Open POs</span></th>
-                <th><span className="table-static-head">Received POs</span></th>
-                <th><span className="table-static-head">Total POs</span></th>
-                <th><span className="table-static-head">Actions</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.vendorId")}</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.vendorName")}</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.phone")}</span></th>
+                <th><span className="table-static-head">{t("workbench.location.address")}</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.leadTime")}</span></th>
+                <th><span className="table-static-head">{t("workbench.location.status")}</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.openPos")}</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.receivedPos")}</span></th>
+                <th><span className="table-static-head">{t("workbench.supplier.totalPos")}</span></th>
+                <th><span className="table-static-head">{t("workbench.location.actions")}</span></th>
               </tr>
             </thead>
             <tbody>
               {supplierTableRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10}>{hasSuppliers ? "No suppliers match these filters." : "No suppliers created yet."}</td>
+                  <td colSpan={10}>{hasSuppliers ? t("workbench.supplier.noMatch") : t("workbench.supplier.none")}</td>
                 </tr>
               ) : (
                 supplierTableRows.map((supplier) => {
@@ -318,7 +282,7 @@ export function WorkbenchSuppliersSection({
                       <td>{supplier.address}</td>
                       <td>{supplier.leadTimeDays}</td>
                       <td>
-                        <span className={`status-pill ${supplier.status === "Active" ? "status-received" : "status-cancelled"}`}>{supplier.status}</span>
+                        <span className={`status-pill ${supplier.status === "Active" ? "status-received" : "status-cancelled"}`}>{statusLabel(supplier.status)}</span>
                       </td>
                       <td>{supplier.openOrders}</td>
                       <td>{supplier.receivedOrders}</td>
@@ -327,14 +291,14 @@ export function WorkbenchSuppliersSection({
                         {editableSupplier && canManageCatalog ? (
                           <div className="row-actions table-action-buttons">
                             <button type="button" className="ghost-btn" disabled={busy} onClick={() => onEditSupplier(editableSupplier)}>
-                              Edit
+                              {t("workbench.location.edit")}
                             </button>
                             <button type="button" className="ghost-btn" disabled={busy} onClick={() => onToggleSupplierUsage(editableSupplier)}>
-                              {editableSupplier.is_active === false ? "Unblock" : "Block"}
+                              {editableSupplier.is_active === false ? t("workbench.location.unblock") : t("workbench.location.block")}
                             </button>
                           </div>
                         ) : (
-                          <span className="subtle-line">No actions</span>
+                          <span className="subtle-line">{t("workbench.location.noActions")}</span>
                         )}
                       </td>
                     </tr>
@@ -347,38 +311,38 @@ export function WorkbenchSuppliersSection({
 
       <div className="actions">
         <button type="button" disabled={busy || supplierPage <= 1} onClick={() => onSupplierPageChange((prev) => Math.max(1, prev - 1))}>
-          Previous
+          {t("workbench.location.previous")}
           </button>
           <button type="button" disabled={busy || supplierPage >= supplierTotalPages} onClick={() => onSupplierPageChange((prev) => Math.min(supplierTotalPages, prev + 1))}>
-            Next
+            {t("workbench.location.next")}
           </button>
           <p className="subtle-line">
-            Page {supplierPage}/{supplierTotalPages}
+            {message(locale, "workbench.location.page", { page: String(supplierPage), total: String(supplierTotalPages) })}
           </p>
         </div>
       </section>
 
       {showSupplierForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingSupplier ? "Edit vendor" : "Add vendor"}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingSupplier ? t("workbench.supplier.editDialog") : t("workbench.supplier.addDialog")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>{editingSupplier ? "Edit Vendor" : "Add Vendor"}</h4>
+              <h4>{editingSupplier ? t("workbench.supplier.edit") : t("workbench.supplier.add")}</h4>
               <button type="button" className="ghost-btn" onClick={onCloseSupplierForm}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <div className="grid grid-2">
               <label className="field">
-                <span>Vendor ID</span>
-                <input readOnly value={formatVendorNumber(supplierVendorNumber)} placeholder="Assigned automatically" />
-                <p className="subtle-line">Assigned automatically and cannot be changed.</p>
+                <span>{t("workbench.supplier.vendorId")}</span>
+                <input readOnly value={formatVendorNumber(supplierVendorNumber)} placeholder={t("workbench.supplier.assignedAutomatically")} />
+                <p className="subtle-line">{t("workbench.supplier.idImmutable")}</p>
               </label>
               <label className="field">
-                <span>Name</span>
+                <span>{t("workbench.location.name")}</span>
                 <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
               </label>
               <label className="field field-span-2">
-                <span>Phone</span>
+                <span>{t("workbench.supplier.phone")}</span>
                 <div className="phone-input-row">
                   <select value={supplierPhoneCountryCode} onChange={(event) => setSupplierPhoneCountryCode(event.target.value)}>
                     {PHONE_COUNTRY_CODES.map((option) => (
@@ -397,17 +361,17 @@ export function WorkbenchSuppliersSection({
                 </div>
               </label>
               <label className="field">
-                <span>Lead Time (days)</span>
+                <span>{t("workbench.supplier.leadTime")}</span>
                 <input type="number" min={0} value={supplierLeadTime} onChange={(event) => setSupplierLeadTime(Number(event.target.value))} />
               </label>
               <label className="field field-span-2">
-                <span>Address</span>
+                <span>{t("workbench.location.address")}</span>
                 <textarea maxLength={256} rows={3} value={supplierAddress} onChange={(event) => setSupplierAddress(event.target.value)} />
               </label>
             </div>
             <div className="actions">
               <button type="button" disabled={busy || !isOrgScopedReady || !supplierName.trim()} onClick={() => void handleSaveSupplier()}>
-                {editingSupplier ? "Update Vendor" : "Create Supplier"}
+                {editingSupplier ? t("workbench.supplier.update") : t("workbench.supplier.create")}
               </button>
             </div>
           </div>
@@ -415,25 +379,25 @@ export function WorkbenchSuppliersSection({
       ) : null}
 
       {pendingSupplierUsageChange ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm vendor usage change">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.supplier.confirmUsage")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>{pendingSupplierUsageChange.is_active === false ? "Unblock vendor" : "Block vendor"}</h4>
+              <h4>{pendingSupplierUsageChange.is_active === false ? t("workbench.supplier.unblockVendor") : t("workbench.supplier.blockVendor")}</h4>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingSupplierUsageChange}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <p>
               {pendingSupplierUsageChange.is_active === false
-                ? `Unblock ${pendingSupplierUsageChange.name} for new usage?`
-                : `Block ${pendingSupplierUsageChange.name} from new usage?`}
+                ? message(locale, "workbench.supplier.unblockConfirm", { name: pendingSupplierUsageChange.name })
+                : message(locale, "workbench.supplier.blockConfirm", { name: pendingSupplierUsageChange.name })}
             </p>
             <div className="actions">
               <button type="button" disabled={busy} onClick={() => void handleConfirmSupplierUsageChange()}>
-                Confirm
+                {t("workbench.supplier.confirm")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingSupplierUsageChange}>
-                Cancel
+                {t("workbench.movement.cancel")}
               </button>
             </div>
           </div>

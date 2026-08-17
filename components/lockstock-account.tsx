@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { message, type StaticMessageKey } from "@/lib/i18n";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { buildAccountMetadata, chooseInitialAccountOrganizationId, metadataValue, validatePasswordChange } from "@/lib/auth/account";
 import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
@@ -53,14 +55,14 @@ type BillingSummary = {
   scheduled_effective_at: string | null;
 };
 
-const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
-  { href: "/inventory", label: "Inventory", icon: "inventory" },
-  { href: "/materials", label: "Materials", icon: "materials" },
-  { href: "/stock-movements", label: "Stock Movements", icon: "stock-movements" },
-  { href: "/locations", label: "Locations", icon: "locations" },
-  { href: "/vendors", label: "Vendors", icon: "vendors" },
-  { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
-  { href: "/members", label: "Members", icon: "members" }
+const NAV_ITEMS: Array<{ href: NavHref; labelKey: StaticMessageKey; icon: NavIcon }> = [
+  { href: "/inventory", labelKey: "workbench.nav.inventory", icon: "inventory" },
+  { href: "/materials", labelKey: "workbench.nav.materials", icon: "materials" },
+  { href: "/stock-movements", labelKey: "workbench.nav.movements", icon: "stock-movements" },
+  { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
+  { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
+  { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
+  { href: "/members", labelKey: "workbench.nav.members", icon: "members" }
 ];
 
 const STORAGE_KEYS = {
@@ -77,8 +79,8 @@ function daysAgoDateInputValue(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function formatAuditDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+function formatAuditDate(value: string, locale: "en" | "fr") {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
@@ -91,6 +93,8 @@ function canExportAuditLog(role: OrgRole | "") {
 export function LockstockAccount() {
   const pathname = usePathname();
   const router = useRouter();
+  const { locale } = useLanguage();
+  const t = useCallback((key: StaticMessageKey) => message(locale, key), [locale]);
 
   const [signedInAs, setSignedInAs] = useState("");
   const { addActivity } = useActivityLog(signedInAs);
@@ -215,7 +219,7 @@ export function LockstockAccount() {
 
       unsubscribe = () => authListener.data.subscription.unsubscribe();
     } catch {
-      addActivity("Supabase browser auth is not configured.");
+      addActivity(t("account.authUnavailable"));
       setAuthResolved(true);
     }
 
@@ -223,7 +227,7 @@ export function LockstockAccount() {
       unmounted = true;
       unsubscribe();
     };
-  }, [addActivity, syncPublicProfile]);
+  }, [addActivity, syncPublicProfile, t]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -271,13 +275,13 @@ export function LockstockAccount() {
       setActiveOrgRole("");
       setPlanAccess(null);
       setBillingSummary(null);
-      setAuditStatus(accessToken ? "Open a group workspace before viewing the audit log." : "");
+      setAuditStatus(accessToken ? t("account.openWorkspace") : "");
       return;
     }
 
     async function loadAuditContext() {
       try {
-        setAuditStatus("Loading audit log...");
+        setAuditStatus(t("account.loadingAudit"));
         const [auditResponse, organizationsResponse, entitlementsResponse, billingResponse] = await Promise.allSettled([
           browserApiRequest<{ data: AuditLogEntry[] }>("/api/audit-log", { orgId: activeOrgId }),
           browserApiRequest<{ data: OrganizationMembership[] }>("/api/organizations"),
@@ -324,7 +328,7 @@ export function LockstockAccount() {
     }
 
     void loadAuditContext();
-  }, [accessToken, activeOrgId]);
+  }, [accessToken, activeOrgId, t]);
 
   useEffect(() => {
     if (!authResolved || !accessToken || !signedInAs) {
@@ -375,10 +379,10 @@ export function LockstockAccount() {
         throw error;
       }
 
-      addActivity("Signed out.");
+      addActivity(t("account.signedOut"));
       router.push("/");
     } catch (error) {
-      addActivity(`Logout failed: ${(error as Error).message}`);
+      addActivity(message(locale, "account.actionFailed", { action: t("account.logoutAction"), reason: (error as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -405,9 +409,9 @@ export function LockstockAccount() {
       setAccountPhone(metadataValue(data.user.user_metadata, "phone"));
       setAccountJobTitle(metadataValue(data.user.user_metadata, "job_title"));
       await syncPublicProfile();
-      addActivity("Private profile information updated.");
+      addActivity(t("account.profileUpdated"));
     } catch (error) {
-      addActivity(`Update profile failed: ${(error as Error).message}`);
+      addActivity(message(locale, "account.actionFailed", { action: t("account.profileAction"), reason: (error as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -417,7 +421,7 @@ export function LockstockAccount() {
     try {
       const nextEmail = accountEmail.trim().toLowerCase();
       if (!nextEmail) {
-        addActivity("Update email failed: enter a valid email.");
+        addActivity(t("account.invalidEmail"));
         return;
       }
 
@@ -431,9 +435,9 @@ export function LockstockAccount() {
       }
 
       setAccountEmail(nextEmail);
-      addActivity("Email update requested. Check your inbox to confirm the new address.");
+      addActivity(t("account.emailRequested"));
     } catch (error) {
-      addActivity(`Update email failed: ${(error as Error).message}`);
+      addActivity(message(locale, "account.actionFailed", { action: t("account.emailAction"), reason: (error as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -442,7 +446,7 @@ export function LockstockAccount() {
   async function handleUpdatePassword() {
     const validationError = validatePasswordChange(accountNewPassword, accountConfirmPassword);
     if (validationError) {
-      addActivity(`Update password failed: ${validationError}`);
+      addActivity(message(locale, "account.actionFailed", { action: t("account.passwordAction"), reason: validationError }));
       return;
     }
 
@@ -458,9 +462,9 @@ export function LockstockAccount() {
 
       setAccountNewPassword("");
       setAccountConfirmPassword("");
-      addActivity("Password updated.");
+      addActivity(t("account.passwordUpdated"));
     } catch (error) {
-      addActivity(`Update password failed: ${(error as Error).message}`);
+      addActivity(message(locale, "account.actionFailed", { action: t("account.passwordAction"), reason: (error as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -469,12 +473,12 @@ export function LockstockAccount() {
   async function handleDownloadAuditLog() {
     try {
       if (!accessToken || !activeOrgId) {
-        setAuditStatus("Select an active group before exporting the audit log.");
+        setAuditStatus(t("account.selectWorkspace"));
         return;
       }
 
       setBusy(true);
-      setAuditStatus("Preparing audit export...");
+      setAuditStatus(t("account.preparingExport"));
       const params = new URLSearchParams({
         format: "csv",
         from: auditExportFrom,
@@ -519,7 +523,7 @@ export function LockstockAccount() {
         };
       });
     } catch (error) {
-      addActivity(`Billing action failed: ${(error as Error).message}`);
+      addActivity(message(locale, "account.actionFailed", { action: t("account.billingAction"), reason: (error as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -547,13 +551,13 @@ export function LockstockAccount() {
                   key={item.href}
                   href={item.href}
                   className={`nav-link ${active ? "nav-link-active" : ""}`}
-                  aria-label={item.label}
-                  title={item.label}
+                  aria-label={t(item.labelKey)}
+                  title={t(item.labelKey)}
                 >
                   <span className="nav-icon" aria-hidden="true">
                     <NavItemIcon icon={item.icon} />
                   </span>
-                  <span>{item.label}</span>
+                  <span>{t(item.labelKey)}</span>
                 </Link>
               );
             })}
@@ -563,21 +567,21 @@ export function LockstockAccount() {
               <>
                 {isPlatformAdmin ? (
                   <Link href="/platform" className={`nav-link ${pathname === "/platform" ? "nav-link-active" : ""}`}>
-                    Platform
+                    {t("platform.nav")}
                   </Link>
                 ) : null}
                 <LanguageSwitcher />
                 <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
-                  Account
+                  {t("auth.account")}
                 </Link>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={handleSignOut}>
-                  Sign Out
+                  {t("auth.signOut")}
                 </button>
               </>
             ) : (
               <>
                 <Link href="/" className="nav-link">
-                  Sign In
+                  {t("auth.signIn")}
                 </Link>
                 <LanguageSwitcher />
               </>
@@ -589,8 +593,8 @@ export function LockstockAccount() {
       <section className="card">
         <div className="title-row">
           <div>
-            <h1>Account</h1>
-            <p>Manage your email, password, and private profile details.</p>
+            <h1>{t("account.title")}</h1>
+            <p>{t("account.description")}</p>
           </div>
         </div>
       </section>
@@ -599,59 +603,59 @@ export function LockstockAccount() {
         {signedInAs ? (
           <div className="grid account-grid">
             <article className="account-card">
-              <h3>Private Info</h3>
-              <p className="subtle-line">Stored as private profile metadata on your user account.</p>
+              <h3>{t("account.privateInfo")}</h3>
+              <p className="subtle-line">{t("account.privateDescription")}</p>
               <div className="grid grid-2">
                 <label className="field">
-                  <span>Full Name</span>
+                  <span>{t("account.fullName")}</span>
                   <input value={accountFullName} onChange={(event) => setAccountFullName(event.target.value)} />
                 </label>
                 <label className="field">
-                  <span>Company</span>
+                  <span>{t("account.company")}</span>
                   <input value={accountCompany} onChange={(event) => setAccountCompany(event.target.value)} />
                 </label>
                 <label className="field">
-                  <span>Phone</span>
+                  <span>{t("account.phone")}</span>
                   <input value={accountPhone} onChange={(event) => setAccountPhone(event.target.value)} />
                 </label>
                 <label className="field">
-                  <span>Job Title</span>
+                  <span>{t("account.jobTitle")}</span>
                   <input value={accountJobTitle} onChange={(event) => setAccountJobTitle(event.target.value)} />
                 </label>
               </div>
               <div className="actions">
                 <button type="button" disabled={busy} onClick={handleUpdatePrivateInfo}>
-                  Save Private Info
+                  {t("account.savePrivate")}
                 </button>
               </div>
             </article>
 
             <article className="account-card">
-              <h3>Email</h3>
-              <p className="subtle-line">Changing email requires inbox confirmation from Supabase Auth.</p>
+              <h3>{t("account.email")}</h3>
+              <p className="subtle-line">{t("account.emailDescription")}</p>
               <div className="grid">
                 <label className="field">
-                  <span>Current Email</span>
+                  <span>{t("account.currentEmail")}</span>
                   <input value={signedInAs} readOnly />
                 </label>
                 <label className="field">
-                  <span>New Email</span>
+                  <span>{t("account.newEmail")}</span>
                   <input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} />
                 </label>
               </div>
               <div className="actions">
                 <button type="button" disabled={busy || !accountEmail.trim()} onClick={handleUpdateEmail}>
-                  Update Email
+                  {t("account.updateEmail")}
                 </button>
               </div>
             </article>
 
             <article className="account-card">
-              <h3>Password</h3>
-              <p className="subtle-line">Use a strong password with at least 8 characters.</p>
+              <h3>{t("account.password")}</h3>
+              <p className="subtle-line">{t("account.passwordDescription")}</p>
               <div className="grid grid-2">
                 <label className="field">
-                  <span>New Password</span>
+                  <span>{t("account.newPassword")}</span>
                   <input
                     type="password"
                     value={accountNewPassword}
@@ -659,7 +663,7 @@ export function LockstockAccount() {
                   />
                 </label>
                 <label className="field">
-                  <span>Confirm New Password</span>
+                  <span>{t("account.confirmPassword")}</span>
                   <input
                     type="password"
                     value={accountConfirmPassword}
@@ -673,13 +677,13 @@ export function LockstockAccount() {
                   disabled={busy || !accountNewPassword || !accountConfirmPassword}
                   onClick={handleUpdatePassword}
                 >
-                  Update Password
+                  {t("account.updatePassword")}
                 </button>
               </div>
             </article>
           </div>
         ) : (
-          <p>Sign in to manage your account details.</p>
+          <p>{t("account.signInPrompt")}</p>
         )}
       </section>
 
@@ -687,26 +691,26 @@ export function LockstockAccount() {
         <section className="card billing-card">
           <div className="title-row">
             <div>
-              <h3>Subscription</h3>
-              <p>Plan, renewal, invoices, and payment method for the active workspace.</p>
+              <h3>{t("account.subscription")}</h3>
+              <p>{t("account.subscriptionDescription")}</p>
             </div>
             <span className={`platform-status-pill platform-status-${billingSummary.status}`}>{billingSummary.status.replaceAll("_", " ")}</span>
           </div>
           <div className="billing-summary-grid">
-            <div><span>Current plan</span><strong>{billingSummary.plan}</strong></div>
-            <div><span>Billing</span><strong>{billingSummary.billing_interval}</strong></div>
-            <div><span>{billingSummary.status === "trialing" ? "Trial ends" : "Renews"}</span><strong>{billingSummary.status === "trialing" ? billingSummary.trial_ends_at?.slice(0, 10) ?? "-" : billingSummary.current_period_end ?? "-"}</strong></div>
-            <div><span>Access</span><strong>{planAccess?.isReadOnly ? "Read-only" : "Writable"}</strong></div>
+            <div><span>{t("account.currentPlan")}</span><strong>{billingSummary.plan}</strong></div>
+            <div><span>{t("account.billing")}</span><strong>{billingSummary.billing_interval}</strong></div>
+            <div><span>{billingSummary.status === "trialing" ? t("account.trialEnds") : t("account.renews")}</span><strong>{billingSummary.status === "trialing" ? billingSummary.trial_ends_at?.slice(0, 10) ?? "-" : billingSummary.current_period_end ?? "-"}</strong></div>
+            <div><span>{t("account.access")}</span><strong>{planAccess?.isReadOnly ? t("account.readOnly") : t("account.writable")}</strong></div>
           </div>
           {billingSummary.scheduled_plan ? (
-            <p className="subtle-line">Scheduled: {billingSummary.scheduled_plan} · {billingSummary.scheduled_interval} on {billingSummary.scheduled_effective_at?.slice(0, 10)}</p>
+            <p className="subtle-line">{message(locale, "account.scheduled", { plan: billingSummary.scheduled_plan, interval: billingSummary.scheduled_interval ?? "", date: billingSummary.scheduled_effective_at?.slice(0, 10) ?? "" })}</p>
           ) : null}
-          {billingSummary.past_due_since ? <p className="subtle-line">Payment failed. A seven-day grace period applies from {billingSummary.past_due_since.slice(0, 10)}.</p> : null}
+          {billingSummary.past_due_since ? <p className="subtle-line">{message(locale, "account.gracePeriod", { date: billingSummary.past_due_since.slice(0, 10) })}</p> : null}
           <div className="button-row">
-            <Link className="ghost-btn" href="/payment">Change plan</Link>
-            {billingSummary.stripe_subscription_id ? <button type="button" className="ghost-btn" disabled={busy} onClick={() => void handleBillingAction("portal-session")}>Payment method & invoices</button> : null}
-            {billingSummary.stripe_subscription_id && !billingSummary.cancel_at_period_end ? <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleBillingAction("cancel")}>Cancel at renewal</button> : null}
-            {billingSummary.cancel_at_period_end ? <button type="button" disabled={busy} onClick={() => void handleBillingAction("reactivate")}>Reactivate</button> : null}
+            <Link className="ghost-btn" href="/payment">{t("account.changePlan")}</Link>
+            {billingSummary.stripe_subscription_id ? <button type="button" className="ghost-btn" disabled={busy} onClick={() => void handleBillingAction("portal-session")}>{t("account.paymentMethod")}</button> : null}
+            {billingSummary.stripe_subscription_id && !billingSummary.cancel_at_period_end ? <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleBillingAction("cancel")}>{t("account.cancelRenewal")}</button> : null}
+            {billingSummary.cancel_at_period_end ? <button type="button" disabled={busy} onClick={() => void handleBillingAction("reactivate")}>{t("account.reactivate")}</button> : null}
           </div>
         </section>
       ) : null}
@@ -714,40 +718,39 @@ export function LockstockAccount() {
       <section className="card audit-card">
         <div className="title-row">
           <div>
-            <h3>Activity Log</h3>
-            <p>Latest 20 recorded changes for the active group.</p>
+            <h3>{t("account.activityLog")}</h3>
+            <p>{t("account.activityDescription")}</p>
           </div>
         </div>
 
         {planAccess ? (
           <p className="subtle-line">
-            Selected plan: {planAccess.selectedPlan}. Current access: {planAccess.effectivePlan}
-            {planAccess.isReadOnly ? " (read-only)" : ""}.
+            {message(locale, "account.planAccess", { selected: planAccess.selectedPlan, effective: planAccess.effectivePlan, readOnly: planAccess.isReadOnly ? t("account.readOnlySuffix") : "" })}
           </p>
         ) : null}
 
         {canExportAuditLog(activeOrgRole) && planAccess?.canExportAudit ? (
           <div className="audit-export-row">
             <label className="field">
-              <span>From</span>
+              <span>{t("account.from")}</span>
               <input type="date" value={auditExportFrom} onChange={(event) => setAuditExportFrom(event.target.value)} />
             </label>
             <label className="field">
-              <span>To</span>
+              <span>{t("account.to")}</span>
               <input type="date" value={auditExportTo} onChange={(event) => setAuditExportTo(event.target.value)} />
             </label>
             <button type="button" disabled={busy || !auditExportFrom || !auditExportTo} onClick={handleDownloadAuditLog}>
-              Download CSV
+              {t("account.downloadCsv")}
             </button>
           </div>
-        ) : planAccess && !planAccess.canExportAudit ? <p className="subtle-line">Audit CSV export is available on paid Operations plans and above.</p> : null}
+        ) : planAccess && !planAccess.canExportAudit ? <p className="subtle-line">{t("account.auditUpgrade")}</p> : null}
 
         {auditStatus ? <p className="subtle-line">{auditStatus}</p> : null}
-        {!auditStatus && auditLog.length === 0 ? <p>No recorded changes yet.</p> : null}
+        {!auditStatus && auditLog.length === 0 ? <p>{t("account.noActivity")}</p> : null}
         <div className="audit-log-list">
           {auditLog.map((item) => (
             <article key={item.id} className="audit-log-row">
-              <time>{formatAuditDate(item.created_at)}</time>
+              <time>{formatAuditDate(item.created_at, locale)}</time>
               <div>
                 <p>{item.message}</p>
                 {summarizeAuditMetadata(item.metadata).map((detail) => (

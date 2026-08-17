@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { Locale } from "@/lib/i18n";
+import { message, type Locale, type StaticMessageKey } from "@/lib/i18n";
 import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } from "@/lib/material-categories";
 import { MATERIAL_DUPLICATE_SKU_ERROR } from "@/lib/material-errors";
 import { MATERIAL_UNITS, formatMaterialUnitLabel } from "@/lib/material-units";
@@ -63,6 +63,7 @@ export function WorkbenchCatalogForms({
   onCloseEditMaterialForm,
   onClosePendingMaterialUsageChange
 }: CatalogFormsProps) {
+  const t = (key: StaticMessageKey) => message(locale, key);
   const [locationName, setLocationName] = useState("Main Warehouse");
   const [locationCode, setLocationCode] = useState("MAIN");
   const [locationAddress, setLocationAddress] = useState("");
@@ -356,31 +357,31 @@ export function WorkbenchCatalogForms({
   return (
     <>
       {showLocationForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingLocation ? "Edit location" : "Add location"}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingLocation ? t("workbench.catalog.editLocationDialog") : t("workbench.catalog.addLocationDialog")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>{editingLocation ? "Edit Location" : "Add New Location"}</h4>
+              <h4>{editingLocation ? t("workbench.catalog.editLocation") : t("workbench.catalog.addLocation")}</h4>
               <button type="button" className="ghost-btn" onClick={onCloseLocationForm}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <div className="grid grid-2">
               <label className="field">
-                <span>Name</span>
+                <span>{t("workbench.location.name")}</span>
                 <input value={locationName} onChange={(event) => setLocationName(event.target.value)} />
               </label>
               <label className="field">
-                <span>Code</span>
+                <span>{t("workbench.location.code")}</span>
                 <input value={locationCode} onChange={(event) => setLocationCode(event.target.value)} />
               </label>
             </div>
             <label className="field">
-              <span>Address</span>
+              <span>{t("workbench.location.address")}</span>
               <textarea value={locationAddress} maxLength={265} rows={3} onChange={(event) => setLocationAddress(event.target.value)} />
             </label>
             <div className="actions">
               <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => void handleSaveLocation()}>
-                {editingLocation ? "Save Location" : "Create Location"}
+                {editingLocation ? t("workbench.catalog.saveLocation") : t("workbench.catalog.createLocation")}
               </button>
             </div>
           </div>
@@ -388,25 +389,25 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {pendingLocationUsageChange ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm location usage change">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.confirmLocationUsage")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>{pendingLocationUsageChange.is_active === false ? "Unblock location" : "Block location"}</h4>
+              <h4>{pendingLocationUsageChange.is_active === false ? t("workbench.catalog.unblockLocation") : t("workbench.catalog.blockLocation")}</h4>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingLocationUsageChange}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <p>
               {pendingLocationUsageChange.is_active === false
-                ? `Unblock ${pendingLocationUsageChange.name} for new usage?`
-                : `Block ${pendingLocationUsageChange.name} from new usage?`}
+                ? message(locale, "catalog.location.usage.unblockConfirm", { name: pendingLocationUsageChange.name })
+                : message(locale, "catalog.location.usage.blockConfirm", { name: pendingLocationUsageChange.name })}
             </p>
             <div className="actions">
               <button type="button" disabled={busy} onClick={() => void handleConfirmLocationUsageChange()}>
-                Confirm
+                {t("workbench.supplier.confirm")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingLocationUsageChange}>
-                Cancel
+                {t("workbench.movement.cancel")}
               </button>
             </div>
           </div>
@@ -414,18 +415,18 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {showMaterialCreateForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create material">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.createMaterialDialog")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>Create material</h4>
+              <h4>{t("workbench.catalog.createMaterialDialog")}</h4>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseMaterialCreateForm}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <div className="materials-form-wrap material-edit-form">
               <div className="grid grid-2">
                 <label className={`field ${materialRequiredErrors.includes("sku") ? "field-invalid" : ""}`}>
-                  <span>SKU</span>
+                  <span>{t("workbench.material.sku")}</span>
                   <input
                     value={materialSku}
                     required
@@ -435,7 +436,7 @@ export function WorkbenchCatalogForms({
                   {materialSkuDuplicate ? <small className="field-message">{materialDuplicateSkuMessage(locale)}</small> : null}
                 </label>
                 <label className={`field ${materialRequiredErrors.includes("name") ? "field-invalid" : ""}`}>
-                  <span>Name</span>
+                  <span>{t("workbench.material.name")}</span>
                   <input
                     value={materialName}
                     required
@@ -444,7 +445,7 @@ export function WorkbenchCatalogForms({
                   />
                 </label>
                 <label className="field">
-                  <span>Category</span>
+                  <span>{t("workbench.material.category")}</span>
                   <select value={materialCategory} onChange={(event) => setMaterialCategory(event.target.value as MaterialCategory)}>
                     {MATERIAL_CATEGORIES.map((category) => (
                       <option key={category} value={category}>
@@ -454,7 +455,7 @@ export function WorkbenchCatalogForms({
                   </select>
                 </label>
                 <label className="field">
-                  <span>Subcategory</span>
+                  <span>{t("workbench.material.subcategory")}</span>
                   <select value={materialSubcategory} onChange={(event) => setMaterialSubcategory(event.target.value)}>
                     {availableMaterialSubcategories.map((subcategory) => (
                       <option key={subcategory} value={subcategory}>
@@ -464,7 +465,7 @@ export function WorkbenchCatalogForms({
                   </select>
                 </label>
                 <label className="field">
-                  <span>Unit</span>
+                  <span>{t("workbench.catalog.unit")}</span>
                   <select value={materialUom} onChange={(event) => setMaterialUom(event.target.value)}>
                     {MATERIAL_UNITS.map((unit) => (
                       <option key={unit.code} value={unit.code}>
@@ -474,7 +475,7 @@ export function WorkbenchCatalogForms({
                   </select>
                 </label>
                 <label className={`field ${materialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
-                  <span>Minimum Stock</span>
+                  <span>{t("workbench.material.minimumStock")}</span>
                   <input
                     type="number"
                     min={0}
@@ -485,16 +486,16 @@ export function WorkbenchCatalogForms({
                   />
                 </label>
                 <label className="field field-span-2">
-                  <span>Description</span>
+                  <span>{t("workbench.material.description")}</span>
                   <textarea value={materialDescription} maxLength={256} rows={3} onChange={(event) => setMaterialDescription(event.target.value)} />
                 </label>
               </div>
               <div className="actions">
                 <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => void handleCreateMaterial()}>
-                  Create Material
+                  {t("workbench.material.create")}
                 </button>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseMaterialCreateForm}>
-                  Cancel
+                  {t("workbench.movement.cancel")}
                 </button>
               </div>
             </div>
@@ -503,26 +504,26 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {editingMaterial ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit material">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.editMaterialDialog")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>Edit material</h4>
+              <h4>{t("workbench.catalog.editMaterialDialog")}</h4>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseEditMaterialForm}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <div className="materials-form-wrap material-edit-form">
               <div className="grid grid-2">
                 <label className="field">
-                  <span>Material number</span>
+                  <span>{t("workbench.catalog.materialNumber")}</span>
                   <input value={editingMaterial?.sku ?? ""} readOnly />
                 </label>
                 <label className="field">
-                  <span>UoM</span>
+                  <span>{t("workbench.material.uom")}</span>
                   <input value={editingMaterial ? formatMaterialUnitLabel(editingMaterial.uom, locale) : ""} readOnly />
                 </label>
                 <label className={`field ${editMaterialRequiredErrors.includes("name") ? "field-invalid" : ""}`}>
-                  <span>Name</span>
+                  <span>{t("workbench.material.name")}</span>
                   <input
                     value={editMaterialName}
                     required
@@ -531,7 +532,7 @@ export function WorkbenchCatalogForms({
                   />
                 </label>
                 <label className="field">
-                  <span>Category</span>
+                  <span>{t("workbench.material.category")}</span>
                   <select value={editMaterialCategory} onChange={(event) => setEditMaterialCategory(event.target.value as MaterialCategory)}>
                     {MATERIAL_CATEGORIES.map((category) => (
                       <option key={category} value={category}>
@@ -541,7 +542,7 @@ export function WorkbenchCatalogForms({
                   </select>
                 </label>
                 <label className="field">
-                  <span>Subcategory</span>
+                  <span>{t("workbench.material.subcategory")}</span>
                   <select value={editMaterialSubcategory} onChange={(event) => setEditMaterialSubcategory(event.target.value)}>
                     {availableEditMaterialSubcategories.map((subcategory) => (
                       <option key={subcategory} value={subcategory}>
@@ -551,7 +552,7 @@ export function WorkbenchCatalogForms({
                   </select>
                 </label>
                 <label className={`field ${editMaterialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
-                  <span>Minimum Stock</span>
+                  <span>{t("workbench.material.minimumStock")}</span>
                   <input
                     type="number"
                     min={0}
@@ -562,16 +563,16 @@ export function WorkbenchCatalogForms({
                   />
                 </label>
                 <label className="field field-span-2">
-                  <span>Description</span>
+                  <span>{t("workbench.material.description")}</span>
                   <textarea value={editMaterialDescription} maxLength={256} rows={3} onChange={(event) => setEditMaterialDescription(event.target.value)} />
                 </label>
               </div>
               <div className="actions">
                 <button type="button" disabled={busy} onClick={() => void handleUpdateMaterial()}>
-                  Save changes
+                  {t("workbench.catalog.saveChanges")}
                 </button>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseEditMaterialForm}>
-                  Cancel
+                  {t("workbench.movement.cancel")}
                 </button>
               </div>
             </div>
@@ -580,25 +581,25 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {pendingMaterialUsageChange ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm material usage change">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.confirmMaterialUsage")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>{pendingMaterialUsageChange.is_active === false ? "Unblock material" : "Block material"}</h4>
+              <h4>{pendingMaterialUsageChange.is_active === false ? t("workbench.catalog.unblockMaterial") : t("workbench.catalog.blockMaterial")}</h4>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingMaterialUsageChange}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <p>
               {pendingMaterialUsageChange.is_active === false
-                ? `Unblock ${pendingMaterialUsageChange.sku} - ${pendingMaterialUsageChange.name} for new usage?`
-                : `Block ${pendingMaterialUsageChange.sku} - ${pendingMaterialUsageChange.name} from new usage?`}
+                ? message(locale, "catalog.material.usage.unblockConfirm", { sku: pendingMaterialUsageChange.sku, name: pendingMaterialUsageChange.name })
+                : message(locale, "catalog.material.usage.blockConfirm", { sku: pendingMaterialUsageChange.sku, name: pendingMaterialUsageChange.name })}
             </p>
             <div className="actions">
               <button type="button" disabled={busy} onClick={() => void handleConfirmMaterialUsageChange()}>
-                Confirm
+                {t("workbench.supplier.confirm")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingMaterialUsageChange}>
-                Cancel
+                {t("workbench.movement.cancel")}
               </button>
             </div>
           </div>

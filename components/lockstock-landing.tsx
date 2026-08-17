@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useId, useMemo, useState } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AccessibilityDialog } from "@/components/accessibility-dialog";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { message as renderMessage, type StaticMessageKey } from "@/lib/i18n";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildPostSignUpPath, buildSignUpPayload, rememberPostSignUpWorkspace } from "@/lib/auth/signup";
 import { demoVideoHref } from "@/lib/ui/demo-video";
@@ -13,72 +14,71 @@ import { demoVideoHref } from "@/lib/ui/demo-video";
 type AuthMode = "signin" | "signup";
 type SelectedPlan = "starter" | "operations" | "business" | "enterprise";
 
-const FEATURES = [
+const FEATURE_MESSAGE_KEYS: Array<{ title: StaticMessageKey; description: StaticMessageKey }> = [
   {
-    title: "Material Catalog",
-    description: "Manage SKUs, units of measure, categories, descriptions, and minimum stock thresholds in one clean catalog."
+    title: "landing.feature.catalog.title",
+    description: "landing.feature.catalog.description"
   },
   {
-    title: "Location-Level Inventory",
-    description: "Track stock quantities by warehouse, zone, rack, or site location so teams know where every material sits."
+    title: "landing.feature.inventory.title",
+    description: "landing.feature.inventory.description"
   },
   {
-    title: "Stock Movement Control",
-    description: "Record adjustments, consumption, transfers, and purchase receipts with structured movement reasons and history."
+    title: "landing.feature.movement.title",
+    description: "landing.feature.movement.description"
   },
   {
-    title: "Purchase Order Lifecycle",
-    description: "Create supplier purchase orders, move them through draft, sent, partial, received, and cancelled states, and receive stock against them."
+    title: "landing.feature.purchaseOrders.title",
+    description: "landing.feature.purchaseOrders.description"
   },
   {
-    title: "Supplier Management",
-    description: "Maintain vendor records, contact details, addresses, lead times, and supplier activity tied to purchasing workflows."
+    title: "landing.feature.suppliers.title",
+    description: "landing.feature.suppliers.description"
   },
   {
-    title: "Groups, Roles, and Audit Trail",
-    description: "Invite team members, manage roles, switch between groups, and review operational activity through audit logs."
+    title: "landing.feature.collaboration.title",
+    description: "landing.feature.collaboration.description"
   }
 ];
 
-const TESTIMONIALS = [
+const TESTIMONIAL_MESSAGE_KEYS: Array<{ name: string; role: StaticMessageKey; company: string; content: StaticMessageKey; rating: number }> = [
   {
     name: "Sarah Chen",
-    role: "Operations Manager",
+    role: "landing.testimonial.operationsManager",
     company: "TechSupply Co",
-    content:
-      "LockStock transformed our inventory management. We reduced stockouts dramatically and purchasing is now structured.",
+    content: "landing.testimonial.one",
     rating: 5
   },
   {
     name: "Michael Rodriguez",
-    role: "CEO",
+    role: "landing.testimonial.ceo",
     company: "FastParts Inc",
-    content:
-      "The live analytics gave us visibility we never had before. We make better decisions and turnover improved.",
+    content: "landing.testimonial.two",
     rating: 5
   },
   {
     name: "Emily Thompson",
-    role: "Warehouse Director",
+    role: "landing.testimonial.warehouseDirector",
     company: "GlobalDistribute",
-    content: "Easy to use and powerful. The team can manage stock from anywhere without losing control.",
+    content: "landing.testimonial.three",
     rating: 5
   }
 ];
 
-function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" }) {
+function StaticProductScreenshot({ variant, locale }: { variant: "inventory" | "orders"; locale: "en" | "fr" }) {
   const isInventory = variant === "inventory";
+  const t = (key: StaticMessageKey) => renderMessage(locale, key);
   const rows = isInventory
     ? [
-        ["MAT-001", "Portland Cement", "180", "Main", "In Stock"],
-        ["MAT-024", "Rebar 12mm", "9", "North", "Low"],
-        ["MAT-112", "Membrane", "47", "Rack B4", "In Stock"],
-        ["MAT-230", "Anchor Bolt", "0", "Overflow", "Out"]
+        ["MAT-001", "Portland Cement", "180", "Main", t("landing.preview.inStock")],
+        ["MAT-024", "Rebar 12mm", "9", "North", t("landing.preview.lowStock")],
+        ["MAT-112", "Membrane", "47", "Rack B4", t("landing.preview.inStock")],
+        ["MAT-230", "Anchor Bolt", "0", "Overflow", t("landing.preview.out")]
       ]
     : [
-        ["PO-1048", "Acme Supply", "Partial", "EUR 8,240"],
-        ["PO-1049", "Nord Steel", "Sent", "EUR 12,900"],
-        ["PO-1050", "BuildChem", "Draft", "EUR 3,440"]
+        ["PO-1048", "Acme Supply", t("landing.preview.partial"), "EUR 8,240"],
+        ["PO-1049", "Nord Steel", t("landing.preview.sent"), "EUR 12,900"],
+        ["PO-1050", "BuildChem", t("landing.preview.draft"), "EUR 3,440"]
       ];
 
   return (
@@ -95,25 +95,25 @@ function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" 
       <div className="landing-shot-workspace">
         <div className="landing-shot-top">
           <div>
-            <p className="landing-shot-eyebrow">{isInventory ? "Live stock view" : "Purchasing command"}</p>
-            <h3>{isInventory ? "Inventory" : "Purchase Orders"}</h3>
+            <p className="landing-shot-eyebrow">{isInventory ? t("landing.preview.liveStock") : t("landing.preview.purchasing")}</p>
+            <h3>{isInventory ? t("landing.preview.inventory") : t("landing.preview.purchaseOrders")}</h3>
           </div>
-          <span className="landing-shot-action">{isInventory ? "Add Movement" : "Create PO"}</span>
+          <span className="landing-shot-action">{isInventory ? t("landing.preview.addMovement") : t("landing.preview.createPo")}</span>
         </div>
 
         <div className="landing-shot-kpis">
           {(isInventory
             ? [
-                ["Materials", "248"],
-                ["Low Stock", "12"],
-                ["Out", "4"],
-                ["Value", "EUR 82k"]
+                [t("landing.preview.materials"), "248"],
+                [t("landing.preview.lowStock"), "12"],
+                [t("landing.preview.out"), "4"],
+                [t("landing.preview.value"), "EUR 82k"]
               ]
             : [
-                ["Draft", "5"],
-                ["Sent", "11"],
-                ["Partial", "2"],
-                ["Value", "EUR 34k"]
+                [t("landing.preview.draft"), "5"],
+                [t("landing.preview.sent"), "11"],
+                [t("landing.preview.partial"), "2"],
+                [t("landing.preview.value"), "EUR 34k"]
               ]
           ).map(([label, value], index) => (
             <article key={label} className={index === 1 || (!isInventory && index === 2) ? "landing-shot-kpi hot" : "landing-shot-kpi"}>
@@ -123,9 +123,9 @@ function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" 
           ))}
         </div>
 
-        <div className="landing-shot-table" aria-label={`${isInventory ? "Inventory" : "Purchase order"} screenshot preview`}>
+        <div className="landing-shot-table" aria-label={isInventory ? t("landing.preview.screenshotInventory") : t("landing.preview.screenshotPo")}>
           <div className={`landing-shot-table-row landing-shot-table-head ${isInventory ? "" : "landing-shot-table-row-orders"}`}>
-            {(isInventory ? ["SKU", "Item", "Qty", "Location", "Status"] : ["PO", "Supplier", "Status", "Total"]).map((cell) => (
+            {(isInventory ? [t("landing.preview.sku"), t("landing.preview.item"), t("landing.preview.qty"), t("landing.preview.location"), t("landing.preview.status")] : ["PO", t("landing.preview.supplier"), t("landing.preview.status"), t("landing.preview.total")]).map((cell) => (
               <span key={cell}>{cell}</span>
             ))}
           </div>
@@ -133,7 +133,7 @@ function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" 
             <div
               key={row[0]}
               className={`landing-shot-table-row ${isInventory ? "" : "landing-shot-table-row-orders"} ${
-                row.includes("Low") || row.includes("Out") || row.includes("Partial") ? "alert" : ""
+                row.includes(t("landing.preview.lowStock")) || row.includes(t("landing.preview.out")) || row.includes(t("landing.preview.partial")) ? "alert" : ""
               }`}
             >
               {row.map((cell) => (
@@ -150,6 +150,7 @@ function StaticProductScreenshot({ variant }: { variant: "inventory" | "orders" 
 export function LockstockLanding() {
   const router = useRouter();
   const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => renderMessage(locale, key);
   const demoHref = demoVideoHref(locale);
   const [authOpen, setAuthOpen] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
@@ -167,10 +168,7 @@ export function LockstockLanding() {
   const authErrorId = useId();
   const authMessageId = useId();
 
-  const heading = useMemo(
-    () => (authMode === "signin" ? "Welcome back" : "Create your account"),
-    [authMode]
-  );
+  const heading = authMode === "signin" ? t("landing.auth.welcome") : t("landing.auth.createAccountTitle");
 
   useEffect(() => {
     const requestedPlan = new URLSearchParams(window.location.search).get("plan");
@@ -307,7 +305,7 @@ export function LockstockLanding() {
   }
 
   return (
-    <div className="landing-page">
+    <div className="landing-page" data-i18n-rendered="true">
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
           <div className="landing-brand">
@@ -319,29 +317,29 @@ export function LockstockLanding() {
             <span className="landing-brand-text">LockStock</span>
           </div>
           <nav className="landing-nav">
-            <a href="#features">Features</a>
-            <a href="#benefits">Benefits</a>
-            <a href="/pricing">Pricing</a>
-            <Link href="/france-pme">PME France</Link>
+            <a href="#features">{t("nav.features")}</a>
+            <a href="#benefits">{t("nav.benefits")}</a>
+            <a href="/pricing">{t("nav.pricing")}</a>
+            <Link href="/france-pme">{t("france.nav.pme")}</Link>
           </nav>
           <div className="landing-actions">
             <LanguageSwitcher />
             {signedInAs ? (
               <>
                 <button type="button" className="ghost-btn" onClick={() => router.push("/account")}>
-                  Account
+                  {t("auth.account")}
                 </button>
                 <button type="button" onClick={handleSignOut} disabled={busy}>
-                  Sign Out
+                  {t("auth.signOut")}
                 </button>
               </>
             ) : (
               <>
                 <button type="button" className="ghost-btn" onClick={() => openAuth("signin")}>
-                  Sign In
+                  {t("auth.signIn")}
                 </button>
                 <button type="button" onClick={() => openAuth("signup")}>
-                  Get Started
+                  {t("auth.getStarted")}
                 </button>
               </>
             )}
@@ -353,30 +351,30 @@ export function LockstockLanding() {
         <div className="landing-wrap landing-hero-grid">
           <div>
             <h1 className="landing-hero-title">
-              Master Your Inventory with <span>LockStock</span>
+              {t("landing.hero.title")} <span>LockStock</span>
             </h1>
             <p className="landing-hero-subtitle">
-              Streamline inventory management with real-time tracking, automated reordering, and practical analytics.
+              {t("landing.hero.subtitle")}
             </p>
 
             <div className="landing-hero-actions">
               <button type="button" onClick={() => openAuth("signup")}>
-                Start Free Trial
+                {t("landing.startTrial")}
               </button>
               <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
-                Watch Demo
+                {t("landing.watchDemo")}
               </button>
             </div>
 
             <ul className="landing-checks">
-              <li>No credit card required</li>
-              <li>15-day free trial</li>
-              <li>Cancel anytime</li>
+              <li>{t("landing.noCard")}</li>
+              <li>{t("landing.trialLength")}</li>
+              <li>{t("landing.cancelAnytime")}</li>
             </ul>
           </div>
 
           <div className="landing-image-wrap">
-            <StaticProductScreenshot variant="inventory" />
+            <StaticProductScreenshot variant="inventory" locale={locale} />
           </div>
         </div>
       </section>
@@ -384,14 +382,14 @@ export function LockstockLanding() {
       <section id="features" className="landing-section">
         <div className="landing-wrap">
           <div className="landing-section-head">
-            <h2>Everything You Need to Manage Inventory</h2>
-            <p>Powerful features designed to streamline operations and boost efficiency.</p>
+            <h2>{t("landing.features.title")}</h2>
+            <p>{t("landing.features.subtitle")}</p>
           </div>
           <div className="landing-feature-grid">
-            {FEATURES.map((feature) => (
+            {FEATURE_MESSAGE_KEYS.map((feature) => (
               <article key={feature.title} className="landing-feature-card">
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
+                <h3>{t(feature.title)}</h3>
+                <p>{t(feature.description)}</p>
               </article>
             ))}
           </div>
@@ -401,28 +399,27 @@ export function LockstockLanding() {
       <section id="benefits" className="landing-section landing-benefits">
         <div className="landing-wrap landing-benefits-grid">
           <div>
-            <h2>Reduce Costs, Increase Efficiency</h2>
+            <h2>{t("landing.benefits.title")}</h2>
             <p>
-              LockStock gives materials teams the operating structure to control stock, purchasing, locations, suppliers,
-              and group access from one workspace.
+              {t("landing.benefits.lede")}
             </p>
             <div className="landing-benefit-list">
               <article>
-                <h3>One Operational Source of Truth</h3>
-                <p>Connect materials, locations, suppliers, purchase orders, and stock movements so teams stop working from scattered spreadsheets.</p>
+                <h3>{t("landing.benefit.truth.title")}</h3>
+                <p>{t("landing.benefit.truth.description")}</p>
               </article>
               <article>
-                <h3>Cleaner Daily Stock Decisions</h3>
-                <p>Use low-stock status, inventory filters, purchase order visibility, and movement history to decide what to reorder, receive, transfer, or consume.</p>
+                <h3>{t("landing.benefit.decisions.title")}</h3>
+                <p>{t("landing.benefit.decisions.description")}</p>
               </article>
               <article>
-                <h3>Controlled Collaboration</h3>
-                <p>Give growing teams structure with role-based access, member invitations, group workspaces, workflow guides, and audit exports.</p>
+                <h3>{t("landing.benefit.collaboration.title")}</h3>
+                <p>{t("landing.benefit.collaboration.description")}</p>
               </article>
             </div>
           </div>
           <div className="landing-image-wrap">
-            <StaticProductScreenshot variant="orders" />
+            <StaticProductScreenshot variant="orders" locale={locale} />
           </div>
         </div>
       </section>
@@ -430,19 +427,19 @@ export function LockstockLanding() {
       <section className="landing-section">
         <div className="landing-wrap">
           <div className="landing-section-head">
-            <h2>Trusted by Leading Businesses</h2>
-            <p>See what teams say about running inventory operations on LockStock.</p>
+            <h2>{t("landing.testimonials.title")}</h2>
+            <p>{t("landing.testimonials.subtitle")}</p>
           </div>
           <div className="landing-testimonial-grid">
-            {TESTIMONIALS.map((item) => (
+            {TESTIMONIAL_MESSAGE_KEYS.map((item) => (
               <article key={item.name} className="landing-testimonial-card">
                 <div className="landing-stars" aria-label={`${item.rating} stars`}>
                   {"★★★★★"}
                 </div>
-                <p>&ldquo;{item.content}&rdquo;</p>
+                <p>&ldquo;{t(item.content)}&rdquo;</p>
                 <div className="landing-testimonial-meta">
                   <strong>{item.name}</strong>
-                  <span>{item.role}</span>
+                  <span>{t(item.role)}</span>
                   <span>{item.company}</span>
                 </div>
               </article>
@@ -453,17 +450,17 @@ export function LockstockLanding() {
 
       <section id="pricing" className="landing-cta">
         <div className="landing-wrap landing-cta-card">
-          <h2>Ready to Transform Your Inventory Management?</h2>
-          <p>Join teams that rely on LockStock to run purchasing and stock operations with confidence.</p>
+          <h2>{t("landing.cta.title")}</h2>
+          <p>{t("landing.cta.description")}</p>
           <div className="landing-cta-actions">
             <button type="button" onClick={() => openAuth("signup")}>
-              Start Free Trial
+              {t("landing.startTrial")}
             </button>
             <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
-              Watch Demo
+              {t("landing.watchDemo")}
             </button>
             <a className="ghost-btn" href="/pricing">
-              View Pricing
+              {t("landing.viewPricing")}
             </a>
           </div>
         </div>
@@ -481,50 +478,55 @@ export function LockstockLanding() {
               <span className="landing-brand-text">LockStock</span>
             </div>
             <p className="landing-footer-text">
-              Modern inventory management for modern businesses. Track, manage, and optimize your stock with ease.
+              {t("footer.tagline")}
             </p>
           </div>
           <div>
-            <h4>Product</h4>
-            <a href="#features">Features</a>
-            <a href="#benefits">Benefits</a>
-            <a href="/pricing">Pricing</a>
-            <Link href="/france-pme">PME France</Link>
+            <h4>{t("footer.product")}</h4>
+            <a href="#features">{t("nav.features")}</a>
+            <a href="#benefits">{t("nav.benefits")}</a>
+            <a href="/pricing">{t("nav.pricing")}</a>
+            <Link href="/france-pme">{t("france.nav.pme")}</Link>
           </div>
           <div>
-            <h4>Company</h4>
-            <a href="/about">About</a>
-            <a href="/contact">Contact</a>
-            <a href="#pricing">Privacy Policy</a>
-            <a href="#pricing">Terms of Service</a>
+            <h4>{t("footer.company")}</h4>
+            <a href="/about">{t("footer.about")}</a>
+            <a href="/contact">{t("footer.contact")}</a>
+            <a href="#pricing">{t("footer.privacy")}</a>
+            <a href="#pricing">{t("footer.terms")}</a>
           </div>
         </div>
-        <div className="landing-wrap landing-footer-bottom">(c) 2026 LockStock. All rights reserved.</div>
+        <div className="landing-wrap landing-footer-bottom">{t("footer.copyright")}</div>
       </footer>
 
       {authOpen ? (
-        <AccessibilityDialog title={heading} onClose={() => setAuthOpen(false)}>
+        <AccessibilityDialog
+          title={heading}
+          closeLabel={t("common.close")}
+          closeAriaLabel={t("landing.dialog.close")}
+          onClose={() => setAuthOpen(false)}
+        >
           <form className="grid landing-auth-form" onSubmit={handleAuthSubmit}>
             {authMode === "signup" ? (
               <div className="grid grid-2">
                 <label className="field">
-                  <span>Full Name</span>
+                  <span>{t("landing.auth.fullName")}</span>
                   <input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
                 </label>
                 <label className="field">
-                  <span>Company Name</span>
+                  <span>{t("landing.auth.companyName")}</span>
                   <input value={company} onChange={(event) => setCompany(event.target.value)} required />
                 </label>
                 <label className="field">
-                  <span>Start with</span>
+                  <span>{t("landing.auth.startWith")}</span>
                   <select value={onboardingMode} onChange={(event) => setOnboardingMode(event.target.value as "trial" | "paid")}>
-                    <option value="trial">15-day Starter trial</option>
-                    <option value="paid">Paid plan</option>
+                    <option value="trial">{t("landing.auth.starterTrial")}</option>
+                    <option value="paid">{t("landing.auth.paidPlan")}</option>
                   </select>
                 </label>
                 {onboardingMode === "paid" ? (
                   <label className="field">
-                    <span>Preferred plan</span>
+                    <span>{t("landing.auth.preferredPlan")}</span>
                     <select value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as SelectedPlan)}>
                       <option value="starter">Starter</option>
                       <option value="operations">Operations</option>
@@ -536,7 +538,7 @@ export function LockstockLanding() {
             ) : null}
 
             <label className="field">
-              <span>Email</span>
+              <span>{t("landing.auth.email")}</span>
               <input
                 type="email"
                 value={email}
@@ -546,7 +548,7 @@ export function LockstockLanding() {
               />
             </label>
             <label className="field">
-              <span>Password</span>
+              <span>{t("landing.auth.password")}</span>
               <input
                 type="password"
                 value={password}
@@ -568,25 +570,25 @@ export function LockstockLanding() {
             ) : null}
 
             <button type="submit" disabled={busy || !email || !password}>
-              {busy ? "Please wait..." : authMode === "signin" ? "Sign In" : "Create Account"}
+              {busy ? t("landing.auth.wait") : authMode === "signin" ? t("auth.signIn") : t("landing.auth.createAccount")}
             </button>
 
             <div className="landing-auth-divider">
-              <span>or</span>
+              <span>{t("landing.auth.or")}</span>
             </div>
 
             <button type="button" className="ghost-btn landing-google-btn" disabled>
-              Continue with Google
+              {t("landing.auth.google")}
             </button>
 
             <p className="landing-auth-switch">
-              {authMode === "signup" ? "Already have an account? " : "Don't have an account? "}
+              {authMode === "signup" ? `${t("landing.auth.alreadyHaveAccount")} ` : `${t("landing.auth.noAccount")} `}
               <button
                 type="button"
                 className="ghost-btn"
                 onClick={() => setAuthMode((mode) => (mode === "signin" ? "signup" : "signin"))}
               >
-                {authMode === "signup" ? "Sign in" : "Sign up"}
+                {authMode === "signup" ? t("auth.signIn") : t("landing.auth.signUp")}
               </button>
             </p>
           </form>
@@ -594,7 +596,12 @@ export function LockstockLanding() {
       ) : null}
 
       {demoOpen ? (
-        <AccessibilityDialog title="Watch Demo" onClose={() => setDemoOpen(false)}>
+        <AccessibilityDialog
+          title={t("landing.demo.title")}
+          closeLabel={t("common.close")}
+          closeAriaLabel={t("landing.dialog.close")}
+          onClose={() => setDemoOpen(false)}
+        >
           <video className="landing-demo-video" src={demoHref} controls autoPlay playsInline />
         </AccessibilityDialog>
       ) : null}

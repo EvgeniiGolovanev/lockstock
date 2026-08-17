@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { LocalizedDiv } from "@/components/localized-div";
+import { TranslatedMessage } from "@/components/translated-message";
+
+const INDUSTRY_MESSAGE_KEYS = [
+  "about.industry.it",
+  "about.industry.finance",
+  "about.industry.construction",
+  "about.industry.supplyChain"
+] as const;
 
 export const metadata: Metadata = {
   title: "About | LockStock",
@@ -9,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="landing-page about-page">
+    <div className="landing-page about-page" data-i18n-rendered="true">
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
           <Link className="landing-brand about-brand-link" href="/">
@@ -21,14 +30,14 @@ export default function AboutPage() {
             <span className="landing-brand-text">LockStock</span>
           </Link>
           <nav className="landing-nav">
-            <Link href="/#features">Features</Link>
-            <Link href="/#benefits">Benefits</Link>
-            <Link href="/pricing">Pricing</Link>
+            <Link href="/#features"><TranslatedMessage id="nav.features" /></Link>
+            <Link href="/#benefits"><TranslatedMessage id="nav.benefits" /></Link>
+            <Link href="/pricing"><TranslatedMessage id="nav.pricing" /></Link>
           </nav>
           <div className="landing-actions">
             <LanguageSwitcher />
             <Link className="ghost-btn" href="/">
-              Home
+              <TranslatedMessage id="nav.home" />
             </Link>
           </div>
         </div>
@@ -38,37 +47,31 @@ export default function AboutPage() {
         <section className="about-hero">
           <div className="landing-wrap about-hero-grid">
             <div>
-              <p className="about-eyebrow">About LockStock</p>
-              <h1>Built by operators, technologists, and industry specialists</h1>
+              <p className="about-eyebrow"><TranslatedMessage id="about.eyebrow" /></p>
+              <h1><TranslatedMessage id="about.title" /></h1>
             </div>
             <div className="about-copy">
               <p>
-                LockStock is shaped by a team with wide experience across several industries and markets. Our work brings
-                together practical operating knowledge, product discipline, and technical delivery gained from projects in
-                France and around the world.
+                <TranslatedMessage id="about.paragraphOne" />
               </p>
               <p>
-                We have deep expertise in IT, finance, construction, and supply chain, which helps us understand how stock,
-                purchasing, vendors, sites, approvals, and reporting connect in real organizations. That mix of backgrounds
-                keeps the product focused on daily operational clarity rather than abstract software features.
+                <TranslatedMessage id="about.paragraphTwo" />
               </p>
               <p>
-                Our goal is to give teams a dependable system for managing materials and inventory across warehouses,
-                projects, offices, and field operations. We design LockStock to support local French business needs while
-                remaining practical for companies working internationally.
+                <TranslatedMessage id="about.paragraphThree" />
               </p>
             </div>
           </div>
         </section>
 
         <section className="about-industries">
-          <div className="landing-wrap about-industry-grid" aria-label="Team expertise">
-            {["IT", "Finance", "Construction", "Supply Chain"].map((industry) => (
+          <LocalizedDiv className="landing-wrap about-industry-grid" labelKey="about.teamExpertise">
+            {INDUSTRY_MESSAGE_KEYS.map((industry) => (
               <article key={industry}>
-                <span>{industry}</span>
+                <span><TranslatedMessage id={industry} /></span>
               </article>
             ))}
-          </div>
+          </LocalizedDiv>
         </section>
       </main>
 
@@ -84,29 +87,29 @@ export default function AboutPage() {
               <span className="landing-brand-text">LockStock</span>
             </div>
             <p className="landing-footer-text">
-              Modern inventory management for modern businesses. Track, manage, and optimize your stock with ease.
+              <TranslatedMessage id="footer.tagline" />
             </p>
           </div>
           <div>
-            <h4>Product</h4>
-            <Link href="/#features">Features</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/inventory">App</Link>
+            <h4><TranslatedMessage id="footer.product" /></h4>
+            <Link href="/#features"><TranslatedMessage id="nav.features" /></Link>
+            <Link href="/pricing"><TranslatedMessage id="nav.pricing" /></Link>
+            <Link href="/inventory"><TranslatedMessage id="footer.app" /></Link>
           </div>
           <div>
-            <h4>Company</h4>
-            <Link href="/about">About</Link>
-            <Link href="/#benefits">Blog</Link>
-            <Link href="/contact">Contact</Link>
+            <h4><TranslatedMessage id="footer.company" /></h4>
+            <Link href="/about"><TranslatedMessage id="footer.about" /></Link>
+            <Link href="/#benefits"><TranslatedMessage id="footer.blog" /></Link>
+            <Link href="/contact"><TranslatedMessage id="footer.contact" /></Link>
           </div>
           <div>
-            <h4>Legal</h4>
-            <Link href="/#pricing">Privacy Policy</Link>
-            <Link href="/#pricing">Terms of Service</Link>
-            <Link href="/#pricing">Security</Link>
+            <h4><TranslatedMessage id="footer.legal" /></h4>
+            <Link href="/#pricing"><TranslatedMessage id="footer.privacy" /></Link>
+            <Link href="/#pricing"><TranslatedMessage id="footer.terms" /></Link>
+            <Link href="/#pricing"><TranslatedMessage id="footer.security" /></Link>
           </div>
         </div>
-        <div className="landing-wrap landing-footer-bottom">(c) 2026 LockStock. All rights reserved.</div>
+        <div className="landing-wrap landing-footer-bottom"><TranslatedMessage id="footer.copyright" /></div>
       </footer>
     </div>
   );

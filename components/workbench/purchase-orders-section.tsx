@@ -2,6 +2,8 @@
 
 import type { Dispatch, SetStateAction } from "react";
 
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
 import { formatDateLabel } from "@/lib/ui/formatters";
 import { formatCurrencyAmount, formatCurrencyTotals, type PurchaseOrderCurrency, type PurchaseOrderOverview, type PurchaseOrderTableSummary } from "@/lib/ui/parity-models";
 import { type SortState } from "@/lib/ui/table-tools";
@@ -43,11 +45,12 @@ type WorkbenchSortableHeaderProps = {
   tableId: "purchase-orders";
   sortKey: string;
   label: string;
+  sortAriaLabel: string;
   sortState: SortState | undefined;
   onSort: (tableId: "purchase-orders", key: string) => void;
 };
 
-function SortableHeader({ tableId, sortKey, label, sortState, onSort }: WorkbenchSortableHeaderProps) {
+function SortableHeader({ tableId, sortKey, label, sortAriaLabel, sortState, onSort }: WorkbenchSortableHeaderProps) {
   const isActive = sortState?.key === sortKey;
   const direction = isActive ? sortState?.direction : "desc";
   const ariaSort = isActive ? (direction === "asc" ? "ascending" : "descending") : "none";
@@ -57,7 +60,7 @@ function SortableHeader({ tableId, sortKey, label, sortState, onSort }: Workbenc
       <button
         type="button"
         className={`table-sort-btn ${isActive ? "table-sort-active" : ""}`}
-        aria-label={`Sort by ${label}${isActive ? `, ${ariaSort}` : ""}`}
+        aria-label={sortAriaLabel}
         aria-pressed={isActive}
         onClick={() => onSort(tableId, sortKey)}
       >
@@ -134,26 +137,26 @@ type WorkbenchPurchaseOrdersSectionProps = {
   onSort: (tableId: "purchase-orders", key: string) => void;
 };
 
-function formatPoStatusDetail(po: WorkbenchPurchaseOrder) {
+function formatPoStatusDetail(po: WorkbenchPurchaseOrder, locale: "en" | "fr") {
   if (po.received_at) {
-    return `Received ${formatDateLabel(po.received_at)}`;
+    return message(locale, "workbench.po.receivedOn", { date: formatDateLabel(po.received_at) });
   }
   if (po.sent_at) {
-    return `Sent ${formatDateLabel(po.sent_at)}`;
+    return message(locale, "workbench.po.sentOn", { date: formatDateLabel(po.sent_at) });
   }
   if (po.status === "sent") {
-    return "Sent";
+    return message(locale, "workbench.po.sent");
   }
   if (po.status === "partial") {
-    return "Receiving started";
+    return message(locale, "workbench.po.receivingStarted");
   }
   if (po.status === "received") {
-    return "Received";
+    return message(locale, "workbench.po.received");
   }
   if (po.status === "cancelled") {
-    return "Cancelled";
+    return message(locale, "workbench.po.cancelled");
   }
-  return "Not sent";
+  return message(locale, "workbench.po.notSent");
 }
 
 export function WorkbenchPurchaseOrdersSection({
@@ -190,6 +193,13 @@ export function WorkbenchPurchaseOrdersSection({
   onExportCsv,
   onSort
 }: WorkbenchPurchaseOrdersSectionProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const sortAriaLabel = (label: string, sortKey: string) => {
+    const active = tableSortState?.key === sortKey;
+    const direction = tableSortState?.direction === "asc" ? "ascending" : "descending";
+    return message(locale, "workbench.table.sortBy", { label, state: active ? `, ${direction}` : "" });
+  };
   async function handleMarkPurchaseOrderSent(poId: string, poNumber: string) {
     try {
       onBusyChange(true);
@@ -199,11 +209,11 @@ export function WorkbenchPurchaseOrdersSection({
           status: "sent"
         }
       });
-      onActivity(`${poNumber} marked as sent.`);
+      onActivity(message(locale, "workbench.po.activitySent", { number: poNumber }));
       await onRefreshCoreData();
       return true;
     } catch (error) {
-      onActivity(`Mark as sent failed: ${(error as Error).message}`);
+      onActivity(message(locale, "workbench.po.activitySentFailed", { reason: (error as Error).message }));
       return false;
     } finally {
       onBusyChange(false);
@@ -219,13 +229,13 @@ export function WorkbenchPurchaseOrdersSection({
           status: "cancelled"
         }
       });
-      onActivity(`${purchaseOrder.po_number} cancelled.`);
+      onActivity(message(locale, "workbench.po.activityCancelled", { number: purchaseOrder.po_number }));
       onPendingCancelPoChange(null);
       onSelectedPoDetailsIdChange((current) => (current === purchaseOrder.id ? null : current));
       await onRefreshCoreData();
       return true;
     } catch (error) {
-      onActivity(`Cancel purchase order failed: ${(error as Error).message}`);
+      onActivity(message(locale, "workbench.po.activityCancelledFailed", { reason: (error as Error).message }));
       return false;
     } finally {
       onBusyChange(false);
@@ -237,13 +247,13 @@ export function WorkbenchPurchaseOrdersSection({
       <section className="card">
         <div className="title-row">
           <div>
-            <h3>Purchase Orders Status</h3>
+            <h3>{t("workbench.po.statusTitle")}</h3>
           </div>
         </div>
         <div className="kpi-grid purchase-kpi-grid">
           <div className="kpi-card">
             <div className="kpi-top">
-              <p>Total POs</p>
+              <p>{t("workbench.po.total")}</p>
               <span className="kpi-dot kpi-blue" aria-hidden="true">
                 PO
               </span>
@@ -252,7 +262,7 @@ export function WorkbenchPurchaseOrdersSection({
           </div>
           <div className="kpi-card">
             <div className="kpi-top">
-              <p>Open Orders</p>
+              <p>{t("workbench.po.open")}</p>
               <span className="kpi-dot kpi-amber" aria-hidden="true">
                 OP
               </span>
@@ -261,7 +271,7 @@ export function WorkbenchPurchaseOrdersSection({
           </div>
           <div className="kpi-card">
             <div className="kpi-top">
-              <p>Received</p>
+              <p>{t("workbench.po.received")}</p>
               <span className="kpi-dot kpi-green" aria-hidden="true">
                 RC
               </span>
@@ -270,7 +280,7 @@ export function WorkbenchPurchaseOrdersSection({
           </div>
           <div className="kpi-card">
             <div className="kpi-top">
-              <p>Total Value</p>
+              <p>{t("workbench.snapshot.totalValue")}</p>
               <span className="kpi-dot kpi-green" aria-hidden="true">
                 TV
               </span>
@@ -289,36 +299,36 @@ export function WorkbenchPurchaseOrdersSection({
               onChange={(event) => {
                 onPoFilterQueryChange(event.target.value);
               }}
-              placeholder="Search by PO number..."
+              placeholder={t("workbench.po.search")}
             />
           </div>
           <label className="field">
             <SelectFieldIcon />
             <select
-              aria-label="Status"
+              aria-label={t("workbench.location.status")}
               value={poFilterStatus}
               onChange={(event) => {
                 onPoFilterStatusChange(event.target.value as PurchaseOrderFilterStatus);
               }}
             >
-              <option value="all">All statuses</option>
-              <option value="draft">Draft</option>
-              <option value="sent">Sent</option>
-              <option value="partial">Partial</option>
-              <option value="received">Received</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">{t("workbench.po.allStatuses")}</option>
+              <option value="draft">{t("workbench.po.draft")}</option>
+              <option value="sent">{t("workbench.po.sent")}</option>
+              <option value="partial">{t("workbench.po.partial")}</option>
+              <option value="received">{t("workbench.po.received")}</option>
+              <option value="cancelled">{t("workbench.po.cancelled")}</option>
             </select>
           </label>
           <label className="field">
             <SelectFieldIcon />
             <select
-              aria-label="Supplier"
+              aria-label={t("workbench.po.supplier")}
               value={poFilterSupplierId}
               onChange={(event) => {
                 onPoFilterSupplierIdChange(event.target.value);
               }}
             >
-              <option value="all">All suppliers</option>
+              <option value="all">{t("workbench.po.allSuppliers")}</option>
               {suppliers.map((supplier) => (
                 <option key={supplier.id} value={supplier.id}>
                   {supplier.name}
@@ -331,43 +341,43 @@ export function WorkbenchPurchaseOrdersSection({
 
       <section className="card">
         <div className="title-row">
-          <h3>All Purchase Orders</h3>
+          <h3>{t("workbench.po.all")}</h3>
           <div className="actions table-head-actions purchase-actions">
             {canReceivePurchaseOrders ? (
               <button type="button" className="ghost-btn" onClick={onOpenReceivePurchaseOrderForm}>
-                Receive order
+                {t("workbench.po.receiveOrder")}
               </button>
             ) : null}
             {canManageCatalog ? (
               <button type="button" onClick={onOpenCreatePurchaseOrderForm}>
-                Create PO
+                {t("workbench.po.create")}
               </button>
             ) : null}
             {canExportCsv ? (
               <button type="button" className="ghost-btn export-csv-btn" disabled={purchaseOrderTableRows.length === 0} onClick={onExportCsv}>
-                Export CSV
+                {t("workbench.location.exportCsv")}
               </button>
             ) : null}
           </div>
         </div>
         {purchaseOrderTableRows.length === 0 ? (
           <div className="po-empty">
-            <p>No purchase orders match these filters.</p>
+            <p>{t("workbench.po.empty")}</p>
           </div>
         ) : (
           <div className="table-wrap">
             <table className="compact-table purchase-orders-table">
               <thead>
                 <tr>
-                  <SortableHeader tableId="purchase-orders" sortKey="poNumber" label="PO Number" sortState={tableSortState} onSort={onSort} />
-                  <SortableHeader tableId="purchase-orders" sortKey="supplier" label="Supplier" sortState={tableSortState} onSort={onSort} />
-                  <SortableHeader tableId="purchase-orders" sortKey="status" label="Status" sortState={tableSortState} onSort={onSort} />
-                  <SortableHeader tableId="purchase-orders" sortKey="lines" label="Lines" sortState={tableSortState} onSort={onSort} />
-                  <SortableHeader tableId="purchase-orders" sortKey="progress" label="Progress" sortState={tableSortState} onSort={onSort} />
-                  <SortableHeader tableId="purchase-orders" sortKey="total" label="Total" sortState={tableSortState} onSort={onSort} />
-                  <SortableHeader tableId="purchase-orders" sortKey="expected" label="Expected" sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="poNumber" label={t("workbench.po.number")} sortAriaLabel={sortAriaLabel(t("workbench.po.number"), "poNumber")} sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="supplier" label={t("workbench.po.supplier")} sortAriaLabel={sortAriaLabel(t("workbench.po.supplier"), "supplier")} sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="status" label={t("workbench.location.status")} sortAriaLabel={sortAriaLabel(t("workbench.location.status"), "status")} sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="lines" label={t("workbench.po.lines")} sortAriaLabel={sortAriaLabel(t("workbench.po.lines"), "lines")} sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="progress" label={t("workbench.po.progress")} sortAriaLabel={sortAriaLabel(t("workbench.po.progress"), "progress")} sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="total" label={t("workbench.snapshot.totalValue")} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.totalValue"), "total")} sortState={tableSortState} onSort={onSort} />
+                  <SortableHeader tableId="purchase-orders" sortKey="expected" label={t("workbench.po.expected")} sortAriaLabel={sortAriaLabel(t("workbench.po.expected"), "expected")} sortState={tableSortState} onSort={onSort} />
                   <th>
-                    <span className="table-static-head">Actions</span>
+                    <span className="table-static-head">{t("workbench.po.actions")}</span>
                   </th>
                 </tr>
               </thead>
@@ -377,10 +387,10 @@ export function WorkbenchPurchaseOrdersSection({
                   const canMarkSent = canManageCatalog && po.status === "draft";
                   const canCancel = canManageCatalog && (po.status === "draft" || po.status === "sent" || po.status === "partial");
                   return (
-                    <tr key={po.id} className="po-row" title="Double-click to view all line items" onDoubleClick={() => onSelectedPoDetailsIdChange(po.id)}>
+                    <tr key={po.id} className="po-row" title={t("workbench.po.doubleClickDetails")} onDoubleClick={() => onSelectedPoDetailsIdChange(po.id)}>
                       <td>
                         <div className="po-cell-main">{po.po_number}</div>
-                        <div className="po-cell-subtle">Created {formatDateLabel(po.created_at)}</div>
+                        <div className="po-cell-subtle">{message(locale, "workbench.po.createdOn", { date: formatDateLabel(po.created_at) })}</div>
                       </td>
                       <td>
                         <div className="po-cell-main">{summary.supplierLabel}</div>
@@ -388,21 +398,21 @@ export function WorkbenchPurchaseOrdersSection({
                       </td>
                       <td>
                         <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
-                        <div className="po-cell-subtle">{formatPoStatusDetail(po)}</div>
+                        <div className="po-cell-subtle">{formatPoStatusDetail(po, locale)}</div>
                       </td>
                       <td>
                         <div className="po-cell-main">
-                          {summary.lineCount} {summary.lineCount === 1 ? "line" : "lines"}
+                          {summary.lineCount} {summary.lineCount === 1 ? t("workbench.po.line") : t("workbench.po.linesPlural")}
                         </div>
                         <div className="po-cell-subtle">
-                          {summary.totalReceived} received / {summary.totalOrdered} ordered
+                          {message(locale, "workbench.po.lineSummary", { received: String(summary.totalReceived), ordered: String(summary.totalOrdered) })}
                         </div>
                       </td>
                       <td>
                         <div className="po-cell-main">
                           {summary.totalReceived}/{summary.totalOrdered} ({summary.progressPercentage}%)
                         </div>
-                        <div className="progress-track" aria-label={`received progress for ${po.po_number}`}>
+                        <div className="progress-track" aria-label={message(locale, "workbench.po.progressAria", { number: po.po_number })}>
                           <span className="progress-fill" style={{ width: `${summary.progressPercentage}%` }} />
                         </div>
                       </td>
@@ -411,7 +421,7 @@ export function WorkbenchPurchaseOrdersSection({
                       </td>
                       <td>
                         <div className="po-cell-main">{formatDateLabel(po.expected_at)}</div>
-                        <div className="po-cell-subtle">{po.expected_at ? "Expected arrival" : "No expected date"}</div>
+                        <div className="po-cell-subtle">{po.expected_at ? t("workbench.po.expectedArrival") : t("workbench.po.noExpectedDate")}</div>
                       </td>
                       <td onDoubleClick={(event) => event.stopPropagation()}>
                         <div className="row-actions">
@@ -424,7 +434,7 @@ export function WorkbenchPurchaseOrdersSection({
                                 void handleMarkPurchaseOrderSent(po.id, po.po_number);
                               }}
                             >
-                              Mark Sent
+                              {t("workbench.po.markSent")}
                             </button>
                           ) : null}
                           {canReceive ? (
@@ -436,7 +446,7 @@ export function WorkbenchPurchaseOrdersSection({
                                 onPrepareReceivePurchaseOrder(po.id, po.lines[0]?.id ?? "");
                               }}
                             >
-                              Receive
+                              {t("workbench.po.receive")}
                             </button>
                           ) : null}
                           {canCancel ? (
@@ -446,10 +456,10 @@ export function WorkbenchPurchaseOrdersSection({
                               className="ghost-btn danger-btn po-receive-btn"
                               onClick={() => onPendingCancelPoChange(po)}
                             >
-                              Cancel
+                              {t("workbench.po.cancel")}
                             </button>
                           ) : null}
-                          {!canCancel && !canReceive ? <span className="po-cell-subtle">No actions</span> : null}
+                          {!canCancel && !canReceive ? <span className="po-cell-subtle">{t("workbench.po.noActions")}</span> : null}
                         </div>
                       </td>
                     </tr>
@@ -461,23 +471,23 @@ export function WorkbenchPurchaseOrdersSection({
         )}
         <div className="actions">
           <button type="button" disabled={busy || poPage <= 1} onClick={() => onPoPageChange((prev) => Math.max(1, prev - 1))}>
-            Previous
+            {t("workbench.po.previous")}
           </button>
           <button type="button" disabled={busy || poPage >= poTotalPages} onClick={() => onPoPageChange((prev) => Math.min(poTotalPages, prev + 1))}>
-            Next
+            {t("workbench.po.next")}
           </button>
-          <p className="subtle-line">Page {poPage}/{poTotalPages}</p>
+          <p className="subtle-line">{message(locale, "workbench.po.page", { page: String(poPage), total: String(poTotalPages) })}</p>
         </div>
       </section>
 
       {selectedPoDetails ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Purchase order ${selectedPoDetails.po_number}`}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={message(locale, "workbench.po.detailsAria", { number: selectedPoDetails.po_number })}>
           <div className="modal-card po-modal-card">
             <div className="title-row po-modal-head">
               <div>
                 <h4>{selectedPoDetails.po_number}</h4>
                 <p className="po-modal-subtitle">
-                  {selectedPoDetails.supplier?.name ?? "Unknown supplier"} | {formatPoStatusDetail(selectedPoDetails)}
+                  {selectedPoDetails.supplier?.name ?? t("workbench.po.unknownSupplier")} | {formatPoStatusDetail(selectedPoDetails, locale)}
                 </p>
               </div>
               <button type="button" className="ghost-btn po-modal-close" onClick={() => onSelectedPoDetailsIdChange(null)}>
@@ -488,40 +498,40 @@ export function WorkbenchPurchaseOrdersSection({
               <section className="po-modal-section">
                 <div className="po-detail-summary">
                   <div>
-                    <p className="po-meta-label">Status</p>
+                    <p className="po-meta-label">{t("workbench.location.status")}</p>
                     <p className="po-meta-value">
                       <span className={`status-pill status-${selectedPoDetails.status}`}>{selectedPoDetails.status.toUpperCase()}</span>
                     </p>
                   </div>
                   <div>
-                    <p className="po-meta-label">Created</p>
+                    <p className="po-meta-label">{t("workbench.po.created")}</p>
                     <p className="po-meta-value">{formatDateLabel(selectedPoDetails.created_at)}</p>
                   </div>
                   <div>
-                    <p className="po-meta-label">Sent</p>
+                    <p className="po-meta-label">{t("workbench.po.sent")}</p>
                     <p className="po-meta-value">{formatDateLabel(selectedPoDetails.sent_at)}</p>
                   </div>
                   <div>
-                    <p className="po-meta-label">Expected</p>
+                    <p className="po-meta-label">{t("workbench.po.expected")}</p>
                     <p className="po-meta-value">{formatDateLabel(selectedPoDetails.expected_at)}</p>
                   </div>
                 </div>
               </section>
 
               <section className="po-modal-section">
-                <h5>Line Items</h5>
+                <h5>{t("workbench.po.lineItems")}</h5>
                 {selectedPoDetails.lines.length > 0 ? (
                   <div className="po-draft-lines-wrap">
                     <table className="po-lines-table">
                       <thead>
                         <tr>
-                          <th>Material</th>
-                          <th>UoM</th>
-                          <th>Ordered</th>
-                          <th>Received</th>
-                          <th>Remaining</th>
-                          <th>Unit Price</th>
-                          <th>Total</th>
+                          <th>{t("workbench.po.material")}</th>
+                          <th>{t("workbench.po.uom")}</th>
+                          <th>{t("workbench.po.ordered")}</th>
+                          <th>{t("workbench.po.received")}</th>
+                          <th>{t("workbench.po.remaining")}</th>
+                          <th>{t("workbench.po.unitPrice")}</th>
+                          <th>{t("workbench.snapshot.totalValue")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -552,13 +562,13 @@ export function WorkbenchPurchaseOrdersSection({
                     </table>
                   </div>
                 ) : (
-                  <p className="po-line-empty">No line items found for this purchase order.</p>
+                  <p className="po-line-empty">{t("workbench.po.emptyLines")}</p>
                 )}
               </section>
             </div>
             <div className="actions po-modal-footer">
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onSelectedPoDetailsIdChange(null)}>
-                Close
+                {t("common.close")}
               </button>
             </div>
           </div>
@@ -566,21 +576,21 @@ export function WorkbenchPurchaseOrdersSection({
       ) : null}
 
       {pendingCancelPo ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm purchase order cancellation">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.cancelDialogAria")}>
           <div className="modal-card">
             <div className="title-row">
-              <h4>Cancel Purchase Order</h4>
+              <h4>{t("workbench.po.cancelTitle")}</h4>
               <button type="button" className="ghost-btn po-modal-close" onClick={() => onPendingCancelPoChange(null)}>
                 x
               </button>
             </div>
-            <p className="subtle-line">Cancel {pendingCancelPo.po_number}? This will stop receiving against this purchase order.</p>
+            <p className="subtle-line">{message(locale, "workbench.po.cancelConfirm", { number: pendingCancelPo.po_number })}</p>
             <div className="actions">
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onPendingCancelPoChange(null)}>
-                Keep PO
+                {t("workbench.po.keep")}
               </button>
               <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleConfirmCancelPurchaseOrder(pendingCancelPo)}>
-                Cancel PO
+                {t("workbench.po.cancelPo")}
               </button>
             </div>
           </div>

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { Dispatch, SetStateAction } from "react";
 
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
 import { type SortState } from "@/lib/ui/table-tools";
 
 type SortableHeaderProps = {
@@ -11,9 +13,10 @@ type SortableHeaderProps = {
   label: string;
   sortState: SortState | undefined;
   onSort: (tableId: "inventory", key: string) => void;
+  sortAriaLabel: string;
 };
 
-function SortableHeader({ tableId, sortKey, label, sortState, onSort }: SortableHeaderProps) {
+function SortableHeader({ tableId, sortKey, label, sortState, onSort, sortAriaLabel }: SortableHeaderProps) {
   const isActive = sortState?.key === sortKey;
   const direction = isActive ? sortState?.direction : "desc";
   const ariaSort = isActive ? (direction === "asc" ? "ascending" : "descending") : "none";
@@ -23,7 +26,7 @@ function SortableHeader({ tableId, sortKey, label, sortState, onSort }: Sortable
       <button
         type="button"
         className={`table-sort-btn ${isActive ? "table-sort-active" : ""}`}
-        aria-label={`Sort by ${label}${isActive ? `, ${ariaSort}` : ""}`}
+        aria-label={sortAriaLabel}
         aria-pressed={isActive}
         onClick={() => onSort(tableId, sortKey)}
       >
@@ -106,12 +109,27 @@ export function WorkbenchSnapshotSection({
   onExportCsv,
   onSort
 }: SnapshotSectionProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const sortAriaLabel = (label: string, sortKey: string) => {
+    const active = inventorySortState?.key === sortKey;
+    const state = active ? t(inventorySortState?.direction === "asc" ? "workbench.table.ascending" : "workbench.table.descending") : "";
+    return message(locale, "workbench.table.sortBy", { label, state });
+  };
+  const statusLabel = (status: InventoryRow["status"]) => {
+    const keys: Record<InventoryRow["status"], StaticMessageKey> = {
+      "in-stock": "workbench.snapshot.inStock",
+      "low-stock": "workbench.snapshot.lowStock",
+      "out-of-stock": "workbench.snapshot.outOfStockStatus"
+    };
+    return t(keys[status]);
+  };
   return (
     <section className="card">
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-top">
-            <p>Total Materials</p>
+            <p>{t("workbench.snapshot.totalMaterials")}</p>
             <span className="kpi-dot kpi-blue" aria-hidden="true">
               ▣
             </span>
@@ -120,7 +138,7 @@ export function WorkbenchSnapshotSection({
         </div>
         <div className="kpi-card">
           <div className="kpi-top">
-            <p>Low Stock Alerts</p>
+            <p>{t("workbench.snapshot.lowStockAlerts")}</p>
             <span className="kpi-dot kpi-amber" aria-hidden="true">
               ↘
             </span>
@@ -129,7 +147,7 @@ export function WorkbenchSnapshotSection({
         </div>
         <div className="kpi-card">
           <div className="kpi-top">
-            <p>Out of Stock</p>
+            <p>{t("workbench.snapshot.outOfStock")}</p>
             <span className="kpi-dot kpi-red" aria-hidden="true">
               !
             </span>
@@ -138,7 +156,7 @@ export function WorkbenchSnapshotSection({
         </div>
         <div className="kpi-card">
           <div className="kpi-top">
-            <p>Total Value</p>
+            <p>{t("workbench.snapshot.totalValue")}</p>
             <span className="kpi-dot kpi-green" aria-hidden="true">
               {inventoryValueBadge}
             </span>
@@ -158,7 +176,7 @@ export function WorkbenchSnapshotSection({
             <input
               value={materialFilterQuery}
               onChange={(event) => onMaterialFilterQueryChange(event.target.value)}
-              placeholder="Search by name or SKU..."
+              placeholder={t("workbench.material.searchPlaceholder")}
             />
           </div>
           <div className="category-wrap">
@@ -167,11 +185,11 @@ export function WorkbenchSnapshotSection({
                 <path d="M7 10l5 5 5-5H7Z" />
               </svg>
             </span>
-            <select value={inventoryStatus} onChange={(event) => onInventoryStatusChange(event.target.value)} aria-label="Inventory status">
-              <option value="all">All Statuses</option>
-              <option value="in-stock">In Stock</option>
-              <option value="low-stock">Low Stock</option>
-              <option value="out-of-stock">Out of Stock</option>
+            <select value={inventoryStatus} onChange={(event) => onInventoryStatusChange(event.target.value)} aria-label={t("workbench.snapshot.inventoryStatusLabel")}>
+              <option value="all">{t("workbench.location.allStatuses")}</option>
+              <option value="in-stock">{t("workbench.snapshot.inStock")}</option>
+              <option value="low-stock">{t("workbench.snapshot.lowStock")}</option>
+              <option value="out-of-stock">{t("workbench.snapshot.outOfStockStatus")}</option>
             </select>
           </div>
           <div className="category-wrap">
@@ -180,10 +198,10 @@ export function WorkbenchSnapshotSection({
                 <path d="M7 10l5 5 5-5H7Z" />
               </svg>
             </span>
-            <select value={inventoryLocation} onChange={(event) => onInventoryLocationChange(event.target.value)} aria-label="Location">
+            <select value={inventoryLocation} onChange={(event) => onInventoryLocationChange(event.target.value)} aria-label={t("workbench.movement.location")}>
               {inventoryLocations.map((location) => (
                 <option key={location} value={location}>
-                  {location === "all" ? "All Locations" : location}
+                  {location === "all" ? t("workbench.movement.allLocations") : location}
                 </option>
               ))}
             </select>
@@ -193,47 +211,47 @@ export function WorkbenchSnapshotSection({
 
       <section className="card">
         <div className="table-section-head">
-          <h2>Inventory status</h2>
+          <h2>{t("workbench.snapshot.inventoryStatus")}</h2>
           <div className="actions table-head-actions inventory-table-actions">
             {canManageCatalog ? (
               <Link className="ghost-btn link-button" href="/materials">
-                Create Material
+                {t("workbench.material.create")}
               </Link>
             ) : null}
             {canCreateStockMovement ? (
               <Link className="ghost-btn link-button" href="/stock-movements">
-                Move Material
+                {t("workbench.movement.open")}
               </Link>
             ) : null}
             {canManageCatalog ? (
               <Link className="ghost-btn link-button" href="/purchase-orders">
-                Order Material
+                {t("workbench.snapshot.orderMaterial")}
               </Link>
             ) : null}
             {canExportCsv ? (
               <button type="button" className="ghost-btn export-csv-btn" disabled={inventoryTableRows.length === 0} onClick={onExportCsv}>
-                Export CSV
+                {t("workbench.location.exportCsv")}
               </button>
             ) : null}
           </div>
         </div>
         {inventoryTableRows.length === 0 ? (
-          <p>No inventory items match these filters.</p>
+          <p>{t("workbench.snapshot.none")}</p>
         ) : (
           <div className="table-wrap">
             <table className="compact-table">
               <thead>
                 <tr>
-                  <SortableHeader tableId="inventory" sortKey="sku" label="SKU" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="name" label="Item Name" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="category" label="Category" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="subcategory" label="Subcategory" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="quantity" label="Quantity" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="uom" label="UoM" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="pricePerUnit" label="Price per unit" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="total" label="Total" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="location" label="Location" sortState={inventorySortState} onSort={onSort} />
-                  <SortableHeader tableId="inventory" sortKey="statusLabel" label="Status" sortState={inventorySortState} onSort={onSort} />
+                  <SortableHeader tableId="inventory" sortKey="sku" label={t("workbench.material.sku")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.sku"), "sku")} />
+                  <SortableHeader tableId="inventory" sortKey="name" label={t("workbench.snapshot.itemName")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.itemName"), "name")} />
+                  <SortableHeader tableId="inventory" sortKey="category" label={t("workbench.material.category")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.category"), "category")} />
+                  <SortableHeader tableId="inventory" sortKey="subcategory" label={t("workbench.material.subcategory")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.subcategory"), "subcategory")} />
+                  <SortableHeader tableId="inventory" sortKey="quantity" label={t("workbench.movement.quantity")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.quantity"), "quantity")} />
+                  <SortableHeader tableId="inventory" sortKey="uom" label={t("workbench.material.uom")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.uom"), "uom")} />
+                  <SortableHeader tableId="inventory" sortKey="pricePerUnit" label={t("workbench.snapshot.pricePerUnit")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.pricePerUnit"), "pricePerUnit")} />
+                  <SortableHeader tableId="inventory" sortKey="total" label={t("workbench.snapshot.total")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.total"), "total")} />
+                  <SortableHeader tableId="inventory" sortKey="location" label={t("workbench.movement.location")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.location"), "location")} />
+                  <SortableHeader tableId="inventory" sortKey="statusLabel" label={t("workbench.location.status")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.status"), "statusLabel")} />
                 </tr>
               </thead>
               <tbody>
@@ -249,7 +267,7 @@ export function WorkbenchSnapshotSection({
                     <td>{row.total}</td>
                     <td>{row.location}</td>
                     <td>
-                      <span className={`status-pill status-${row.status}`}>{row.statusLabel}</span>
+                      <span className={`status-pill status-${row.status}`}>{statusLabel(row.status)}</span>
                     </td>
                   </tr>
                 ))}
@@ -259,13 +277,13 @@ export function WorkbenchSnapshotSection({
         )}
         <div className="actions">
           <button type="button" disabled={busy || materialPage <= 1} onClick={() => onMaterialPageChange((prev) => Math.max(1, prev - 1))}>
-            Previous
+            {t("workbench.location.previous")}
           </button>
           <button type="button" disabled={busy || materialPage >= materialTotalPages} onClick={() => onMaterialPageChange((prev) => Math.min(materialTotalPages, prev + 1))}>
-            Next
+            {t("workbench.location.next")}
           </button>
           <p className="subtle-line">
-            Page {materialPage}/{materialTotalPages}
+            {message(locale, "workbench.location.page", { page: String(materialPage), total: String(materialTotalPages) })}
           </p>
         </div>
       </section>

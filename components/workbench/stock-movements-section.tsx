@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
 import { type SortState } from "@/lib/ui/table-tools";
 
 type SortableHeaderProps = {
@@ -10,9 +12,10 @@ type SortableHeaderProps = {
   label: string;
   sortState: SortState | undefined;
   onSort: (tableId: "movements", key: string) => void;
+  sortAriaLabel: string;
 };
 
-function SortableHeader({ tableId, sortKey, label, sortState, onSort }: SortableHeaderProps) {
+function SortableHeader({ tableId, sortKey, label, sortState, onSort, sortAriaLabel }: SortableHeaderProps) {
   const isActive = sortState?.key === sortKey;
   const direction = isActive ? sortState?.direction : "desc";
   const ariaSort = isActive ? (direction === "asc" ? "ascending" : "descending") : "none";
@@ -22,7 +25,7 @@ function SortableHeader({ tableId, sortKey, label, sortState, onSort }: Sortable
       <button
         type="button"
         className={`table-sort-btn ${isActive ? "table-sort-active" : ""}`}
-        aria-label={`Sort by ${label}${isActive ? `, ${ariaSort}` : ""}`}
+        aria-label={sortAriaLabel}
         aria-pressed={isActive}
         onClick={() => onSort(tableId, sortKey)}
       >
@@ -123,6 +126,20 @@ export function WorkbenchStockMovementsSection({
   onExportCsv,
   onSort
 }: StockMovementsSectionProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const sortAriaLabel = (label: string, sortKey: string) => {
+    const active = movementSortState?.key === sortKey;
+    const state = active ? t(movementSortState?.direction === "asc" ? "workbench.table.ascending" : "workbench.table.descending") : "";
+    return message(locale, "workbench.table.sortBy", { label, state });
+  };
+  const reasonLabel = (reason: string) => {
+    const key: Record<string, StaticMessageKey> = {
+      Adjustment: "workbench.movement.adjustment", Consumption: "workbench.movement.consumption", Transfer: "workbench.movement.transfer",
+      adjustment: "workbench.movement.adjustment", consumption: "workbench.movement.consumption", transfer: "workbench.movement.transfer"
+    };
+    return key[reason] ? t(key[reason]) : reason;
+  };
   const [movementMaterialId, setMovementMaterialId] = useState("");
   const [movementReason, setMovementReason] = useState<"adjustment" | "consumption" | "transfer">("adjustment");
   const [movementLocationId, setMovementLocationId] = useState("");
@@ -232,7 +249,7 @@ export function WorkbenchStockMovementsSection({
           <input
             value={movementFilterQuery}
             onChange={(event) => onMovementFilterQueryChange(event.target.value)}
-            placeholder="Search by SKU or name..."
+            placeholder={t("workbench.movement.searchPlaceholder")}
           />
         </div>
         <div className="category-wrap">
@@ -247,7 +264,7 @@ export function WorkbenchStockMovementsSection({
           >
             {movementLocations.map((location) => (
               <option key={location} value={location}>
-                {location === "all" ? "All Locations" : location}
+                {location === "all" ? t("workbench.movement.allLocations") : location}
               </option>
             ))}
           </select>
@@ -261,7 +278,7 @@ export function WorkbenchStockMovementsSection({
           <select value={movementReasonFilter} onChange={(event) => onMovementReasonFilterChange(event.target.value)}>
             {movementReasons.map((reason) => (
               <option key={reason} value={reason}>
-                {reason === "all" ? "All Reasons" : reason}
+                {reason === "all" ? t("workbench.movement.allReasons") : reasonLabel(reason)}
               </option>
             ))}
           </select>
@@ -269,11 +286,11 @@ export function WorkbenchStockMovementsSection({
       </div>
 
       <div className="table-section-head stock-movements-table-head">
-        <h2>Material movements</h2>
+        <h2>{t("workbench.movement.title")}</h2>
         <div className="actions table-head-actions inventory-table-actions">
           {canCreateStockMovement ? (
             <button type="button" className="ghost-btn" onClick={() => onShowMovementFormChange(true)}>
-              Move Material
+              {t("workbench.movement.open")}
             </button>
           ) : null}
           {canExportCsv ? (
@@ -285,24 +302,24 @@ export function WorkbenchStockMovementsSection({
       </div>
 
       {showMovementForm && canCreateStockMovement ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Move material">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.movement.open")}>
           <div className="modal-card">
             <div className="title-row">
               <div>
-                <h4>Move Material</h4>
-                <p className="subtle-line">Add stock to a location, consume it for works, or transfer it between locations.</p>
+                <h4>{t("workbench.movement.open")}</h4>
+                <p className="subtle-line">{t("workbench.movement.description")}</p>
               </div>
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onShowMovementFormChange(false)}>
-                Close
+                {t("common.close")}
               </button>
             </div>
             <div className="materials-form-wrap">
               <div className="stock-movement-form-grid">
                 <div className="stock-movement-row stock-movement-row-top">
                   <label className="field">
-                    <span>Material</span>
+                    <span>{t("workbench.movement.material")}</span>
                     <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
-                      <option value="">Select material</option>
+                      <option value="">{t("workbench.movement.selectMaterial")}</option>
                       {activeMaterials.map((material) => (
                         <option key={material.id} value={material.id}>
                           {material.sku} - {material.name}
@@ -311,14 +328,14 @@ export function WorkbenchStockMovementsSection({
                     </select>
                   </label>
                   <label className="field">
-                    <span>Reason</span>
+                    <span>{t("workbench.movement.reason")}</span>
                     <select
                       value={movementReason}
                       onChange={(event) => setMovementReason(event.target.value as "adjustment" | "consumption" | "transfer")}
                     >
-                      <option value="adjustment">Adjustment</option>
-                      <option value="consumption">Consumption</option>
-                      <option value="transfer">Transfer</option>
+                      <option value="adjustment">{t("workbench.movement.adjustment")}</option>
+                      <option value="consumption">{t("workbench.movement.consumption")}</option>
+                      <option value="transfer">{t("workbench.movement.transfer")}</option>
                     </select>
                   </label>
                 </div>
@@ -326,9 +343,9 @@ export function WorkbenchStockMovementsSection({
                 {movementReason !== "transfer" ? (
                   <div className="stock-movement-row stock-movement-row-single">
                     <label className="field">
-                      <span>Location</span>
+                      <span>{t("workbench.movement.location")}</span>
                       <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
-                        <option value="">Select location</option>
+                        <option value="">{t("workbench.movement.selectLocation")}</option>
                         {activeLocations.map((location) => (
                           <option key={location.id} value={location.id}>
                             {location.code ? `${location.code} - ` : ""}
@@ -341,9 +358,9 @@ export function WorkbenchStockMovementsSection({
                 ) : (
                   <div className="stock-movement-row stock-movement-row-top">
                     <label className="field">
-                      <span>Transfer out</span>
+                      <span>{t("workbench.movement.transferOut")}</span>
                       <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
-                        <option value="">Select location</option>
+                        <option value="">{t("workbench.movement.selectLocation")}</option>
                         {activeLocations.map((location) => (
                           <option key={location.id} value={location.id}>
                             {location.code ? `${location.code} - ` : ""}
@@ -353,9 +370,9 @@ export function WorkbenchStockMovementsSection({
                       </select>
                     </label>
                     <label className="field">
-                      <span>Transfer to</span>
+                      <span>{t("workbench.movement.transferTo")}</span>
                       <select value={movementToLocationId} onChange={(event) => setMovementToLocationId(event.target.value)}>
-                        <option value="">Select location</option>
+                        <option value="">{t("workbench.movement.selectLocation")}</option>
                         {activeLocations.map((location) => (
                           <option key={location.id} value={location.id}>
                             {location.code ? `${location.code} - ` : ""}
@@ -369,7 +386,7 @@ export function WorkbenchStockMovementsSection({
 
                 <div className="stock-movement-row stock-movement-row-single">
                   <label className="field">
-                    <span>{movementReason === "adjustment" ? "Quantity Delta" : "Quantity"}</span>
+                    <span>{movementReason === "adjustment" ? t("workbench.movement.quantityDelta") : t("workbench.movement.quantity")}</span>
                     <input
                       type="number"
                       min={movementReason === "transfer" ? 1 : undefined}
@@ -382,7 +399,7 @@ export function WorkbenchStockMovementsSection({
 
                 <div className="stock-movement-row stock-movement-row-single">
                   <label className="field">
-                    <span>Comments</span>
+                    <span>{t("workbench.movement.comments")}</span>
                     <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
                   </label>
                 </div>
@@ -390,10 +407,10 @@ export function WorkbenchStockMovementsSection({
             </div>
             <div className="actions">
               <button type="button" disabled={busy} onClick={() => void handleCreateMovement()}>
-                {movementReason === "consumption" ? "Record Consumption" : "Add to Stock"}
+                {movementReason === "consumption" ? t("workbench.movement.recordConsumption") : t("workbench.movement.addToStock")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onShowMovementFormChange(false)}>
-                Cancel
+                {t("workbench.movement.cancel")}
               </button>
             </div>
           </div>
@@ -401,20 +418,20 @@ export function WorkbenchStockMovementsSection({
       ) : null}
 
       {movementTableRows.length === 0 ? (
-        <p>No material movements yet.</p>
+        <p>{t("workbench.movement.none")}</p>
       ) : (
         <div className="table-wrap">
           <table className="compact-table">
             <thead>
               <tr>
-                <SortableHeader tableId="movements" sortKey="createdAt" label="Date & Time" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="materialLabel" label="Material" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="locationLabel" label="Location" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="quantity" label="Quantity" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="uom" label="UoM" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="category" label="Category" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="reason" label="Reason" sortState={movementSortState} onSort={onSort} />
-                <SortableHeader tableId="movements" sortKey="comments" label="Comments" sortState={movementSortState} onSort={onSort} />
+                <SortableHeader tableId="movements" sortKey="createdAt" label={t("workbench.movement.dateTime")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.dateTime"), "createdAt")} />
+                <SortableHeader tableId="movements" sortKey="materialLabel" label={t("workbench.movement.material")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.material"), "materialLabel")} />
+                <SortableHeader tableId="movements" sortKey="locationLabel" label={t("workbench.movement.location")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.location"), "locationLabel")} />
+                <SortableHeader tableId="movements" sortKey="quantity" label={t("workbench.movement.quantity")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.quantity"), "quantity")} />
+                <SortableHeader tableId="movements" sortKey="uom" label={t("workbench.material.uom")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.uom"), "uom")} />
+                <SortableHeader tableId="movements" sortKey="category" label={t("workbench.material.category")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.category"), "category")} />
+                <SortableHeader tableId="movements" sortKey="reason" label={t("workbench.movement.reason")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.reason"), "reason")} />
+                <SortableHeader tableId="movements" sortKey="comments" label={t("workbench.movement.comments")} sortState={movementSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.comments"), "comments")} />
               </tr>
             </thead>
             <tbody>
@@ -426,7 +443,7 @@ export function WorkbenchStockMovementsSection({
                   <td>{row.quantity}</td>
                   <td>{row.uom}</td>
                   <td>{row.category}</td>
-                  <td>{row.reason}</td>
+                  <td>{reasonLabel(row.reason)}</td>
                   <td>{row.comments}</td>
                 </tr>
               ))}
@@ -436,12 +453,12 @@ export function WorkbenchStockMovementsSection({
       )}
       <div className="actions">
         <button type="button" disabled={busy || movementPage <= 1} onClick={() => onMovementPageChange((prev) => Math.max(1, prev - 1))}>
-          Previous
+          {t("workbench.location.previous")}
         </button>
         <button type="button" disabled={busy || movementPage >= movementTotalPages} onClick={() => onMovementPageChange((prev) => Math.min(movementTotalPages, prev + 1))}>
-          Next
+          {t("workbench.location.next")}
         </button>
-        <p className="subtle-line">Page {movementPage}/{movementTotalPages}</p>
+        <p className="subtle-line">{message(locale, "workbench.location.page", { page: String(movementPage), total: String(movementTotalPages) })}</p>
       </div>
     </section>
   );

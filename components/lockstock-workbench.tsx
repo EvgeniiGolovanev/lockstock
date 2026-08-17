@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { csvHeader, message, type StaticMessageKey } from "@/lib/i18n";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { WorkbenchCatalogForms } from "@/components/workbench/catalog-forms";
 import { WorkbenchLocationsSection } from "@/components/workbench/locations-section";
@@ -400,15 +401,15 @@ const DEMO_INVITATIONS: PendingInvitation[] = [
   }
 ];
 
-const NAV_ITEMS: Array<{ href: NavHref; label: string; icon: NavIcon }> = [
-  { href: "/inventory", label: "Inventory", icon: "inventory" },
-  { href: "/materials", label: "Materials", icon: "materials" },
-  { href: "/stock-movements", label: "Stock Movements", icon: "stock-movements" },
-  { href: "/locations", label: "Locations", icon: "locations" },
-  { href: "/vendors", label: "Vendors", icon: "vendors" },
-  { href: "/purchase-orders", label: "Purchase Orders", icon: "purchase-orders" },
-  { href: "/members", label: "Members", icon: "members" },
-  { href: "/workflows", label: "Workflows", icon: "workflows" }
+const NAV_ITEMS: Array<{ href: NavHref; labelKey: StaticMessageKey; icon: NavIcon }> = [
+  { href: "/inventory", labelKey: "workbench.nav.inventory", icon: "inventory" },
+  { href: "/materials", labelKey: "workbench.nav.materials", icon: "materials" },
+  { href: "/stock-movements", labelKey: "workbench.nav.movements", icon: "stock-movements" },
+  { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
+  { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
+  { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
+  { href: "/members", labelKey: "workbench.nav.members", icon: "members" },
+  { href: "/workflows", labelKey: "workbench.nav.workflows", icon: "workflows" }
 ] as const;
 
 function SearchFieldIcon() {
@@ -435,6 +436,7 @@ export function LockstockWorkbench() {
   const pathname = usePathname();
   const router = useRouter();
   const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
   const [accessToken, setAccessToken] = useState("");
@@ -621,27 +623,27 @@ export function LockstockWorkbench() {
   const poTotalPages = Math.max(1, Math.ceil(poTotal / PURCHASE_ORDERS_PAGE_SIZE));
   const currentScreen = useMemo(() => {
     if (pathname === "/materials") {
-      return { title: "Materials", subtitle: "Create materials and manage the material catalog." };
+      return { titleKey: "workbench.screen.materials.title", subtitleKey: "workbench.screen.materials.subtitle" } as const;
     }
     if (pathname === "/stock-movements") {
-      return { title: "Stock Movements", subtitle: "Add stock and review material movement history." };
+      return { titleKey: "workbench.screen.movements.title", subtitleKey: "workbench.screen.movements.subtitle" } as const;
     }
     if (pathname === "/locations") {
-      return { title: "Locations", subtitle: "Configure storage and fulfillment locations." };
+      return { titleKey: "workbench.screen.locations.title", subtitleKey: "workbench.screen.locations.subtitle" } as const;
     }
     if (pathname === "/vendors") {
-      return { title: "Vendors", subtitle: "Maintain supplier records and lead times." };
+      return { titleKey: "workbench.screen.vendors.title", subtitleKey: "workbench.screen.vendors.subtitle" } as const;
     }
     if (pathname === "/purchase-orders") {
-      return { title: "Purchase Orders", subtitle: "Create, receive, and track purchase orders." };
+      return { titleKey: "workbench.screen.orders.title", subtitleKey: "workbench.screen.orders.subtitle" } as const;
     }
     if (pathname === "/members") {
-      return { title: "Members", subtitle: "Manage group members and invitations." };
+      return { titleKey: "workbench.screen.members.title", subtitleKey: "workbench.screen.members.subtitle" } as const;
     }
     if (pathname === "/workflows") {
-      return { title: "Workflows", subtitle: "Review the end-to-end operating guides for stock, purchasing, and members." };
+      return { titleKey: "workbench.screen.workflows.title", subtitleKey: "workbench.screen.workflows.subtitle" } as const;
     }
-    return { title: "Inventory Management", subtitle: "Manage your stock and track inventory levels." };
+    return { titleKey: "workbench.screen.inventory.title", subtitleKey: "workbench.screen.inventory.subtitle" } as const;
   }, [pathname]);
 
   const showLocationSection = pathname === "/locations";
@@ -903,30 +905,30 @@ export function LockstockWorkbench() {
 
   const getDefaultGroupName = useCallback(() => {
     if (signedInFullName.trim()) {
-      return `${signedInFullName.trim()}'s Group`;
+      return message(locale, "workbench.group.personalName", { name: signedInFullName.trim() });
     }
 
     const source = signedInAs || email;
     if (source.includes("@")) {
-      return `${source.split("@")[0]}'s Group`;
+      return message(locale, "workbench.group.personalName", { name: source.split("@")[0] });
     }
-    return "My Group";
-  }, [email, signedInAs, signedInFullName]);
+    return t("workbench.group.defaultName");
+  }, [email, locale, signedInAs, signedInFullName, t]);
 
   function formatMovementReason(reason: MovementReason) {
     if (reason === "purchase_receive") {
-      return "Purchase Receive";
+      return t("workbench.movement.purchaseReceive");
     }
     if (reason === "transfer" || reason === "transfer_in" || reason === "transfer_out") {
-      return "Transfer";
+      return t("workbench.movement.transfer");
     }
     if (reason === "correction") {
-      return "Correction";
+      return t("workbench.movement.correction");
     }
     if (reason === "consumption") {
-      return "Consumption";
+      return t("workbench.movement.consumption");
     }
-    return "Adjustment";
+    return t("workbench.movement.adjustment");
   }
 
   function formatMovementLocation(location: MaterialMovement["location"]) {
@@ -953,7 +955,7 @@ export function LockstockWorkbench() {
 
   function exportTableCsv(filename: string, headers: readonly string[], rows: readonly (readonly CsvCell[])[]) {
     if (!canExportCsv) {
-      addActivity("Export CSV requires member role or higher.");
+      addActivity(t("workbench.export.denied"));
       return;
     }
 
@@ -1628,7 +1630,7 @@ export function LockstockWorkbench() {
             Open Group
           </button>
         ) : (
-          <span className="subtle-line">Current</span>
+          <span className="subtle-line">{t("workbench.members.current")}</span>
         )
       };
     }),
@@ -1819,13 +1821,13 @@ export function LockstockWorkbench() {
                   key={item.href}
                   href={item.href}
                   className={`nav-link ${active ? "nav-link-active" : ""}`}
-                  aria-label={item.label}
-                  title={item.label}
+                  aria-label={t(item.labelKey)}
+                  title={t(item.labelKey)}
                 >
                   <span className="nav-icon" aria-hidden="true">
                     <NavItemIcon icon={item.icon} />
                   </span>
-                  <span>{item.label}</span>
+                  <span>{t(item.labelKey)}</span>
                 </Link>
               );
             })}
@@ -1835,21 +1837,21 @@ export function LockstockWorkbench() {
               <>
                 {isPlatformAdmin ? (
                   <Link href="/platform" className={`nav-link ${pathname === "/platform" ? "nav-link-active" : ""}`}>
-                    Platform
+                    {t("workbench.nav.platform")}
                   </Link>
                 ) : null}
                 <LanguageSwitcher />
                 <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
-                  Account
+                  {t("workbench.nav.account")}
                 </Link>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={handleLogout}>
-                  Sign Out
+                  {t("workbench.auth.signOut")}
                 </button>
               </>
             ) : (
               <>
                 <Link href="/" className="nav-link">
-                  Sign In
+                  {t("workbench.auth.signIn")}
                 </Link>
                 <LanguageSwitcher />
               </>
@@ -1861,11 +1863,11 @@ export function LockstockWorkbench() {
       <section className="card">
         <div className="title-row">
           <div>
-            <h1>{currentScreen.title}</h1>
-            <p>{currentScreen.subtitle}</p>
+            <h1>{t(currentScreen.titleKey)}</h1>
+            <p>{t(currentScreen.subtitleKey)}</p>
             {activeMembership ? (
               <p className="subtle-line">
-                Active group: <strong>{activeMembership.organization.name}</strong> ({activeMembership.role})
+                {message(locale, "workbench.auth.activeMembership", { name: activeMembership.organization.name, role: activeMembership.role })}
               </p>
             ) : null}
           </div>
@@ -1875,50 +1877,50 @@ export function LockstockWorkbench() {
 
       {showAuthPanel ? (
         <section className="card">
-        <h2>Access & Environment</h2>
-        <p>Sign in and the workspace will auto-bootstrap group context.</p>
+        <h2>{t("workbench.auth.title")}</h2>
+        <p>{t("workbench.auth.description")}</p>
         <div className="grid grid-2">
           {!isProduction ? (
             <label className="field">
-              <span>Base URL</span>
-              <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="http://localhost:3000" />
+              <span>{t("workbench.auth.baseUrl")}</span>
+              <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={t("workbench.auth.baseUrlPlaceholder")} />
             </label>
           ) : null}
           <label className="field">
-            <span>Active Group ID</span>
-            <input value={orgId} readOnly placeholder="auto-selected" />
+            <span>{t("workbench.auth.activeGroup")}</span>
+            <input value={orgId} readOnly placeholder={t("workbench.auth.autoSelectedPlaceholder")} />
           </label>
         </div>
         <div className="grid grid-2">
           <label className="field">
-            <span>Email</span>
-            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="user@example.com" type="email" />
+            <span>{t("workbench.auth.email")}</span>
+            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("workbench.auth.emailPlaceholder")} type="email" />
           </label>
           <label className="field">
-            <span>Password</span>
+            <span>{t("workbench.auth.password")}</span>
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="password"
+              placeholder={t("workbench.auth.passwordPlaceholder")}
               type="password"
             />
           </label>
         </div>
         <div className="actions">
           <button type="button" disabled={busy || !email || !password} onClick={handleLogin}>
-            Sign In
+            {t("workbench.auth.signIn")}
           </button>
           <button type="button" disabled={busy || !signedInAs} onClick={handleLogout}>
-            Sign Out
+            {t("workbench.auth.signOut")}
           </button>
           <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
-            Sync Workspace
+            {t("workbench.auth.syncWorkspace")}
           </button>
         </div>
-        {signedInAs ? <p>Signed in as: <strong>{signedInAs}</strong></p> : <p>Not signed in.</p>}
+        {signedInAs ? <p>{t("workbench.auth.signedIn")} <strong>{signedInAs}</strong></p> : <p>{t("workbench.auth.notSignedIn")}</p>}
         {organizations.length > 0 ? (
           <label className="field">
-            <span>Group Picker</span>
+            <span>{t("workbench.auth.groupPicker")}</span>
             <select
               value={orgId}
               onChange={(event) => {
@@ -2020,7 +2022,7 @@ export function LockstockWorkbench() {
             onExportCsv={() =>
               exportTableCsv(
                 "locations.csv",
-                ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"],
+                ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"].map((header) => csvHeader(locale, header as never)),
                 locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
               )
             }
@@ -2061,7 +2063,7 @@ export function LockstockWorkbench() {
             onExportCsv={() =>
               exportTableCsv(
                 "materials.csv",
-                ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"],
+                ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"].map((header) => csvHeader(locale, header as never)),
                 materialTableRows.map((row) => [
                   row.sku,
                   row.name,
@@ -2153,7 +2155,7 @@ export function LockstockWorkbench() {
           onExportCsv={() =>
             exportTableCsv(
               "material-movements.csv",
-              ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"],
+              ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"].map((header) => csvHeader(locale, header as never)),
               movementTableRows.map((row) => [
                 row.createdAt,
                 row.materialLabel,
@@ -2181,7 +2183,7 @@ export function LockstockWorkbench() {
                     setSupplierSearch(event.target.value);
                     setSupplierPage(1);
                   }}
-                  placeholder="Filter by vendor name, ID, phone, or address"
+                  placeholder={t("workbench.supplier.filter")}
                 />
               </div>
               <div className="category-wrap">
@@ -2192,11 +2194,11 @@ export function LockstockWorkbench() {
                     setSupplierStatusFilter(event.target.value);
                     setSupplierPage(1);
                   }}
-                  aria-label="Status"
+                  aria-label={t("workbench.location.status")}
                 >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="blocked">Blocked</option>
+                  <option value="all">{t("workbench.location.allStatuses")}</option>
+                  <option value="active">{t("workbench.location.active")}</option>
+                  <option value="blocked">{t("workbench.location.blocked")}</option>
                 </select>
               </div>
             </div>
@@ -2204,7 +2206,7 @@ export function LockstockWorkbench() {
 
           <section className="card">
             <div className="table-section-head">
-              <h2>Vendor Management</h2>
+              <h2>{t("workbench.supplier.management")}</h2>
               <div className="actions table-head-actions inventory-table-actions">
                 {canManageCatalog ? (
                   <button type="button" onClick={openCreateSupplierForm}>
@@ -2219,7 +2221,7 @@ export function LockstockWorkbench() {
                     onClick={() =>
                       exportTableCsv(
                         "vendors.csv",
-                        ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
+                        ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
                         supplierTableRows.map((row) => [
                           row.vendorId,
                           row.name,
@@ -2255,7 +2257,6 @@ export function LockstockWorkbench() {
               supplierTableRows={supplierTableRows}
               supplierSearchQuery={supplierSearch}
               supplierStatusFilter={supplierStatusFilter}
-              supplierSortState={tableSorts.suppliers}
               showSupplierForm={showSupplierForm}
               editingSupplier={editingSupplier}
               pendingSupplierUsageChange={pendingSupplierUsageChange}
@@ -2267,7 +2268,7 @@ export function LockstockWorkbench() {
               onExportCsv={() =>
                 exportTableCsv(
                   "vendors.csv",
-                  ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"],
+                  ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
                   supplierTableRows.map((row) => [
                     row.vendorId,
                     row.name,
@@ -2311,7 +2312,6 @@ export function LockstockWorkbench() {
                   addActivity(`Loading suppliers failed: ${(error as Error).message}`);
                 });
               }}
-              onSort={handleTableSort}
             />
           </section>
         </>
@@ -2365,7 +2365,7 @@ export function LockstockWorkbench() {
             onExportCsv={() =>
               exportTableCsv(
                 "purchase-orders.csv",
-                ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"],
+                ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"].map((header) => csvHeader(locale, header as never)),
                 purchaseOrderTableRows.map((row) => [
                   row.po.po_number,
                   row.summary.supplierLabel,
@@ -2436,7 +2436,7 @@ export function LockstockWorkbench() {
           onExportCsv={() =>
             exportTableCsv(
               "inventory.csv",
-              ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"],
+              ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"].map((header) => csvHeader(locale, header as never)),
               inventoryTableRows.map((row) => [
                 row.sku,
                 row.name,

@@ -39,6 +39,10 @@ vi.mock("@/lib/supabase-browser", () => ({
   getSupabaseBrowserClient: () => ({ auth: authMock })
 }));
 
+vi.mock("@/components/language-provider", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+}));
+
 import { LockstockPayment } from "@/components/lockstock-payment";
 
 function mockJsonResponse(body: unknown, ok = true) {

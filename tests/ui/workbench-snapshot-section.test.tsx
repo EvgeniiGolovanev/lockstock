@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/language-provider", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+}));
+
 import { WorkbenchSnapshotSection } from "@/components/workbench/snapshot-section";
 
 describe("WorkbenchSnapshotSection", () => {

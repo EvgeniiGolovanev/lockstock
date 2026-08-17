@@ -1,3 +1,6 @@
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
+
 type SortDirection = "asc" | "desc";
 type TableId = "locations";
 
@@ -31,6 +34,7 @@ type SortableHeaderProps = {
   label: string;
   sortState?: SortState;
   onSort: (tableId: TableId, sortKey: string) => void;
+  sortAriaLabel: string;
 };
 
 function SearchFieldIcon() {
@@ -49,7 +53,7 @@ function SelectFieldIcon() {
   );
 }
 
-function SortableHeader({ tableId, sortKey, label, sortState, onSort }: SortableHeaderProps) {
+function SortableHeader({ tableId, sortKey, label, sortState, onSort, sortAriaLabel }: SortableHeaderProps) {
   const active = sortState?.key === sortKey;
   const direction = active ? sortState?.direction : "desc";
   const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
@@ -59,7 +63,7 @@ function SortableHeader({ tableId, sortKey, label, sortState, onSort }: Sortable
       <button
         type="button"
         className={`table-sort-btn ${active ? "table-sort-active" : ""}`}
-        aria-label={`Sort by ${label}${active ? `, ${ariaSort}` : ""}`}
+        aria-label={sortAriaLabel}
         aria-pressed={active}
         onClick={() => onSort(tableId, sortKey)}
       >
@@ -69,6 +73,11 @@ function SortableHeader({ tableId, sortKey, label, sortState, onSort }: Sortable
     </th>
   );
 }
+
+const LOCATION_STATUS_KEYS: Record<string, StaticMessageKey> = {
+  Active: "workbench.location.active",
+  Blocked: "workbench.location.blocked"
+};
 
 type WorkbenchLocationsSectionProps = {
   busy: boolean;
@@ -111,6 +120,15 @@ export function WorkbenchLocationsSection({
   onLocationPageChange,
   onSort
 }: WorkbenchLocationsSectionProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const statusLabel = (status: string) => t(LOCATION_STATUS_KEYS[status] ?? "workbench.location.status");
+  const sortAriaLabel = (label: string, sortKey: string) => {
+    const active = locationSortState?.key === sortKey;
+    const state = active ? t(locationSortState?.direction === "asc" ? "workbench.table.ascending" : "workbench.table.descending") : "";
+    return message(locale, "workbench.table.sortBy", { label, state });
+  };
+
   return (
     <>
       <section className="card">
@@ -120,8 +138,8 @@ export function WorkbenchLocationsSection({
             <input
               value={locationSearchQuery}
               onChange={(event) => onLocationSearchChange(event.target.value)}
-              placeholder="Search by code, name or address..."
-              aria-label="Location search"
+              placeholder={t("workbench.location.searchPlaceholder")}
+              aria-label={t("workbench.location.searchLabel")}
             />
           </div>
           <div className="category-wrap">
@@ -129,11 +147,11 @@ export function WorkbenchLocationsSection({
             <select
               value={locationStatusFilter}
               onChange={(event) => onLocationStatusFilterChange(event.target.value)}
-              aria-label="Status filter"
+              aria-label={t("workbench.location.statusFilter")}
             >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="blocked">Blocked</option>
+              <option value="all">{t("workbench.location.allStatuses")}</option>
+              <option value="active">{t("workbench.location.active")}</option>
+              <option value="blocked">{t("workbench.location.blocked")}</option>
             </select>
           </div>
         </div>
@@ -141,16 +159,16 @@ export function WorkbenchLocationsSection({
 
       <section className="card">
         <div className="table-section-head">
-          <h2>Location Management</h2>
+          <h2>{t("workbench.location.management")}</h2>
           <div className="actions table-head-actions inventory-table-actions">
             {canManageCatalog ? (
               <button type="button" className="ghost-btn" onClick={onCreateLocation}>
-                Add Location
+                {t("workbench.location.add")}
               </button>
             ) : null}
             {canExportCsv ? (
               <button type="button" className="ghost-btn export-csv-btn" disabled={locationTableRows.length === 0} onClick={onExportCsv}>
-                Export CSV
+                {t("workbench.location.exportCsv")}
               </button>
             ) : null}
           </div>
@@ -160,21 +178,21 @@ export function WorkbenchLocationsSection({
           <table className="compact-table locations-table">
             <thead>
               <tr>
-                <SortableHeader tableId="locations" sortKey="code" label="Code" sortState={locationSortState} onSort={onSort} />
-                <SortableHeader tableId="locations" sortKey="name" label="Name" sortState={locationSortState} onSort={onSort} />
-                <SortableHeader tableId="locations" sortKey="address" label="Address" sortState={locationSortState} onSort={onSort} />
-                <SortableHeader tableId="locations" sortKey="status" label="Status" sortState={locationSortState} onSort={onSort} />
-                <SortableHeader tableId="locations" sortKey="lowStock" label="Low stock" sortState={locationSortState} onSort={onSort} />
-                <SortableHeader tableId="locations" sortKey="outOfStock" label="Out of stock" sortState={locationSortState} onSort={onSort} />
+                <SortableHeader tableId="locations" sortKey="code" label={t("workbench.location.code")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.code"), "code")} />
+                <SortableHeader tableId="locations" sortKey="name" label={t("workbench.location.name")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.name"), "name")} />
+                <SortableHeader tableId="locations" sortKey="address" label={t("workbench.location.address")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.address"), "address")} />
+                <SortableHeader tableId="locations" sortKey="status" label={t("workbench.location.status")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.status"), "status")} />
+                <SortableHeader tableId="locations" sortKey="lowStock" label={t("workbench.location.lowStock")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.lowStock"), "lowStock")} />
+                <SortableHeader tableId="locations" sortKey="outOfStock" label={t("workbench.location.outOfStock")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.outOfStock"), "outOfStock")} />
                 <th>
-                  <span className="table-static-head">Actions</span>
+                  <span className="table-static-head">{t("workbench.location.actions")}</span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {locationTableRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>{hasLocations ? "No locations match these filters." : "No locations created yet."}</td>
+                  <td colSpan={7}>{hasLocations ? t("workbench.location.noMatch") : t("workbench.location.noLocations")}</td>
                 </tr>
               ) : (
                 locationTableRows.map((row) => (
@@ -182,21 +200,21 @@ export function WorkbenchLocationsSection({
                     <td>{row.code}</td>
                     <td>{row.name}</td>
                     <td>{row.address}</td>
-                    <td>{row.status}</td>
+                    <td>{statusLabel(row.status)}</td>
                     <td>{row.lowStock}</td>
                     <td>{row.outOfStock}</td>
                     <td>
                       {canManageCatalog ? (
                         <div className="row-actions table-action-buttons">
                           <button type="button" className="ghost-btn" disabled={busy} onClick={() => onEditLocation(row.location)}>
-                            Edit
+                            {t("workbench.location.edit")}
                           </button>
                           <button type="button" className="ghost-btn" disabled={busy} onClick={() => onToggleLocationUsage(row.location)}>
-                            {row.location.is_active === false ? "Unblock" : "Block"}
+                            {row.location.is_active === false ? t("workbench.location.unblock") : t("workbench.location.block")}
                           </button>
                         </div>
                       ) : (
-                        <span className="subtle-line">No actions</span>
+                        <span className="subtle-line">{t("workbench.location.noActions")}</span>
                       )}
                     </td>
                   </tr>
@@ -208,13 +226,13 @@ export function WorkbenchLocationsSection({
 
         <div className="actions">
           <button type="button" disabled={busy || locationPage <= 1} onClick={() => onLocationPageChange((prev) => Math.max(1, prev - 1))}>
-            Previous
+            {t("workbench.location.previous")}
           </button>
           <button type="button" disabled={busy || locationPage >= locationTotalPages} onClick={() => onLocationPageChange((prev) => Math.min(locationTotalPages, prev + 1))}>
-            Next
+            {t("workbench.location.next")}
           </button>
           <p className="subtle-line">
-            Page {locationPage}/{locationTotalPages}
+            {message(locale, "workbench.location.page", { page: String(locationPage), total: String(locationTotalPages) })}
           </p>
         </div>
       </section>

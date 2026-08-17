@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/language-provider", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+}));
+
 import { WorkbenchPurchaseOrderForms } from "@/components/workbench/purchase-order-forms";
 
 describe("WorkbenchPurchaseOrderForms", () => {

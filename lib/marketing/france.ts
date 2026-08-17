@@ -37,9 +37,6 @@ export type FranceCampaignCaseStudySection = {
   prompt: string;
 };
 
-export const franceCampaignPromise =
-  "Remplacez vos fichiers Excel par un suivi fiable des stocks, achats et fournisseurs.";
-
 export const franceCampaignSegments: FranceCampaignSegment[] = [
   {
     slug: "construction-materiaux",

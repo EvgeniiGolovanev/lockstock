@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
 import type { PurchaseOrderCurrency } from "@/lib/ui/parity-models";
 import { currencySymbol, formatCurrencyAmount } from "@/lib/ui/parity-models";
 
@@ -91,6 +93,8 @@ export function WorkbenchPurchaseOrderForms({
   onClosePoCreateForm,
   onClosePoReceiveForm,
 }: PurchaseOrderFormsProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
   const [poSupplierId, setPoSupplierId] = useState("");
   const [poCurrency, setPoCurrency] = useState<PurchaseOrderCurrency>("EUR");
   const [poExpectedAt, setPoExpectedAt] = useState("");
@@ -218,7 +222,7 @@ export function WorkbenchPurchaseOrderForms({
             : [];
 
       if (!poSupplierId || lines.length === 0) {
-        onActivity("Create purchase order failed: supplier and at least one line are required.");
+        onActivity(t("workbench.po.activityCreateValidation"));
         return false;
       }
 
@@ -232,12 +236,12 @@ export function WorkbenchPurchaseOrderForms({
           lines
         }
       });
-      onActivity("Purchase order created.");
+      onActivity(t("workbench.po.activityCreated"));
       closeCreateForm();
       await onRefreshCoreData();
       return true;
     } catch (error) {
-      onActivity(`Create purchase order failed: ${(error as Error).message}`);
+      onActivity(message(locale, "workbench.po.activityCreateFailed", { reason: (error as Error).message }));
       return false;
     } finally {
       onBusyChange(false);
@@ -259,12 +263,12 @@ export function WorkbenchPurchaseOrderForms({
           ]
         }
       });
-      onActivity("Purchase order receipt recorded.");
+      onActivity(t("workbench.po.activityReceived"));
       closeReceiveForm();
       await onRefreshCoreData();
       return true;
     } catch (error) {
-      onActivity(`Receive purchase order failed: ${(error as Error).message}`);
+      onActivity(message(locale, "workbench.po.activityReceiveFailed", { reason: (error as Error).message }));
       return false;
     } finally {
       onBusyChange(false);
@@ -274,22 +278,22 @@ export function WorkbenchPurchaseOrderForms({
   return (
     <>
       {showPoCreateForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Create purchase order">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.createDialogAria")}>
           <div className="modal-card po-modal-card">
             <div className="title-row po-modal-head">
-              <h4>Create Purchase Order</h4>
+              <h4>{t("workbench.po.createTitle")}</h4>
               <button type="button" className="ghost-btn po-modal-close" onClick={onClosePoCreateForm}>
                 x
               </button>
             </div>
             <div className="po-modal-body">
               <section className="po-modal-section">
-                <h5>Basic Info</h5>
+                <h5>{t("workbench.po.basicInfo")}</h5>
                 <div className="grid grid-2">
                   <label className="field">
-                    <span>Supplier</span>
+                    <span>{t("workbench.po.supplier")}</span>
                     <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
-                      <option value="">Select supplier</option>
+                      <option value="">{t("workbench.po.selectSupplier")}</option>
                       {activeSuppliers.map((supplier) => (
                         <option key={supplier.id} value={supplier.id}>
                           {supplier.name}
@@ -298,30 +302,30 @@ export function WorkbenchPurchaseOrderForms({
                     </select>
                   </label>
                   <label className="field">
-                    <span>Currency</span>
+                    <span>{t("workbench.po.currency")}</span>
                     <select value={poCurrency} onChange={(event) => setPoCurrency(event.target.value as PurchaseOrderCurrency)}>
-                      <option value="EUR">Euro (€)</option>
-                      <option value="USD">US Dollar ($)</option>
+                      <option value="EUR">{t("workbench.po.euro")}</option>
+                      <option value="USD">{t("workbench.po.usDollar")}</option>
                     </select>
                   </label>
                   <label className="field">
-                    <span>Expected Date</span>
+                    <span>{t("workbench.po.expectedDate")}</span>
                     <input type="date" value={poExpectedAt} onChange={(event) => setPoExpectedAt(event.target.value)} />
                   </label>
                   <label className="field po-modal-span-2">
-                    <span>Notes (optional)</span>
-                    <textarea rows={3} value={poNotes} onChange={(event) => setPoNotes(event.target.value)} placeholder="Additional instructions" />
+                    <span>{t("workbench.po.notes")}</span>
+                    <textarea rows={3} value={poNotes} onChange={(event) => setPoNotes(event.target.value)} placeholder={t("workbench.po.instructions")} />
                   </label>
                 </div>
               </section>
 
               <section className="po-modal-section">
-                <h5>Add Items</h5>
+                <h5>{t("workbench.po.addItems")}</h5>
                 <div className="po-item-grid">
                   <label className="field">
-                    <span>Material</span>
+                    <span>{t("workbench.po.material")}</span>
                     <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
-                      <option value="">Select material</option>
+                      <option value="">{t("workbench.po.selectMaterial")}</option>
                       {activeMaterials.map((material) => (
                         <option key={material.id} value={material.id}>
                           {material.sku} - {material.name} ({material.uom})
@@ -330,16 +334,16 @@ export function WorkbenchPurchaseOrderForms({
                     </select>
                   </label>
                   <label className="field">
-                    <span>Quantity</span>
+                    <span>{t("workbench.po.quantity")}</span>
                     <input type="number" min={0.001} step="0.001" value={poQuantityOrdered} onChange={(event) => setPoQuantityOrdered(Number(event.target.value))} />
                   </label>
                   <label className="field">
-                    <span>Unit Price ({currencySymbol(poCurrency)})</span>
+                    <span>{t("workbench.po.unitPriceWithCurrency")} ({currencySymbol(poCurrency)})</span>
                     <input type="number" min={0} step="0.01" value={poUnitPrice} onChange={(event) => setPoUnitPrice(Number(event.target.value))} />
                   </label>
                   <div className="actions po-item-action">
                     <button type="button" disabled={busy || !poMaterialId || poQuantityOrdered <= 0} onClick={handleAddPoDraftLine}>
-                      Add Item
+                      {t("workbench.po.addItem")}
                     </button>
                   </div>
                 </div>
@@ -349,12 +353,12 @@ export function WorkbenchPurchaseOrderForms({
                     <table className="po-lines-table">
                       <thead>
                         <tr>
-                          <th>Material</th>
-                          <th>UoM</th>
-                          <th>Quantity</th>
-                          <th>Unit Price</th>
-                          <th>Total</th>
-                          <th>Action</th>
+                          <th>{t("workbench.po.material")}</th>
+                          <th>{t("workbench.po.uom")}</th>
+                          <th>{t("workbench.po.quantity")}</th>
+                          <th>{t("workbench.po.unitPrice")}</th>
+                          <th>{t("workbench.snapshot.totalValue")}</th>
+                          <th>{t("workbench.po.action")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -363,14 +367,14 @@ export function WorkbenchPurchaseOrderForms({
                           const lineTotal = Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
                           return (
                             <tr key={line.id}>
-                              <td>{material ? `${material.sku} - ${material.name}` : "Unknown material"}</td>
+                              <td>{material ? `${material.sku} - ${material.name}` : t("workbench.po.unknownMaterial")}</td>
                               <td>{material?.uom ?? "-"}</td>
                               <td>{line.quantity_ordered}</td>
                               <td>{formatCurrencyAmount(Number(line.unit_price || 0), poCurrency)}</td>
                               <td>{formatCurrencyAmount(lineTotal, poCurrency)}</td>
                               <td>
                                 <button type="button" className="ghost-btn po-line-remove" onClick={() => handleRemovePoDraftLine(line.id)}>
-                                  Remove
+                                  {t("workbench.po.remove")}
                                 </button>
                               </td>
                             </tr>
@@ -380,25 +384,28 @@ export function WorkbenchPurchaseOrderForms({
                     </table>
                   </div>
                 ) : (
-                  <p className="po-line-empty">No items added yet.</p>
+                  <p className="po-line-empty">{t("workbench.po.noItems")}</p>
                 )}
 
                 <p className="po-draft-summary">
-                  {poDraftSummary.lineCount} {poDraftSummary.lineCount === 1 ? "material" : "materials"} -{" "}
-                  {formatCurrencyAmount(poDraftSummary.totalAmount, poCurrency)}
+                  {message(locale, "workbench.po.draftSummary", {
+                    count: String(poDraftSummary.lineCount),
+                    item: poDraftSummary.lineCount === 1 ? t("workbench.po.material") : t("workbench.po.materials"),
+                    total: formatCurrencyAmount(poDraftSummary.totalAmount, poCurrency)
+                  })}
                 </p>
               </section>
             </div>
             <div className="actions po-modal-footer">
                 <button type="button" className="ghost-btn" disabled={busy} onClick={closeCreateForm}>
-                Cancel
+                {t("workbench.po.cancel")}
               </button>
                 <button
                   type="button"
                   disabled={busy || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
                   onClick={() => void handleCreatePurchaseOrder()}
                 >
-                  Create Purchase Order
+                  {t("workbench.po.createTitle")}
                 </button>
             </div>
           </div>
@@ -406,49 +413,53 @@ export function WorkbenchPurchaseOrderForms({
       ) : null}
 
       {showPoReceiveForm && canReceivePurchaseOrders ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Receive purchase order">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.receiveDialogAria")}>
           <div className="modal-card po-modal-card">
             <div className="title-row po-modal-head">
-              <h4>Receive Purchase Order</h4>
+              <h4>{t("workbench.po.receiveTitle")}</h4>
               <button type="button" className="ghost-btn po-modal-close" onClick={onClosePoReceiveForm}>
                 x
               </button>
             </div>
             <div className="po-modal-body">
               <section className="po-modal-section">
-                <h5>Receipt Details</h5>
+                <h5>{t("workbench.po.receiptDetails")}</h5>
                 <div className="grid grid-2">
                   <label className="field">
-                    <span>Purchase Order</span>
+                    <span>{t("workbench.po.purchaseOrder")}</span>
                     <select value={receivePoId} onChange={(event) => setReceivePoId(event.target.value)}>
-                      <option value="">Select purchase order</option>
+                      <option value="">{t("workbench.po.selectPurchaseOrder")}</option>
                       {purchaseOrders
                         .filter((po) => po.status !== "received" && po.status !== "cancelled")
                         .map((po) => (
                           <option key={po.id} value={po.id}>
-                            {po.po_number} - {po.supplier?.name ?? "Unknown"} ({po.status})
+                            {po.po_number} - {po.supplier?.name ?? t("workbench.po.unknown")} ({po.status})
                           </option>
                         ))}
                     </select>
                   </label>
                   <label className="field">
-                    <span>Line</span>
+                    <span>{t("workbench.po.lineLabel")}</span>
                     <select value={receivePoLineId} onChange={(event) => setReceivePoLineId(event.target.value)}>
-                      <option value="">Select line</option>
+                      <option value="">{t("workbench.po.selectLine")}</option>
                       {(selectedPurchaseOrder?.lines ?? []).map((line) => {
                         const material = activeMaterials.find((item) => item.id === line.material_id);
                         return (
                           <option key={line.id} value={line.id}>
-                            {(material?.sku ?? "Material")} | ordered {line.quantity_ordered} | received {line.quantity_received}
+                            {message(locale, "workbench.po.receiptLineOption", {
+                              material: material?.sku ?? t("workbench.po.material"),
+                              ordered: String(line.quantity_ordered),
+                              received: String(line.quantity_received)
+                            })}
                           </option>
                         );
                       })}
                     </select>
                   </label>
                   <label className="field">
-                    <span>Location</span>
+                    <span>{t("workbench.movement.location")}</span>
                     <select value={receiveLocationId} onChange={(event) => setReceiveLocationId(event.target.value)}>
-                      <option value="">Select location</option>
+                      <option value="">{t("workbench.po.selectLocation")}</option>
                       {(activeLocations ?? []).map((location) => (
                         <option key={location.id} value={location.id}>
                           {location.code ? `${location.code} - ` : ""}
@@ -458,52 +469,52 @@ export function WorkbenchPurchaseOrderForms({
                     </select>
                   </label>
                   <label className="field">
-                    <span>Quantity Received</span>
+                    <span>{t("workbench.po.quantityReceived")}</span>
                     <input type="number" min={0.001} step="0.001" value={receiveQuantity} onChange={(event) => setReceiveQuantity(Number(event.target.value))} />
                   </label>
                 </div>
               </section>
 
               <section className="po-modal-section">
-                <h5>Selected Line</h5>
+                <h5>{t("workbench.po.selectedLine")}</h5>
                 {selectedReceiveLine ? (
                   <div className="po-receive-summary">
                     <div>
-                      <p className="po-meta-label">Material</p>
+                      <p className="po-meta-label">{t("workbench.po.material")}</p>
                       <p className="po-meta-value">
                         {selectedReceiveMaterial ? `${selectedReceiveMaterial.sku} - ${selectedReceiveMaterial.name}` : selectedReceiveLine.material_id}
                       </p>
                     </div>
                     <div>
-                      <p className="po-meta-label">Ordered</p>
+                      <p className="po-meta-label">{t("workbench.po.ordered")}</p>
                       <p className="po-meta-value">{selectedReceiveLine.quantity_ordered}</p>
                     </div>
                     <div>
-                      <p className="po-meta-label">Already Received</p>
+                      <p className="po-meta-label">{t("workbench.po.alreadyReceived")}</p>
                       <p className="po-meta-value">{selectedReceiveLine.quantity_received}</p>
                     </div>
                     <div>
-                      <p className="po-meta-label">Remaining</p>
+                      <p className="po-meta-label">{t("workbench.po.remaining")}</p>
                       <p className="po-meta-value">
                         {Math.max(0, Number(selectedReceiveLine.quantity_ordered || 0) - Number(selectedReceiveLine.quantity_received || 0))}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <p className="po-line-empty">Select a purchase order line to review receipt details.</p>
+                  <p className="po-line-empty">{t("workbench.po.selectLineHelp")}</p>
                 )}
               </section>
             </div>
             <div className="actions po-modal-footer">
               <button type="button" className="ghost-btn" disabled={busy} onClick={closeReceiveForm}>
-                Cancel
+                {t("workbench.po.cancel")}
               </button>
               <button
                 type="button"
                 disabled={busy || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
                 onClick={() => void handleReceivePurchaseOrder()}
               >
-                Receive
+                {t("workbench.po.receive")}
               </button>
             </div>
           </div>

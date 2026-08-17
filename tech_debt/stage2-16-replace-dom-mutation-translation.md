@@ -1,5 +1,12 @@
 # Stage 2: Replace DOM-mutation translation
 
+## Completion
+
+Completed on August 18, 2026. The application uses render-time typed messages,
+including workbench exports. The DOM mutation compatibility layer and raw-string
+aliases have been removed. The verified gates are `npm run test:api` (90 files,
+331 tests), `npm run typecheck`, and `git diff --check`.
+
 Move localization from post-render DOM rewriting to explicit render-time
 messages without pausing feature delivery for a full rewrite.
 

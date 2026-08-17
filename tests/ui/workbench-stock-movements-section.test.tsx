@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/language-provider", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+}));
+
 import { WorkbenchStockMovementsSection } from "@/components/workbench/stock-movements-section";
 
 describe("WorkbenchStockMovementsSection", () => {
@@ -54,7 +58,7 @@ describe("WorkbenchStockMovementsSection", () => {
     expect(screen.getByRole("heading", { name: "Material movements" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move Material" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
-    expect(screen.getByRole("dialog", { name: "Move material" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Move Material" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add to Stock" })).toBeEnabled();
     expect(screen.getByText("Page 1/3")).toBeInTheDocument();
 

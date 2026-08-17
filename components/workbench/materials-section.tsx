@@ -1,3 +1,6 @@
+import { useLanguage } from "@/components/language-provider";
+import { message, type StaticMessageKey } from "@/lib/i18n";
+
 type SortDirection = "asc" | "desc";
 type TableId = "materials";
 
@@ -49,6 +52,7 @@ type SortableHeaderProps = {
   label: string;
   sortState?: SortState;
   onSort: (tableId: TableId, sortKey: string) => void;
+  sortAriaLabel: string;
 };
 
 function SearchFieldIcon() {
@@ -67,7 +71,7 @@ function SelectFieldIcon() {
   );
 }
 
-function SortableHeader({ tableId, sortKey, label, sortState, onSort }: SortableHeaderProps) {
+function SortableHeader({ tableId, sortKey, label, sortState, onSort, sortAriaLabel }: SortableHeaderProps) {
   const active = sortState?.key === sortKey;
   const direction = active ? sortState?.direction : "desc";
   const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
@@ -77,7 +81,7 @@ function SortableHeader({ tableId, sortKey, label, sortState, onSort }: Sortable
       <button
         type="button"
         className={`table-sort-btn ${active ? "table-sort-active" : ""}`}
-        aria-label={`Sort by ${label}${active ? `, ${ariaSort}` : ""}`}
+        aria-label={sortAriaLabel}
         aria-pressed={active}
         onClick={() => onSort(tableId, sortKey)}
       >
@@ -137,6 +141,15 @@ export function WorkbenchMaterialsSection({
   onMaterialPageChange,
   onSort
 }: WorkbenchMaterialsSectionProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const statusLabel = (status: string) => t(status === "Active" ? "workbench.material.active" : "workbench.material.blocked");
+  const sortAriaLabel = (label: string, sortKey: string) => {
+    const active = materialSortState?.key === sortKey;
+    const state = active ? t(materialSortState?.direction === "asc" ? "workbench.table.ascending" : "workbench.table.descending") : "";
+    return message(locale, "workbench.table.sortBy", { label, state });
+  };
+
   return (
     <>
       <section className="card">
@@ -146,8 +159,8 @@ export function WorkbenchMaterialsSection({
             <input
               value={materialSearchQuery}
               onChange={(event) => onMaterialSearchChange(event.target.value)}
-              placeholder="Search by name or SKU..."
-              aria-label="Materials search"
+              placeholder={t("workbench.material.searchPlaceholder")}
+              aria-label={t("workbench.material.searchLabel")}
             />
           </div>
           <div className="category-wrap">
@@ -157,9 +170,9 @@ export function WorkbenchMaterialsSection({
               onChange={(event) => {
                 onMaterialCategoryFilterChange(event.target.value);
               }}
-              aria-label="Category filter"
+              aria-label={t("workbench.material.categoryFilter")}
             >
-              <option value="all">All Categories</option>
+              <option value="all">{t("workbench.material.allCategories")}</option>
               {materialCategoryOptions.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -175,9 +188,9 @@ export function WorkbenchMaterialsSection({
               onChange={(event) => {
                 onMaterialSubcategoryFilterChange(event.target.value);
               }}
-              aria-label="Subcategory filter"
+              aria-label={t("workbench.material.subcategoryFilter")}
             >
-              <option value="all">All Subcategories</option>
+              <option value="all">{t("workbench.material.allSubcategories")}</option>
               {materialFilterSubcategories.map((subcategory) => (
                 <option key={subcategory} value={subcategory}>
                   {subcategory}
@@ -190,11 +203,11 @@ export function WorkbenchMaterialsSection({
 
       <section className="card">
         <div className="table-section-head">
-          <h2>Materials</h2>
+          <h2>{t("workbench.material.title")}</h2>
           <div className="actions table-head-actions inventory-table-actions">
             {canManageCatalog ? (
               <button type="button" className="ghost-btn" disabled={busy || !isOrgScopedReady} onClick={onCreateMaterial}>
-                Create Material
+                {t("workbench.material.create")}
               </button>
             ) : null}
             {canExportCsv ? (
@@ -206,23 +219,23 @@ export function WorkbenchMaterialsSection({
         </div>
 
         {materialTableRows.length === 0 ? (
-          <p>No materials match these filters.</p>
+          <p>{t("workbench.material.noMatch")}</p>
         ) : (
           <div className="table-wrap">
             <table className="compact-table materials-table">
               <thead>
                 <tr>
-                  <SortableHeader tableId="materials" sortKey="sku" label="SKU" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="name" label="Name" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="category" label="Category" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="subcategory" label="Subcategory" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="description" label="Description" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="uom" label="UoM" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="minStock" label="Minimum stock" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="status" label="Status" sortState={materialSortState} onSort={onSort} />
-                  <SortableHeader tableId="materials" sortKey="createdAt" label="Date and time of creation" sortState={materialSortState} onSort={onSort} />
+                  <SortableHeader tableId="materials" sortKey="sku" label={t("workbench.material.sku")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.sku"), "sku")} />
+                  <SortableHeader tableId="materials" sortKey="name" label={t("workbench.material.name")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.name"), "name")} />
+                  <SortableHeader tableId="materials" sortKey="category" label={t("workbench.material.category")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.category"), "category")} />
+                  <SortableHeader tableId="materials" sortKey="subcategory" label={t("workbench.material.subcategory")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.subcategory"), "subcategory")} />
+                  <SortableHeader tableId="materials" sortKey="description" label={t("workbench.material.description")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.description"), "description")} />
+                  <SortableHeader tableId="materials" sortKey="uom" label={t("workbench.material.uom")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.uom"), "uom")} />
+                  <SortableHeader tableId="materials" sortKey="minStock" label={t("workbench.material.minimumStock")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.minimumStock"), "minStock")} />
+                  <SortableHeader tableId="materials" sortKey="status" label={t("workbench.location.status")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.status"), "status")} />
+                  <SortableHeader tableId="materials" sortKey="createdAt" label={t("workbench.material.createdAt")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.createdAt"), "createdAt")} />
                   <th>
-                    <span className="table-static-head">Actions</span>
+                    <span className="table-static-head">{t("workbench.location.actions")}</span>
                   </th>
                 </tr>
               </thead>
@@ -236,20 +249,20 @@ export function WorkbenchMaterialsSection({
                     <td className="table-description-cell">{row.description}</td>
                     <td>{row.uom}</td>
                     <td>{row.minStock}</td>
-                    <td>{row.status}</td>
+                    <td>{statusLabel(row.status)}</td>
                     <td>{row.createdAt}</td>
                     <td>
                       {canManageCatalog ? (
                         <div className="row-actions table-action-buttons">
                           <button type="button" className="ghost-btn" disabled={busy} onClick={() => onEditMaterial(row.material)}>
-                            Edit
+                            {t("workbench.location.edit")}
                           </button>
                           <button type="button" className="ghost-btn" disabled={busy} onClick={() => onToggleMaterialUsage(row.material)}>
-                            {row.material.is_active === false ? "Unblock" : "Block"}
+                            {row.material.is_active === false ? t("workbench.location.unblock") : t("workbench.location.block")}
                           </button>
                         </div>
                       ) : (
-                        <span className="subtle-line">No actions</span>
+                        <span className="subtle-line">{t("workbench.location.noActions")}</span>
                       )}
                     </td>
                   </tr>
@@ -261,13 +274,13 @@ export function WorkbenchMaterialsSection({
 
         <div className="actions">
           <button type="button" disabled={busy || materialPage <= 1} onClick={() => onMaterialPageChange((prev) => Math.max(1, prev - 1))}>
-            Previous
+            {t("workbench.location.previous")}
           </button>
           <button type="button" disabled={busy || materialPage >= materialTotalPages} onClick={() => onMaterialPageChange((prev) => Math.min(materialTotalPages, prev + 1))}>
-            Next
+            {t("workbench.location.next")}
           </button>
           <p className="subtle-line">
-            Page {materialPage}/{materialTotalPages}
+            {message(locale, "workbench.location.page", { page: String(materialPage), total: String(materialTotalPages) })}
           </p>
         </div>
       </section>

@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/language-provider", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: vi.fn() })
+}));
+
 import { WorkbenchSuppliersSection } from "@/components/workbench/suppliers-section";
 
 describe("WorkbenchSuppliersSection", () => {
@@ -48,7 +52,6 @@ describe("WorkbenchSuppliersSection", () => {
         ]}
         supplierSearchQuery=""
         supplierStatusFilter="all"
-        supplierSortState={{ key: "vendorId", direction: "asc" }}
         showSupplierForm={false}
         editingSupplier={null}
         pendingSupplierUsageChange={null}
@@ -61,7 +64,6 @@ describe("WorkbenchSuppliersSection", () => {
         onSupplierSearchChange={vi.fn()}
         onSupplierStatusFilterChange={vi.fn()}
         onSupplierPageChange={vi.fn()}
-        onSort={vi.fn()}
       />
     );
 
@@ -113,7 +115,6 @@ describe("WorkbenchSuppliersSection", () => {
         onSupplierSearchChange={vi.fn()}
         onSupplierStatusFilterChange={vi.fn()}
         onSupplierPageChange={vi.fn()}
-        onSort={vi.fn()}
       />
     );
 
@@ -167,7 +168,6 @@ describe("WorkbenchSuppliersSection", () => {
         onSupplierSearchChange={vi.fn()}
         onSupplierStatusFilterChange={vi.fn()}
         onSupplierPageChange={onSupplierPageChange}
-        onSort={vi.fn()}
       />
     );
 

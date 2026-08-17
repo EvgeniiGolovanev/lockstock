@@ -408,6 +408,29 @@ test("landing sign-in redirects into the inventory shell", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Inventory Management" })).toBeVisible();
 });
 
+test("contact page persists the selected locale and renders explicit French messages", async ({ page }) => {
+  await page.goto("/contact", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "FR" }).click();
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page.getByRole("heading", { name: "Parlez-nous de vos operations d'inventaire" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Envoyer le message" })).toBeVisible();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page.getByRole("heading", { name: "Parlez-nous de vos operations d'inventaire" })).toBeVisible();
+});
+
+test("landing page renders French copy from message keys after a locale switch", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "FR", exact: true }).click();
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page.getByRole("heading", { name: /Maitrisez votre inventaire/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Tout ce dont vous avez besoin/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Demarrer/ })).toHaveCount(2);
+});
+
 test("payment trial start stores the workspace and opens inventory", async ({ page }) => {
   await seedSession(page);
   await installAppRoutes(page, baseAppState());
