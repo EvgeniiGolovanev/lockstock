@@ -1,5 +1,6 @@
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
+import styles from "./locations-section.module.css";
 
 type SortDirection = "asc" | "desc";
 type TableId = "locations";
@@ -132,7 +133,7 @@ export function WorkbenchLocationsSection({
   return (
     <>
       <section className="card">
-        <div className="inventory-toolbar location-toolbar">
+        <div className={`inventory-toolbar ${styles.toolbar}`}>
           <div className="search-input-wrap">
             <SearchFieldIcon />
             <input
@@ -175,7 +176,7 @@ export function WorkbenchLocationsSection({
         </div>
 
         <div className="table-wrap">
-          <table className="compact-table locations-table">
+          <table className={`compact-table ${styles.locationsTable}`}>
             <thead>
               <tr>
                 <SortableHeader tableId="locations" sortKey="code" label={t("workbench.location.code")} sortState={locationSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.code"), "code")} />

@@ -1,0 +1,7 @@
+.form { display: grid; gap: 0.9rem; }
+.form textarea { min-height: 11rem; }
+.honeypot { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.form button { justify-self: start; }
+.success, .error { margin: 0; border: 2px solid var(--landing-black); padding: 0.7rem 0.8rem; font-weight: 800; }
+.success { background: #ecf6ee; color: #1f6b3f; }
+.error { background: #fff0e7; color: #9f3c0d; }

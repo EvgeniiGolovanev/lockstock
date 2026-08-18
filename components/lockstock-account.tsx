@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
+import styles from "./lockstock-account.module.css";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
@@ -601,8 +602,8 @@ export function LockstockAccount() {
 
       <section className="card">
         {signedInAs ? (
-          <div className="grid account-grid">
-            <article className="account-card">
+          <div className={`grid ${styles.accountGrid}`}>
+            <article className={styles.accountCard}>
               <h3>{t("account.privateInfo")}</h3>
               <p className="subtle-line">{t("account.privateDescription")}</p>
               <div className="grid grid-2">
@@ -630,7 +631,7 @@ export function LockstockAccount() {
               </div>
             </article>
 
-            <article className="account-card">
+            <article className={styles.accountCard}>
               <h3>{t("account.email")}</h3>
               <p className="subtle-line">{t("account.emailDescription")}</p>
               <div className="grid">
@@ -650,7 +651,7 @@ export function LockstockAccount() {
               </div>
             </article>
 
-            <article className="account-card">
+            <article className={styles.accountCard}>
               <h3>{t("account.password")}</h3>
               <p className="subtle-line">{t("account.passwordDescription")}</p>
               <div className="grid grid-2">
@@ -688,7 +689,7 @@ export function LockstockAccount() {
       </section>
 
       {activeOrgRole === "owner" && billingSummary ? (
-        <section className="card billing-card">
+        <section className={`card ${styles.billingCard}`}>
           <div className="title-row">
             <div>
               <h3>{t("account.subscription")}</h3>
@@ -696,7 +697,7 @@ export function LockstockAccount() {
             </div>
             <span className={`platform-status-pill platform-status-${billingSummary.status}`}>{billingSummary.status.replaceAll("_", " ")}</span>
           </div>
-          <div className="billing-summary-grid">
+          <div className={styles.billingSummaryGrid}>
             <div><span>{t("account.currentPlan")}</span><strong>{billingSummary.plan}</strong></div>
             <div><span>{t("account.billing")}</span><strong>{billingSummary.billing_interval}</strong></div>
             <div><span>{billingSummary.status === "trialing" ? t("account.trialEnds") : t("account.renews")}</span><strong>{billingSummary.status === "trialing" ? billingSummary.trial_ends_at?.slice(0, 10) ?? "-" : billingSummary.current_period_end ?? "-"}</strong></div>
@@ -715,7 +716,7 @@ export function LockstockAccount() {
         </section>
       ) : null}
 
-      <section className="card audit-card">
+      <section className={`card ${styles.auditCard}`}>
         <div className="title-row">
           <div>
             <h3>{t("account.activityLog")}</h3>
@@ -730,7 +731,7 @@ export function LockstockAccount() {
         ) : null}
 
         {canExportAuditLog(activeOrgRole) && planAccess?.canExportAudit ? (
-          <div className="audit-export-row">
+          <div className={styles.auditExportRow}>
             <label className="field">
               <span>{t("account.from")}</span>
               <input type="date" value={auditExportFrom} onChange={(event) => setAuditExportFrom(event.target.value)} />
@@ -747,9 +748,9 @@ export function LockstockAccount() {
 
         {auditStatus ? <p className="subtle-line">{auditStatus}</p> : null}
         {!auditStatus && auditLog.length === 0 ? <p>{t("account.noActivity")}</p> : null}
-        <div className="audit-log-list">
+        <div className={styles.auditLogList}>
           {auditLog.map((item) => (
-            <article key={item.id} className="audit-log-row">
+            <article key={item.id} className={styles.auditLogRow}>
               <time>{formatAuditDate(item.created_at, locale)}</time>
               <div>
                 <p>{item.message}</p>

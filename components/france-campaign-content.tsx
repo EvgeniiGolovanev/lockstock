@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
+import styles from "./france-campaign.module.css";
 
 type SegmentCard = {
   slug: string;
@@ -38,8 +39,8 @@ export function FranceSegmentCards() {
   const { locale } = useLanguage();
 
   return segmentCards.map((segment) => (
-    <article key={segment.slug} className="france-segment-card">
-      <p className="about-eyebrow">{message(locale, segment.eyebrow)}</p>
+    <article key={segment.slug} className={styles.segmentCard}>
+      <p className={styles.eyebrow}>{message(locale, segment.eyebrow)}</p>
       <h3>{message(locale, segment.title)}</h3>
       <p>{message(locale, segment.description)}</p>
       <ul>{segment.outcomes.map((outcome) => <li key={outcome}>{message(locale, outcome)}</li>)}</ul>
@@ -66,15 +67,15 @@ export function FranceSegmentDetails({ slug }: Readonly<{ slug: string }>) {
   if (!segment) return null;
 
   return <>
-    <section className="france-hero france-segment-hero"><div className="landing-wrap france-hero-grid"><div>
-      <p className="about-eyebrow">{message(locale, segment.eyebrow)}</p>
+    <section className={styles.hero}><div className={`landing-wrap ${styles.heroGrid}`}><div>
+      <p className={styles.eyebrow}>{message(locale, segment.eyebrow)}</p>
       <h1>{message(locale, segment.title)}: {message(locale, "france.segment.titleSuffix")}</h1>
-      <p className="france-hero-copy">{message(locale, segment.description)}</p>
-      <div className="landing-hero-actions"><Link className="ghost-btn france-primary-link" href="/contact">{message(locale, "france.requestDemo")}</Link><Link className="ghost-btn" href="/france-pme/checklist-audit-stock">{message(locale, "france.segment.downloadChecklist")}</Link></div>
-    </div><aside className="france-command-board"><span>{message(locale, "france.segment.keywords")}</span><ul className="france-keyword-list">{segment.keywords.map((keyword) => <li key={keyword}>{message(locale, keyword)}</li>)}</ul></aside></div></section>
-    <section className="landing-section"><div className="landing-wrap france-two-column"><div>
-      <p className="about-eyebrow">{message(locale, "france.segment.currentProblems")}</p><h2>{message(locale, "france.segment.excelProblem")}</h2><div className="france-usecase-list">{segment.painPoints.map((painPoint) => <article key={painPoint}><h3>{message(locale, painPoint)}</h3><p>{message(locale, "france.segment.workflowExplanation")}</p></article>)}</div>
-    </div><div><p className="about-eyebrow">{message(locale, "france.segment.outcomes")}</p><h2>{message(locale, "france.segment.promise")}</h2><div className="france-outcome-panel">{segment.outcomes.map((outcome) => <article key={outcome}><span aria-hidden="true">+</span><p>{message(locale, outcome)}</p></article>)}</div></div></div></section>
-    <section className="landing-cta"><div className="landing-wrap landing-cta-card"><h2>{message(locale, "france.segment.ctaTitle")}</h2><p>{message(locale, "france.segment.ctaDescription")}</p><div className="landing-cta-actions"><Link className="ghost-btn france-primary-link" href="/contact">{message(locale, "france.segment.scheduleDemo")}</Link><Link className="ghost-btn" href="/pricing">{message(locale, "france.segment.viewPricing")}</Link></div></div></section>
+      <p className={styles.heroCopy}>{message(locale, segment.description)}</p>
+      <div className="landing-hero-actions"><Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">{message(locale, "france.requestDemo")}</Link><Link className="ghost-btn" href="/france-pme/checklist-audit-stock">{message(locale, "france.segment.downloadChecklist")}</Link></div>
+    </div><aside className={styles.commandBoard}><span>{message(locale, "france.segment.keywords")}</span><ul className={styles.keywordList}>{segment.keywords.map((keyword) => <li key={keyword}>{message(locale, keyword)}</li>)}</ul></aside></div></section>
+    <section className="landing-section"><div className={`landing-wrap ${styles.twoColumn}`}><div>
+      <p className={styles.eyebrow}>{message(locale, "france.segment.currentProblems")}</p><h2>{message(locale, "france.segment.excelProblem")}</h2><div className={styles.usecaseList}>{segment.painPoints.map((painPoint) => <article key={painPoint}><h3>{message(locale, painPoint)}</h3><p>{message(locale, "france.segment.workflowExplanation")}</p></article>)}</div>
+    </div><div><p className={styles.eyebrow}>{message(locale, "france.segment.outcomes")}</p><h2>{message(locale, "france.segment.promise")}</h2><div className={styles.outcomePanel}>{segment.outcomes.map((outcome) => <article key={outcome}><span aria-hidden="true">+</span><p>{message(locale, outcome)}</p></article>)}</div></div></div></section>
+    <section className="landing-cta"><div className="landing-wrap landing-cta-card"><h2>{message(locale, "france.segment.ctaTitle")}</h2><p>{message(locale, "france.segment.ctaDescription")}</p><div className="landing-cta-actions"><Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">{message(locale, "france.segment.scheduleDemo")}</Link><Link className="ghost-btn" href="/pricing">{message(locale, "france.segment.viewPricing")}</Link></div></div></section>
   </>;
 }

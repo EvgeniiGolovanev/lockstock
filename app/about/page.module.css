@@ -1,0 +1,17 @@
+.brandLink { text-decoration: none; }
+.main { padding: 0; }
+.hero { padding: clamp(4rem, 10vw, 7.5rem) 0 clamp(3.5rem, 8vw, 6rem); }
+.heroGrid { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr); gap: clamp(2rem, 6vw, 5rem); align-items: start; }
+.eyebrow { margin: 0 0 0.9rem; color: var(--landing-orange); font-size: 0.82rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+.hero h1 { max-width: 11ch; color: var(--landing-black); font-size: clamp(3.2rem, 7vw, 6rem); line-height: 0.9; letter-spacing: -0.075em; }
+.copy { display: grid; gap: 1.05rem; border-left: 0.45rem solid var(--landing-orange); padding-left: clamp(1rem, 3vw, 2rem); }
+.copy p { margin: 0; color: #3f3933; font-size: clamp(1rem, 1.6vw, 1.16rem); line-height: 1.65; }
+.industries { padding: 0 0 clamp(4rem, 8vw, 6rem); }
+.industryGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.industryGrid article { min-height: 7rem; display: grid; align-items: end; border: 2px solid var(--landing-black); background: var(--landing-surface); padding: 1rem; box-shadow: 6px 6px 0 rgba(17, 17, 17, 0.12); }
+.industryGrid span { color: var(--landing-black); font-size: clamp(1.35rem, 2.6vw, 2rem); font-weight: 900; letter-spacing: -0.04em; }
+
+@media (max-width: 768px) {
+  .heroGrid, .industryGrid { grid-template-columns: 1fr; }
+  .copy { border-left-width: 0.3rem; }
+}

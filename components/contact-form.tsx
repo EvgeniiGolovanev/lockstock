@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
 import { message } from "@/lib/i18n";
+import styles from "./contact-form.module.css";
 
 type SubmitState = "idle" | "submitting" | "sent" | "error";
 
@@ -59,7 +60,7 @@ export function ContactForm() {
   }
 
   return (
-    <form className="contact-form" onSubmit={handleSubmit} data-i18n-rendered="true">
+    <form className={styles.form} onSubmit={handleSubmit} data-i18n-rendered="true">
       <div className="grid grid-2">
         <label className="field">
           <span>{message(locale, "contact.name")}</span>
@@ -76,7 +77,7 @@ export function ContactForm() {
         <input name="company" autoComplete="organization" />
       </label>
 
-      <label className="contact-form-honeypot" aria-hidden="true">
+      <label className={styles.honeypot} aria-hidden="true">
         <span>{message(locale, "contact.website")}</span>
         <input name="website" tabIndex={-1} autoComplete="off" />
       </label>
@@ -86,8 +87,8 @@ export function ContactForm() {
         <textarea name="message" rows={7} required />
       </label>
 
-      {state === "sent" ? <p className="contact-form-success">{message(locale, "contact.sent")}</p> : null}
-      {state === "error" ? <p className="contact-form-error">{error}</p> : null}
+      {state === "sent" ? <p className={styles.success}>{message(locale, "contact.sent")}</p> : null}
+      {state === "error" ? <p className={styles.error}>{error}</p> : null}
 
       <button type="submit" disabled={state === "submitting"}>
         {state === "submitting" ? message(locale, "contact.sending") : message(locale, "contact.send")}

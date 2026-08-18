@@ -7,6 +7,7 @@ import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } 
 import { MATERIAL_DUPLICATE_SKU_ERROR } from "@/lib/material-errors";
 import { MATERIAL_UNITS, formatMaterialUnitLabel } from "@/lib/material-units";
 import { materialDuplicateSkuMessage, validateMaterialDraftRequiredFields, type MaterialDraftRequiredField } from "@/lib/ui/material-form";
+import styles from "./catalog-forms.module.css";
 
 import type { WorkbenchLocation } from "./locations-section";
 import type { WorkbenchMaterial } from "./materials-section";
@@ -423,7 +424,7 @@ export function WorkbenchCatalogForms({
                 {t("common.close")}
               </button>
             </div>
-            <div className="materials-form-wrap material-edit-form">
+            <div className={`materials-form-wrap ${styles.materialEditForm}`}>
               <div className="grid grid-2">
                 <label className={`field ${materialRequiredErrors.includes("sku") ? "field-invalid" : ""}`}>
                   <span>{t("workbench.material.sku")}</span>
@@ -512,7 +513,7 @@ export function WorkbenchCatalogForms({
                 {t("common.close")}
               </button>
             </div>
-            <div className="materials-form-wrap material-edit-form">
+            <div className={`materials-form-wrap ${styles.materialEditForm}`}>
               <div className="grid grid-2">
                 <label className="field">
                   <span>{t("workbench.catalog.materialNumber")}</span>

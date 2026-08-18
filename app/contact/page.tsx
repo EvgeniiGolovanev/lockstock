@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ContactForm } from "@/components/contact-form";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { TranslatedMessage } from "@/components/translated-message";
+import styles from "./page.module.css";
+import shellStyles from "@/components/marketing-shell.module.css";
 
 export const metadata: Metadata = {
   title: "Contact | LockStock",
@@ -11,10 +13,10 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="landing-page contact-page" data-i18n-rendered="true">
+    <div className={shellStyles.scope} data-i18n-rendered="true">
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
-          <Link className="landing-brand about-brand-link" href="/">
+          <Link className={`landing-brand ${styles.brandLink}`} href="/">
             <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
               <rect x="2" y="4" width="60" height="8" />
               <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
@@ -36,17 +38,17 @@ export default function ContactPage() {
         </div>
       </header>
 
-      <main className="contact-main">
-        <section className="contact-hero">
-          <div className="landing-wrap contact-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow"><TranslatedMessage id="contact.eyebrow" /></p>
+              <p className={styles.eyebrow}><TranslatedMessage id="contact.eyebrow" /></p>
               <h1><TranslatedMessage id="contact.title" /></h1>
-              <p className="contact-lede">
+              <p className={styles.lede}>
                 <TranslatedMessage id="contact.lede" />
               </p>
             </div>
-            <div className="contact-panel">
+            <div className={styles.panel}>
               <ContactForm />
             </div>
           </div>

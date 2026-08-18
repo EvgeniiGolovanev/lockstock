@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
+import styles from "./stock-movements-section.module.css";
 import { type SortState } from "@/lib/ui/table-tools";
 
 type SortableHeaderProps = {
@@ -285,7 +286,7 @@ export function WorkbenchStockMovementsSection({
         </div>
       </div>
 
-      <div className="table-section-head stock-movements-table-head">
+      <div className={`table-section-head ${styles.tableHead}`}>
         <h2>{t("workbench.movement.title")}</h2>
         <div className="actions table-head-actions inventory-table-actions">
           {canCreateStockMovement ? (
@@ -314,8 +315,8 @@ export function WorkbenchStockMovementsSection({
               </button>
             </div>
             <div className="materials-form-wrap">
-              <div className="stock-movement-form-grid">
-                <div className="stock-movement-row stock-movement-row-top">
+              <div className={styles.formGrid}>
+                <div className={styles.formRow}>
                   <label className="field">
                     <span>{t("workbench.movement.material")}</span>
                     <select value={movementMaterialId} onChange={(event) => setMovementMaterialId(event.target.value)}>
@@ -341,7 +342,7 @@ export function WorkbenchStockMovementsSection({
                 </div>
 
                 {movementReason !== "transfer" ? (
-                  <div className="stock-movement-row stock-movement-row-single">
+                  <div className={`${styles.formRow} ${styles.formRowSingle}`}>
                     <label className="field">
                       <span>{t("workbench.movement.location")}</span>
                       <select value={movementLocationId} onChange={(event) => setMovementLocationId(event.target.value)}>
@@ -356,7 +357,7 @@ export function WorkbenchStockMovementsSection({
                     </label>
                   </div>
                 ) : (
-                  <div className="stock-movement-row stock-movement-row-top">
+                  <div className={styles.formRow}>
                     <label className="field">
                       <span>{t("workbench.movement.transferOut")}</span>
                       <select value={movementFromLocationId} onChange={(event) => setMovementFromLocationId(event.target.value)}>
@@ -384,7 +385,7 @@ export function WorkbenchStockMovementsSection({
                   </div>
                 )}
 
-                <div className="stock-movement-row stock-movement-row-single">
+                <div className={`${styles.formRow} ${styles.formRowSingle}`}>
                   <label className="field">
                     <span>{movementReason === "adjustment" ? t("workbench.movement.quantityDelta") : t("workbench.movement.quantity")}</span>
                     <input
@@ -397,7 +398,7 @@ export function WorkbenchStockMovementsSection({
                   </label>
                 </div>
 
-                <div className="stock-movement-row stock-movement-row-single">
+                <div className={`${styles.formRow} ${styles.formRowSingle}`}>
                   <label className="field">
                     <span>{t("workbench.movement.comments")}</span>
                     <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />

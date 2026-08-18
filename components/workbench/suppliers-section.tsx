@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import { PHONE_COUNTRY_CODES, buildPhoneNumber, formatVendorNumber, splitPhoneNumber } from "@/lib/ui/vendor-fields";
+import styles from "./suppliers-section.module.css";
 
 export type WorkbenchSupplier = {
   id: string;
@@ -208,7 +209,7 @@ export function WorkbenchSuppliersSection({
   return (
     <>
       <section className="card">
-        <div className="inventory-toolbar location-toolbar">
+        <div className={`inventory-toolbar ${styles.toolbar}`}>
           <div className="search-input-wrap">
             <SearchFieldIcon />
             <input
@@ -251,7 +252,7 @@ export function WorkbenchSuppliersSection({
         </div>
 
         <div className="table-wrap">
-          <table className="compact-table vendors-table">
+          <table className={`compact-table ${styles.suppliersTable}`}>
             <thead>
               <tr>
                 <th><span className="table-static-head">{t("workbench.supplier.vendorId")}</span></th>

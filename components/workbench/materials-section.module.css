@@ -1,0 +1,8 @@
+.materialsTable {
+  min-width: 1120px;
+}
+
+.materialsTable th,
+.materialsTable td {
+  vertical-align: middle;
+}

@@ -7,6 +7,8 @@ import { message, type StaticMessageKey } from "@/lib/i18n";
 import { formatDateLabel } from "@/lib/ui/formatters";
 import { formatCurrencyAmount, formatCurrencyTotals, type PurchaseOrderCurrency, type PurchaseOrderOverview, type PurchaseOrderTableSummary } from "@/lib/ui/parity-models";
 import { type SortState } from "@/lib/ui/table-tools";
+import styles from "./purchase-orders-section.module.css";
+import poStyles from "./purchase-order-shared.module.css";
 
 type WorkbenchPurchaseOrderLine = {
   id: string;
@@ -250,7 +252,7 @@ export function WorkbenchPurchaseOrdersSection({
             <h3>{t("workbench.po.statusTitle")}</h3>
           </div>
         </div>
-        <div className="kpi-grid purchase-kpi-grid">
+        <div className={`kpi-grid ${styles.kpiGrid}`}>
           <div className="kpi-card">
             <div className="kpi-top">
               <p>{t("workbench.po.total")}</p>
@@ -291,7 +293,7 @@ export function WorkbenchPurchaseOrdersSection({
       </section>
 
       <section className="card">
-        <div className="purchase-toolbar">
+        <div className={styles.toolbar}>
           <div className="search-input-wrap">
             <SearchFieldIcon />
             <input
@@ -342,7 +344,7 @@ export function WorkbenchPurchaseOrdersSection({
       <section className="card">
         <div className="title-row">
           <h3>{t("workbench.po.all")}</h3>
-          <div className="actions table-head-actions purchase-actions">
+          <div className={`actions table-head-actions ${styles.tableActions}`}>
             {canReceivePurchaseOrders ? (
               <button type="button" className="ghost-btn" onClick={onOpenReceivePurchaseOrderForm}>
                 {t("workbench.po.receiveOrder")}
@@ -361,12 +363,12 @@ export function WorkbenchPurchaseOrdersSection({
           </div>
         </div>
         {purchaseOrderTableRows.length === 0 ? (
-          <div className="po-empty">
+          <div className={styles.empty}>
             <p>{t("workbench.po.empty")}</p>
           </div>
         ) : (
           <div className="table-wrap">
-            <table className="compact-table purchase-orders-table">
+            <table className={`compact-table ${styles.table}`}>
               <thead>
                 <tr>
                   <SortableHeader tableId="purchase-orders" sortKey="poNumber" label={t("workbench.po.number")} sortAriaLabel={sortAriaLabel(t("workbench.po.number"), "poNumber")} sortState={tableSortState} onSort={onSort} />
@@ -387,29 +389,29 @@ export function WorkbenchPurchaseOrdersSection({
                   const canMarkSent = canManageCatalog && po.status === "draft";
                   const canCancel = canManageCatalog && (po.status === "draft" || po.status === "sent" || po.status === "partial");
                   return (
-                    <tr key={po.id} className="po-row" title={t("workbench.po.doubleClickDetails")} onDoubleClick={() => onSelectedPoDetailsIdChange(po.id)}>
+                    <tr key={po.id} className={styles.row} title={t("workbench.po.doubleClickDetails")} onDoubleClick={() => onSelectedPoDetailsIdChange(po.id)}>
                       <td>
-                        <div className="po-cell-main">{po.po_number}</div>
-                        <div className="po-cell-subtle">{message(locale, "workbench.po.createdOn", { date: formatDateLabel(po.created_at) })}</div>
+                        <div className={styles.cellMain}>{po.po_number}</div>
+                        <div className={styles.cellSubtle}>{message(locale, "workbench.po.createdOn", { date: formatDateLabel(po.created_at) })}</div>
                       </td>
                       <td>
-                        <div className="po-cell-main">{summary.supplierLabel}</div>
-                        <div className="po-cell-subtle">{summary.linePreview}</div>
+                        <div className={styles.cellMain}>{summary.supplierLabel}</div>
+                        <div className={styles.cellSubtle}>{summary.linePreview}</div>
                       </td>
                       <td>
                         <span className={`status-pill status-${po.status}`}>{po.status.toUpperCase()}</span>
-                        <div className="po-cell-subtle">{formatPoStatusDetail(po, locale)}</div>
+                        <div className={styles.cellSubtle}>{formatPoStatusDetail(po, locale)}</div>
                       </td>
                       <td>
-                        <div className="po-cell-main">
+                        <div className={styles.cellMain}>
                           {summary.lineCount} {summary.lineCount === 1 ? t("workbench.po.line") : t("workbench.po.linesPlural")}
                         </div>
-                        <div className="po-cell-subtle">
+                        <div className={styles.cellSubtle}>
                           {message(locale, "workbench.po.lineSummary", { received: String(summary.totalReceived), ordered: String(summary.totalOrdered) })}
                         </div>
                       </td>
                       <td>
-                        <div className="po-cell-main">
+                        <div className={styles.cellMain}>
                           {summary.totalReceived}/{summary.totalOrdered} ({summary.progressPercentage}%)
                         </div>
                         <div className="progress-track" aria-label={message(locale, "workbench.po.progressAria", { number: po.po_number })}>
@@ -417,19 +419,19 @@ export function WorkbenchPurchaseOrdersSection({
                         </div>
                       </td>
                       <td>
-                        <div className="po-cell-main">{formatCurrencyAmount(summary.totalAmount, summary.currency)}</div>
+                        <div className={styles.cellMain}>{formatCurrencyAmount(summary.totalAmount, summary.currency)}</div>
                       </td>
                       <td>
-                        <div className="po-cell-main">{formatDateLabel(po.expected_at)}</div>
-                        <div className="po-cell-subtle">{po.expected_at ? t("workbench.po.expectedArrival") : t("workbench.po.noExpectedDate")}</div>
+                        <div className={styles.cellMain}>{formatDateLabel(po.expected_at)}</div>
+                        <div className={styles.cellSubtle}>{po.expected_at ? t("workbench.po.expectedArrival") : t("workbench.po.noExpectedDate")}</div>
                       </td>
                       <td onDoubleClick={(event) => event.stopPropagation()}>
-                        <div className="row-actions">
+                        <div className={`row-actions ${styles.rowActions}`}>
                           {canMarkSent ? (
                             <button
                               type="button"
                               disabled={busy}
-                              className="ghost-btn po-receive-btn"
+                              className={`ghost-btn ${styles.receiveButton}`}
                               onClick={() => {
                                 void handleMarkPurchaseOrderSent(po.id, po.po_number);
                               }}
@@ -441,7 +443,7 @@ export function WorkbenchPurchaseOrdersSection({
                             <button
                               type="button"
                               disabled={busy || summary.lineCount === 0}
-                              className="ghost-btn po-receive-btn"
+                              className={`ghost-btn ${styles.receiveButton}`}
                               onClick={() => {
                                 onPrepareReceivePurchaseOrder(po.id, po.lines[0]?.id ?? "");
                               }}
@@ -453,13 +455,13 @@ export function WorkbenchPurchaseOrdersSection({
                             <button
                               type="button"
                               disabled={busy}
-                              className="ghost-btn danger-btn po-receive-btn"
+                              className={`ghost-btn danger-btn ${styles.receiveButton}`}
                               onClick={() => onPendingCancelPoChange(po)}
                             >
                               {t("workbench.po.cancel")}
                             </button>
                           ) : null}
-                          {!canCancel && !canReceive ? <span className="po-cell-subtle">{t("workbench.po.noActions")}</span> : null}
+                          {!canCancel && !canReceive ? <span className={styles.cellSubtle}>{t("workbench.po.noActions")}</span> : null}
                         </div>
                       </td>
                     </tr>
@@ -482,47 +484,47 @@ export function WorkbenchPurchaseOrdersSection({
 
       {selectedPoDetails ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={message(locale, "workbench.po.detailsAria", { number: selectedPoDetails.po_number })}>
-          <div className="modal-card po-modal-card">
-            <div className="title-row po-modal-head">
+          <div className={`modal-card ${poStyles.modalCard}`}>
+            <div className={`title-row ${poStyles.modalHead}`}>
               <div>
                 <h4>{selectedPoDetails.po_number}</h4>
-                <p className="po-modal-subtitle">
+                <p className={poStyles.modalSubtitle}>
                   {selectedPoDetails.supplier?.name ?? t("workbench.po.unknownSupplier")} | {formatPoStatusDetail(selectedPoDetails, locale)}
                 </p>
               </div>
-              <button type="button" className="ghost-btn po-modal-close" onClick={() => onSelectedPoDetailsIdChange(null)}>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={() => onSelectedPoDetailsIdChange(null)}>
                 x
               </button>
             </div>
-            <div className="po-modal-body">
-              <section className="po-modal-section">
-                <div className="po-detail-summary">
+            <div className={poStyles.modalBody}>
+              <section className={poStyles.modalSection}>
+                <div className={poStyles.detailSummary}>
                   <div>
-                    <p className="po-meta-label">{t("workbench.location.status")}</p>
-                    <p className="po-meta-value">
+                    <p className={poStyles.metaLabel}>{t("workbench.location.status")}</p>
+                    <p className={poStyles.metaValue}>
                       <span className={`status-pill status-${selectedPoDetails.status}`}>{selectedPoDetails.status.toUpperCase()}</span>
                     </p>
                   </div>
                   <div>
-                    <p className="po-meta-label">{t("workbench.po.created")}</p>
-                    <p className="po-meta-value">{formatDateLabel(selectedPoDetails.created_at)}</p>
+                    <p className={poStyles.metaLabel}>{t("workbench.po.created")}</p>
+                    <p className={poStyles.metaValue}>{formatDateLabel(selectedPoDetails.created_at)}</p>
                   </div>
                   <div>
-                    <p className="po-meta-label">{t("workbench.po.sent")}</p>
-                    <p className="po-meta-value">{formatDateLabel(selectedPoDetails.sent_at)}</p>
+                    <p className={poStyles.metaLabel}>{t("workbench.po.sent")}</p>
+                    <p className={poStyles.metaValue}>{formatDateLabel(selectedPoDetails.sent_at)}</p>
                   </div>
                   <div>
-                    <p className="po-meta-label">{t("workbench.po.expected")}</p>
-                    <p className="po-meta-value">{formatDateLabel(selectedPoDetails.expected_at)}</p>
+                    <p className={poStyles.metaLabel}>{t("workbench.po.expected")}</p>
+                    <p className={poStyles.metaValue}>{formatDateLabel(selectedPoDetails.expected_at)}</p>
                   </div>
                 </div>
               </section>
 
-              <section className="po-modal-section">
+              <section className={poStyles.modalSection}>
                 <h5>{t("workbench.po.lineItems")}</h5>
                 {selectedPoDetails.lines.length > 0 ? (
-                  <div className="po-draft-lines-wrap">
-                    <table className="po-lines-table">
+                  <div className={poStyles.draftLinesWrap}>
+                    <table className={poStyles.linesTable}>
                       <thead>
                         <tr>
                           <th>{t("workbench.po.material")}</th>
@@ -562,11 +564,11 @@ export function WorkbenchPurchaseOrdersSection({
                     </table>
                   </div>
                 ) : (
-                  <p className="po-line-empty">{t("workbench.po.emptyLines")}</p>
+                  <p className={poStyles.lineEmpty}>{t("workbench.po.emptyLines")}</p>
                 )}
               </section>
             </div>
-            <div className="actions po-modal-footer">
+            <div className={`actions ${poStyles.modalFooter}`}>
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onSelectedPoDetailsIdChange(null)}>
                 {t("common.close")}
               </button>
@@ -580,7 +582,7 @@ export function WorkbenchPurchaseOrdersSection({
           <div className="modal-card">
             <div className="title-row">
               <h4>{t("workbench.po.cancelTitle")}</h4>
-              <button type="button" className="ghost-btn po-modal-close" onClick={() => onPendingCancelPoChange(null)}>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={() => onPendingCancelPoChange(null)}>
                 x
               </button>
             </div>

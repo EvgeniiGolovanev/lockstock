@@ -1,0 +1,33 @@
+.formGrid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.formRow {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.formRowSingle {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.formRowSingle .field {
+  grid-column: 1;
+}
+
+.tableHead {
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .formRow,
+  .formRowSingle {
+    grid-template-columns: 1fr;
+  }
+
+  .formRowSingle .field {
+    grid-column: auto;
+  }
+}

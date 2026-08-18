@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FranceCampaignShell } from "@/components/france-campaign-shell";
 import { FranceSegmentCards, FranceUseCaseCards } from "@/components/france-campaign-content";
 import { TranslatedMessage } from "@/components/translated-message";
+import styles from "@/components/france-campaign.module.css";
 
 export const metadata: Metadata = {
   title: "Logiciel gestion stock PME France | LockStock",
@@ -13,15 +14,15 @@ export const metadata: Metadata = {
 export default function FrancePmePage() {
   return (
     <FranceCampaignShell>
-      <main className="france-campaign-main">
-        <section className="france-hero">
-          <div className="landing-wrap france-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow"><TranslatedMessage id="france.home.eyebrow" /></p>
+              <p className={styles.eyebrow}><TranslatedMessage id="france.home.eyebrow" /></p>
               <h1><TranslatedMessage id="france.home.title" /></h1>
-              <p className="france-hero-copy"><TranslatedMessage id="france.home.promise" /></p>
+              <p className={styles.heroCopy}><TranslatedMessage id="france.home.promise" /></p>
               <div className="landing-hero-actions">
-                <Link className="ghost-btn france-primary-link" href="/contact">
+                <Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">
                   <TranslatedMessage id="france.requestDemo" />
                 </Link>
                 <Link className="ghost-btn" href="/france-pme/checklist-audit-stock">
@@ -34,7 +35,7 @@ export default function FrancePmePage() {
                 <li><TranslatedMessage id="france.home.oneWorkspace" /></li>
               </ul>
             </div>
-            <aside className="france-command-board" aria-labelledby="france-setup-title">
+            <aside className={styles.commandBoard} aria-labelledby="france-setup-title">
               <div>
                 <span><TranslatedMessage id="france.home.setup" /></span>
                 <strong id="france-setup-title"><TranslatedMessage id="france.home.setupTitle" /></strong>
@@ -57,26 +58,26 @@ export default function FrancePmePage() {
           </div>
         </section>
 
-        <section className="landing-section france-segments-section">
+        <section className="landing-section">
           <div className="landing-wrap">
             <div className="landing-section-head">
               <h2><TranslatedMessage id="france.home.verticalTitle" /></h2>
               <p><TranslatedMessage id="france.home.verticalDescription" /></p>
             </div>
-            <div className="france-segment-grid">
+            <div className={styles.segmentGrid}>
               <FranceSegmentCards />
             </div>
           </div>
         </section>
 
-        <section className="landing-section france-seo-section">
-          <div className="landing-wrap france-two-column">
+        <section className="landing-section">
+          <div className={`landing-wrap ${styles.twoColumn}`}>
             <div>
-              <p className="about-eyebrow"><TranslatedMessage id="france.home.useCases" /></p>
+              <p className={styles.eyebrow}><TranslatedMessage id="france.home.useCases" /></p>
               <h2><TranslatedMessage id="france.home.workflows" /></h2>
               <p><TranslatedMessage id="france.home.workflowDescription" /></p>
             </div>
-            <div className="france-usecase-list">
+            <div className={styles.usecaseList}>
               <FranceUseCaseCards />
             </div>
           </div>

@@ -541,3 +541,40 @@ test("purchase orders and owner billing actions follow the critical path", async
   await page.getByRole("button", { name: "Reactivate" }).click();
   await expect(page.getByRole("button", { name: "Cancel at renewal" })).toBeVisible();
 });
+
+test("members table keeps the desktop and mobile visual baseline", async ({ page }) => {
+  await seedSignedInPage(page);
+  await installAppRoutes(page, baseAppState());
+
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  await page.goto("/members", { waitUntil: "domcontentloaded" });
+  const membersTable = page.getByTestId("members-section").locator("table").first();
+  await expect(membersTable).toBeVisible();
+  await page.mouse.move(1279, 1199);
+  await expect(membersTable).toHaveScreenshot("members-desktop.png", { animations: "disabled" });
+
+  await page.setViewportSize({ width: 375, height: 1200 });
+  await page.mouse.move(374, 1199);
+  await expect(membersTable).toHaveScreenshot("members-mobile.png", { animations: "disabled" });
+});
+
+test("landing shell keeps the desktop and mobile visual baseline", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const landing = page.locator("body");
+  await expect(landing).toHaveScreenshot("landing-desktop.png", { animations: "disabled" });
+
+  await page.setViewportSize({ width: 375, height: 1200 });
+  await expect(landing).toHaveScreenshot("landing-mobile.png", { animations: "disabled" });
+});
+
+test("public page responsive shells keep the desktop and mobile visual baseline", async ({ page }) => {
+  for (const path of ["/about", "/contact", "/pricing"]) {
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-desktop.png`, { animations: "disabled" });
+
+    await page.setViewportSize({ width: 375, height: 1200 });
+    await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-mobile.png`, { animations: "disabled" });
+  }
+});

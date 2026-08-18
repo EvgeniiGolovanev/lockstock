@@ -1,5 +1,6 @@
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
+import styles from "./materials-section.module.css";
 
 type SortDirection = "asc" | "desc";
 type TableId = "materials";
@@ -222,7 +223,7 @@ export function WorkbenchMaterialsSection({
           <p>{t("workbench.material.noMatch")}</p>
         ) : (
           <div className="table-wrap">
-            <table className="compact-table materials-table">
+            <table className={`compact-table ${styles.materialsTable}`}>
               <thead>
                 <tr>
                   <SortableHeader tableId="materials" sortKey="sku" label={t("workbench.material.sku")} sortState={materialSortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.sku"), "sku")} />

@@ -1,5 +1,14 @@
 # Stage 2: Modularize global CSS without redesigning
 
+**Status: completed on August 18, 2026.**
+
+The migration reduced `app/globals.css` from 4,580 to 1,153 lines. Feature
+styles now live beside their owners in CSS Modules; the remaining global rules
+are reset, tokens, authenticated-app shell, and shared UI primitives. Removed
+legacy selectors were verified with repository searches. Visual baselines cover
+the landing, Members table, and About, Contact, and Pricing at desktop and
+mobile widths.
+
 Reduce the blast radius of `app/globals.css` while preserving the current
 visual system and avoiding a framework migration.
 

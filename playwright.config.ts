@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 3010;
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 3010);
 const baseURL = `http://127.0.0.1:${port}`;
-const supabaseUrl = "http://127.0.0.1:54321";
+const supabaseUrl = process.env.PLAYWRIGHT_SUPABASE_URL ?? "http://127.0.0.1:54321";
+const supabaseAnonKey = process.env.PLAYWRIGHT_SUPABASE_ANON_KEY ?? "playwright-anon-key";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -14,14 +15,14 @@ export default defineConfig({
     screenshot: "only-on-failure"
   },
   webServer: {
-    command: "npm run dev -- --port 3010",
+    command: `npm run dev -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
       PORT: String(port),
       NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "playwright-anon-key"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey
     }
   },
   projects: [

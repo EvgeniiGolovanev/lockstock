@@ -3,6 +3,8 @@ import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { TranslatedMessage } from "@/components/translated-message";
 import { buildPricingCards, buildPricingLimitRows } from "@/lib/billing/plan-contract";
+import styles from "./page.module.css";
+import shellStyles from "@/components/marketing-shell.module.css";
 
 export const metadata: Metadata = {
   title: "Pricing | LockStock",
@@ -14,10 +16,10 @@ const limitRows = buildPricingLimitRows();
 
 export default function PricingPage() {
   return (
-    <div className="landing-page pricing-page">
+    <div className={shellStyles.scope}>
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
-          <Link className="landing-brand about-brand-link" href="/">
+          <Link className={`landing-brand ${styles.brandLink}`} href="/">
             <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
               <rect x="2" y="4" width="60" height="8" />
               <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
@@ -39,14 +41,14 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="pricing-main">
-        <section className="pricing-hero">
-          <div className="landing-wrap pricing-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow"><TranslatedMessage id="pricing.eyebrow" /></p>
+              <p className={styles.eyebrow}><TranslatedMessage id="pricing.eyebrow" /></p>
               <h1><TranslatedMessage id="pricing.title" /></h1>
             </div>
-            <div className="pricing-hero-copy">
+            <div className={styles.heroCopy}>
               <p>
                 <TranslatedMessage id="pricing.descriptionOne" />
               </p>
@@ -57,18 +59,18 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="pricing-plans" aria-label="LockStock pricing plans">
-          <div className="landing-wrap pricing-plan-grid">
+        <section className={styles.plans} aria-label="LockStock pricing plans">
+          <div className={`landing-wrap ${styles.planGrid}`}>
             {plans.map((plan) => (
-              <article key={plan.id} className={`pricing-plan-card${plan.recommended ? " pricing-plan-card-featured" : ""}`}>
-                {plan.recommended ? <span className="pricing-plan-badge"><TranslatedMessage id="pricing.recommended" /></span> : null}
+              <article key={plan.id} className={`${styles.planCard}${plan.recommended ? ` ${styles.planCardFeatured}` : ""}`}>
+                {plan.recommended ? <span className={styles.planBadge}><TranslatedMessage id="pricing.recommended" /></span> : null}
                 <h2>{plan.title}</h2>
                 <p>{plan.description}</p>
-                <div className="pricing-plan-price">
+                <div className={styles.planPrice}>
                   {plan.priceLabel}
                   {plan.priceLabel !== "Custom" ? <span><TranslatedMessage id="pricing.monthlySuffix" /></span> : null}
                 </div>
-                <div className="pricing-plan-annual">
+                <div className={styles.planAnnual}>
                   {plan.annualLabel}
                   {plan.id !== "enterprise" ? <TranslatedMessage id="pricing.chargedUpfront" /> : ""}
                 </div>
@@ -85,14 +87,14 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="pricing-limits" aria-labelledby="pricing-limits-title">
+        <section className={styles.limits} aria-labelledby="pricing-limits-title">
           <div className="landing-wrap">
             <div className="landing-section-head">
               <h2 id="pricing-limits-title"><TranslatedMessage id="pricing.limitsTitle" /></h2>
               <p><TranslatedMessage id="pricing.limitsDescription" /></p>
             </div>
-            <div className="pricing-table-wrap">
-              <table className="pricing-table">
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
                 <thead>
                   <tr>
                     <th scope="col"><TranslatedMessage id="pricing.limit" /></th>

@@ -10,6 +10,8 @@ import { message as renderMessage, type StaticMessageKey } from "@/lib/i18n";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildPostSignUpPath, buildSignUpPayload, rememberPostSignUpWorkspace } from "@/lib/auth/signup";
 import { demoVideoHref } from "@/lib/ui/demo-video";
+import authStyles from "./lockstock-landing-auth.module.css";
+import shellStyles from "./marketing-shell.module.css";
 
 type AuthMode = "signin" | "signup";
 type SelectedPlan = "starter" | "operations" | "business" | "enterprise";
@@ -305,7 +307,7 @@ export function LockstockLanding() {
   }
 
   return (
-    <div className="landing-page" data-i18n-rendered="true">
+    <div className={shellStyles.scope} data-i18n-rendered="true">
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
           <div className="landing-brand">
@@ -506,7 +508,7 @@ export function LockstockLanding() {
           closeAriaLabel={t("landing.dialog.close")}
           onClose={() => setAuthOpen(false)}
         >
-          <form className="grid landing-auth-form" onSubmit={handleAuthSubmit}>
+          <form className={`grid ${authStyles.form}`} onSubmit={handleAuthSubmit}>
             {authMode === "signup" ? (
               <div className="grid grid-2">
                 <label className="field">
@@ -559,12 +561,12 @@ export function LockstockLanding() {
             </label>
 
             {error ? (
-              <p id={authErrorId} className="landing-auth-error" role="alert">
+              <p id={authErrorId} className={authStyles.error} role="alert">
                 {error}
               </p>
             ) : null}
             {message ? (
-              <p id={authMessageId} className="landing-auth-message" role="status" aria-live="polite">
+              <p id={authMessageId} className={authStyles.message} role="status" aria-live="polite">
                 {message}
               </p>
             ) : null}
@@ -573,15 +575,15 @@ export function LockstockLanding() {
               {busy ? t("landing.auth.wait") : authMode === "signin" ? t("auth.signIn") : t("landing.auth.createAccount")}
             </button>
 
-            <div className="landing-auth-divider">
+            <div className={authStyles.divider}>
               <span>{t("landing.auth.or")}</span>
             </div>
 
-            <button type="button" className="ghost-btn landing-google-btn" disabled>
+            <button type="button" className={`ghost-btn ${authStyles.googleButton}`} disabled>
               {t("landing.auth.google")}
             </button>
 
-            <p className="landing-auth-switch">
+            <p className={authStyles.switch}>
               {authMode === "signup" ? `${t("landing.auth.alreadyHaveAccount")} ` : `${t("landing.auth.noAccount")} `}
               <button
                 type="button"
@@ -602,7 +604,7 @@ export function LockstockLanding() {
           closeAriaLabel={t("landing.dialog.close")}
           onClose={() => setDemoOpen(false)}
         >
-          <video className="landing-demo-video" src={demoHref} controls autoPlay playsInline />
+          <video className={authStyles.demoVideo} src={demoHref} controls autoPlay playsInline />
         </AccessibilityDialog>
       ) : null}
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
+import poStyles from "./purchase-order-shared.module.css";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import type { PurchaseOrderCurrency } from "@/lib/ui/parity-models";
 import { currencySymbol, formatCurrencyAmount } from "@/lib/ui/parity-models";
@@ -279,15 +280,15 @@ export function WorkbenchPurchaseOrderForms({
     <>
       {showPoCreateForm && canManageCatalog ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.createDialogAria")}>
-          <div className="modal-card po-modal-card">
-            <div className="title-row po-modal-head">
+          <div className={`modal-card ${poStyles.modalCard}`}>
+            <div className={`title-row ${poStyles.modalHead}`}>
               <h4>{t("workbench.po.createTitle")}</h4>
-              <button type="button" className="ghost-btn po-modal-close" onClick={onClosePoCreateForm}>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={onClosePoCreateForm}>
                 x
               </button>
             </div>
-            <div className="po-modal-body">
-              <section className="po-modal-section">
+            <div className={poStyles.modalBody}>
+              <section className={poStyles.modalSection}>
                 <h5>{t("workbench.po.basicInfo")}</h5>
                 <div className="grid grid-2">
                   <label className="field">
@@ -312,16 +313,16 @@ export function WorkbenchPurchaseOrderForms({
                     <span>{t("workbench.po.expectedDate")}</span>
                     <input type="date" value={poExpectedAt} onChange={(event) => setPoExpectedAt(event.target.value)} />
                   </label>
-                  <label className="field po-modal-span-2">
+                  <label className={`field ${poStyles.modalSpan2}`}>
                     <span>{t("workbench.po.notes")}</span>
                     <textarea rows={3} value={poNotes} onChange={(event) => setPoNotes(event.target.value)} placeholder={t("workbench.po.instructions")} />
                   </label>
                 </div>
               </section>
 
-              <section className="po-modal-section">
+              <section className={poStyles.modalSection}>
                 <h5>{t("workbench.po.addItems")}</h5>
-                <div className="po-item-grid">
+                <div className={poStyles.itemGrid}>
                   <label className="field">
                     <span>{t("workbench.po.material")}</span>
                     <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
@@ -341,7 +342,7 @@ export function WorkbenchPurchaseOrderForms({
                     <span>{t("workbench.po.unitPriceWithCurrency")} ({currencySymbol(poCurrency)})</span>
                     <input type="number" min={0} step="0.01" value={poUnitPrice} onChange={(event) => setPoUnitPrice(Number(event.target.value))} />
                   </label>
-                  <div className="actions po-item-action">
+                  <div className={`actions ${poStyles.itemAction}`}>
                     <button type="button" disabled={busy || !poMaterialId || poQuantityOrdered <= 0} onClick={handleAddPoDraftLine}>
                       {t("workbench.po.addItem")}
                     </button>
@@ -349,8 +350,8 @@ export function WorkbenchPurchaseOrderForms({
                 </div>
 
                 {poDraftLines.length > 0 ? (
-                  <div className="po-draft-lines-wrap">
-                    <table className="po-lines-table">
+                  <div className={poStyles.draftLinesWrap}>
+                    <table className={poStyles.linesTable}>
                       <thead>
                         <tr>
                           <th>{t("workbench.po.material")}</th>
@@ -373,7 +374,7 @@ export function WorkbenchPurchaseOrderForms({
                               <td>{formatCurrencyAmount(Number(line.unit_price || 0), poCurrency)}</td>
                               <td>{formatCurrencyAmount(lineTotal, poCurrency)}</td>
                               <td>
-                                <button type="button" className="ghost-btn po-line-remove" onClick={() => handleRemovePoDraftLine(line.id)}>
+                                <button type="button" className={`ghost-btn ${poStyles.lineRemove}`} onClick={() => handleRemovePoDraftLine(line.id)}>
                                   {t("workbench.po.remove")}
                                 </button>
                               </td>
@@ -384,10 +385,10 @@ export function WorkbenchPurchaseOrderForms({
                     </table>
                   </div>
                 ) : (
-                  <p className="po-line-empty">{t("workbench.po.noItems")}</p>
+                  <p className={poStyles.lineEmpty}>{t("workbench.po.noItems")}</p>
                 )}
 
-                <p className="po-draft-summary">
+                <p className={poStyles.draftSummary}>
                   {message(locale, "workbench.po.draftSummary", {
                     count: String(poDraftSummary.lineCount),
                     item: poDraftSummary.lineCount === 1 ? t("workbench.po.material") : t("workbench.po.materials"),
@@ -396,7 +397,7 @@ export function WorkbenchPurchaseOrderForms({
                 </p>
               </section>
             </div>
-            <div className="actions po-modal-footer">
+            <div className={`actions ${poStyles.modalFooter}`}>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={closeCreateForm}>
                 {t("workbench.po.cancel")}
               </button>
@@ -414,15 +415,15 @@ export function WorkbenchPurchaseOrderForms({
 
       {showPoReceiveForm && canReceivePurchaseOrders ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.receiveDialogAria")}>
-          <div className="modal-card po-modal-card">
-            <div className="title-row po-modal-head">
+          <div className={`modal-card ${poStyles.modalCard}`}>
+            <div className={`title-row ${poStyles.modalHead}`}>
               <h4>{t("workbench.po.receiveTitle")}</h4>
-              <button type="button" className="ghost-btn po-modal-close" onClick={onClosePoReceiveForm}>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={onClosePoReceiveForm}>
                 x
               </button>
             </div>
-            <div className="po-modal-body">
-              <section className="po-modal-section">
+            <div className={poStyles.modalBody}>
+              <section className={poStyles.modalSection}>
                 <h5>{t("workbench.po.receiptDetails")}</h5>
                 <div className="grid grid-2">
                   <label className="field">
@@ -475,37 +476,37 @@ export function WorkbenchPurchaseOrderForms({
                 </div>
               </section>
 
-              <section className="po-modal-section">
+              <section className={poStyles.modalSection}>
                 <h5>{t("workbench.po.selectedLine")}</h5>
                 {selectedReceiveLine ? (
-                  <div className="po-receive-summary">
+                  <div className={poStyles.receiveSummary}>
                     <div>
-                      <p className="po-meta-label">{t("workbench.po.material")}</p>
-                      <p className="po-meta-value">
+                      <p className={poStyles.metaLabel}>{t("workbench.po.material")}</p>
+                      <p className={poStyles.metaValue}>
                         {selectedReceiveMaterial ? `${selectedReceiveMaterial.sku} - ${selectedReceiveMaterial.name}` : selectedReceiveLine.material_id}
                       </p>
                     </div>
                     <div>
-                      <p className="po-meta-label">{t("workbench.po.ordered")}</p>
-                      <p className="po-meta-value">{selectedReceiveLine.quantity_ordered}</p>
+                      <p className={poStyles.metaLabel}>{t("workbench.po.ordered")}</p>
+                      <p className={poStyles.metaValue}>{selectedReceiveLine.quantity_ordered}</p>
                     </div>
                     <div>
-                      <p className="po-meta-label">{t("workbench.po.alreadyReceived")}</p>
-                      <p className="po-meta-value">{selectedReceiveLine.quantity_received}</p>
+                      <p className={poStyles.metaLabel}>{t("workbench.po.alreadyReceived")}</p>
+                      <p className={poStyles.metaValue}>{selectedReceiveLine.quantity_received}</p>
                     </div>
                     <div>
-                      <p className="po-meta-label">{t("workbench.po.remaining")}</p>
-                      <p className="po-meta-value">
+                      <p className={poStyles.metaLabel}>{t("workbench.po.remaining")}</p>
+                      <p className={poStyles.metaValue}>
                         {Math.max(0, Number(selectedReceiveLine.quantity_ordered || 0) - Number(selectedReceiveLine.quantity_received || 0))}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <p className="po-line-empty">{t("workbench.po.selectLineHelp")}</p>
+                  <p className={poStyles.lineEmpty}>{t("workbench.po.selectLineHelp")}</p>
                 )}
               </section>
             </div>
-            <div className="actions po-modal-footer">
+            <div className={`actions ${poStyles.modalFooter}`}>
               <button type="button" className="ghost-btn" disabled={busy} onClick={closeReceiveForm}>
                 {t("workbench.po.cancel")}
               </button>

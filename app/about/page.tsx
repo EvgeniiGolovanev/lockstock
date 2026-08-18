@@ -3,6 +3,8 @@ import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { LocalizedDiv } from "@/components/localized-div";
 import { TranslatedMessage } from "@/components/translated-message";
+import styles from "./page.module.css";
+import shellStyles from "@/components/marketing-shell.module.css";
 
 const INDUSTRY_MESSAGE_KEYS = [
   "about.industry.it",
@@ -18,10 +20,10 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="landing-page about-page" data-i18n-rendered="true">
+    <div className={shellStyles.scope} data-i18n-rendered="true">
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
-          <Link className="landing-brand about-brand-link" href="/">
+          <Link className={`landing-brand ${styles.brandLink}`} href="/">
             <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
               <rect x="2" y="4" width="60" height="8" />
               <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
@@ -43,14 +45,14 @@ export default function AboutPage() {
         </div>
       </header>
 
-      <main className="about-main">
-        <section className="about-hero">
-          <div className="landing-wrap about-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow"><TranslatedMessage id="about.eyebrow" /></p>
+              <p className={styles.eyebrow}><TranslatedMessage id="about.eyebrow" /></p>
               <h1><TranslatedMessage id="about.title" /></h1>
             </div>
-            <div className="about-copy">
+            <div className={styles.copy}>
               <p>
                 <TranslatedMessage id="about.paragraphOne" />
               </p>
@@ -64,8 +66,8 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="about-industries">
-          <LocalizedDiv className="landing-wrap about-industry-grid" labelKey="about.teamExpertise">
+        <section className={styles.industries}>
+          <LocalizedDiv className={`landing-wrap ${styles.industryGrid}`} labelKey="about.teamExpertise">
             {INDUSTRY_MESSAGE_KEYS.map((industry) => (
               <article key={industry}>
                 <span><TranslatedMessage id={industry} /></span>

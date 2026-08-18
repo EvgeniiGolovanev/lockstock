@@ -1,0 +1,24 @@
+.accountGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.accountCard { border: 2px solid #111111; border-radius: 0; background: #f8f5ef; padding: 0.85rem; box-shadow: 6px 6px 0 rgba(17, 17, 17, 0.08); }
+.accountCard p { margin-top: 0.35rem; }
+.accountCard:last-child { grid-column: span 2; }
+.accountCard h3 { color: #111111; font-weight: 900; letter-spacing: -0.025em; }
+.billingCard { }
+.billingSummaryGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 18px 0; background: var(--line, #d9ddd8); border: 1px solid var(--line, #d9ddd8); }
+.billingSummaryGrid > div { display: grid; gap: 5px; padding: 16px; background: var(--panel, #fff); }
+.billingSummaryGrid span { color: var(--muted, #68716b); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+.billingSummaryGrid strong { text-transform: capitalize; }
+.auditCard :global(.title-row) { align-items: end; }
+.auditExportRow { margin: 0.85rem 0 1rem; display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 180px) max-content; gap: 0.6rem; align-items: end; }
+.auditExportRow button { width: auto; min-width: 0; padding-left: 0.85rem; padding-right: 0.85rem; }
+.auditLogList { display: grid; gap: 0.55rem; }
+.auditLogRow { display: grid; grid-template-columns: minmax(150px, 0.32fr) minmax(0, 1fr) minmax(140px, 0.32fr); gap: 0.8rem; align-items: center; border-top: 1px solid #d8d1c8; padding-top: 0.55rem; }
+.auditLogRow time, .auditLogRow span { color: var(--ls-text-muted); font-size: 0.84rem; }
+.auditLogRow p { margin: 0; }
+.auditLogRow small { display: block; margin-top: 0.18rem; color: var(--ls-text-muted); font-size: 0.78rem; line-height: 1.35; }
+
+@media (max-width: 768px) {
+  .accountGrid { grid-template-columns: 1fr; }
+  .accountCard:last-child { grid-column: auto; }
+  .auditExportRow { grid-template-columns: 1fr; }
+}

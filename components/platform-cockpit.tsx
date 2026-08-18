@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { useLanguage } from "@/components/language-provider";
+import styles from "./platform-cockpit.module.css";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -104,12 +105,25 @@ function RefreshIcon() {
 
 function MetricTile({ label, value, detail, locale }: { label: string; value: number; detail: string; locale: "en" | "fr" }) {
   return (
-    <div className="platform-metric">
+    <div className={styles.metric}>
       <span>{label}</span>
       <strong>{formatInteger(value, locale)}</strong>
       <small>{detail}</small>
     </div>
   );
+}
+
+function statusClassName(status: string) {
+  const statusClass = {
+    active: styles.statusActive,
+    trialing: styles.statusTrialing,
+    past_due: styles.statusPastDue,
+    unpaid: styles.statusUnpaid,
+    incomplete: styles.statusIncomplete,
+    cancelled: styles.statusCancelled
+  }[status];
+
+  return statusClass ? `${styles.statusPill} ${statusClass}` : styles.statusPill;
 }
 
 export function PlatformCockpit() {
@@ -323,43 +337,43 @@ export function PlatformCockpit() {
   }
 
   return (
-    <main className="platform-shell">
-      <header className="platform-header">
+    <main className={styles.shell}>
+      <header className={`${styles.content} ${styles.header}`}>
         <div>
-          <Link className="platform-brand" href="/">
-            <span className="platform-brand-mark" aria-hidden="true" />
+          <Link className={styles.brand} href="/">
+            <span className={styles.brandMark} aria-hidden="true" />
             LockStock
           </Link>
           <h1>{t("platform.title")}</h1>
         </div>
-        <div className="platform-session-panel">
+        <div className={styles.sessionPanel}>
           <div>
             <span>{t("platform.session")}</span>
             <strong>{authResolved ? sessionMessage : t("platform.checking")}</strong>
           </div>
           {!sessionStatus.isAuthenticated && authResolved ? (
-            <Link className="platform-session-link" href="/inventory">
+            <Link className={styles.sessionLink} href="/inventory">
               {t("platform.signIn")}
             </Link>
           ) : null}
           {sessionStatus.isAuthenticated ? (
-            <button type="button" className="platform-session-link" disabled={busy} onClick={() => void handleSignOut()}>
+            <button type="button" className={styles.sessionLink} disabled={busy} onClick={() => void handleSignOut()}>
               {t("platform.signOut")}
             </button>
           ) : null}
-          <button type="button" className="platform-icon-button" disabled={busy} onClick={() => void loadOverview()} title={t("platform.refresh")}>
+          <button type="button" className={styles.iconButton} disabled={busy} onClick={() => void loadOverview()} title={t("platform.refresh")}>
             <RefreshIcon />
           </button>
         </div>
       </header>
 
-      <section className="platform-command-strip">
+      <section className={`${styles.content} ${styles.commandStrip}`}>
         <div>
           <p>{t("platform.internalOperations")}</p>
           <strong>{t("platform.crossTenant")}</strong>
         </div>
         <form
-          className="platform-search"
+          className={styles.search}
           onSubmit={(event) => {
             event.preventDefault();
             void loadOverview();
@@ -373,18 +387,18 @@ export function PlatformCockpit() {
         </form>
       </section>
 
-      {error ? <div className="platform-error">{error}</div> : null}
+      {error ? <div className={styles.error}>{error}</div> : null}
 
-      <section className="platform-metrics-grid" aria-label={t("platform.metrics")}>
+      <section className={`${styles.content} ${styles.metricsGrid}`} aria-label={t("platform.metrics")}>
         <MetricTile label={t("platform.tenants")} value={overview?.metrics.totalOrganizations ?? 0} detail={planMix || t("platform.noPlanData")} locale={locale} />
         <MetricTile label={t("platform.registeredUsers")} value={overview?.metrics.registeredUsers ?? 0} detail={`${formatInteger(overview?.metrics.tenantUsers ?? 0, locale)} ${t("platform.tenantMemberships")}`} locale={locale} />
         <MetricTile label={t("platform.stockMovements")} value={overview?.metrics.totalStockMovements ?? 0} detail={`${formatInteger(overview?.metrics.totalMaterials ?? 0, locale)} ${t("platform.materialsTracked")}`} locale={locale} />
         <MetricTile label={t("platform.openPos")} value={overview?.metrics.openPurchaseOrders ?? 0} detail={`${formatInteger(overview?.metrics.totalPurchaseOrders ?? 0, locale)} ${t("platform.totalPurchaseOrders")}`} locale={locale} />
       </section>
 
-      <section className="platform-grid">
-        <div className="platform-panel platform-panel-wide">
-          <div className="platform-panel-head">
+      <section className={`${styles.content} ${styles.grid}`}>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
             <div>
               <p>{t("platform.tenants")}</p>
               <h2>{t("platform.footprint")}</h2>
@@ -392,8 +406,8 @@ export function PlatformCockpit() {
             <span>{message(locale, "platform.shown", { count: formatInteger(overview?.tenants.length ?? 0, locale) })}</span>
           </div>
 
-          <div className="platform-table-wrap">
-            <table className="platform-table">
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
               <thead>
                 <tr>
                   <th>{t("platform.tenant")}</th>
@@ -416,11 +430,11 @@ export function PlatformCockpit() {
                       <small>{tenant.id}</small>
                     </td>
                     <td>
-                      <span className="platform-plan-pill">{titleCase(tenant.plan)}</span>
+                      <span className={styles.planPill}>{titleCase(tenant.plan)}</span>
                       <small>{titleCase(tenant.billingInterval)}</small>
                     </td>
                     <td>
-                      <span className={`platform-status-pill platform-status-${tenant.billingStatus}`}>{titleCase(tenant.billingStatus)}</span>
+                      <span className={statusClassName(tenant.billingStatus)}>{titleCase(tenant.billingStatus)}</span>
                       <small>{tenant.currentPeriodEnd ? message(locale, "platform.periodEnds", { date: tenant.currentPeriodEnd }) : tenant.trialEndsAt ? message(locale, "platform.trialEnds", { date: formatDateTime(tenant.trialEndsAt, locale) }) : "-"}</small>
                     </td>
                     <td>{formatInteger(tenant.users, locale)}</td>
@@ -454,16 +468,16 @@ export function PlatformCockpit() {
           </div>
         </div>
 
-        <aside className="platform-panel">
-          <div className="platform-panel-head">
+        <aside className={styles.panel}>
+          <div className={styles.panelHead}>
             <div>
               <p>{t("platform.audit")}</p>
               <h2>{t("platform.recentActivity")}</h2>
             </div>
           </div>
-          <div className="platform-audit-list">
+          <div className={styles.auditList}>
             {(overview?.recentAudit ?? []).map((entry) => (
-              <article key={entry.id} className="platform-audit-item">
+              <article key={entry.id} className={styles.auditItem}>
                 <div>
                   <span>{entry.organizationName}</span>
                   <time>{formatDateTime(entry.created_at, locale)}</time>
@@ -475,7 +489,7 @@ export function PlatformCockpit() {
                 </p>
               </article>
             ))}
-            {overview && overview.recentAudit.length === 0 ? <p className="platform-empty">{t("platform.noAudit")}</p> : null}
+            {overview && overview.recentAudit.length === 0 ? <p className={styles.empty}>{t("platform.noAudit")}</p> : null}
           </div>
         </aside>
       </section>

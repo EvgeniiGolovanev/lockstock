@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import { type SortState } from "@/lib/ui/table-tools";
+import styles from "./members-section.module.css";
 
 type SortableHeaderProps = {
   tableId: "organization-members" | "memberships" | "invitations";
@@ -140,7 +141,7 @@ export function WorkbenchMembersSection({
   }
 
   return (
-    <section className="card">
+    <section className="card" data-testid="members-section">
       <div className="title-row">
         <div>
           <h3>{message(locale, "workbench.members.groupHeading", { name: ownedGroupName })}</h3>
@@ -213,7 +214,7 @@ export function WorkbenchMembersSection({
         </table>
       </div>
 
-      <div className="members-section-divider" />
+      <div className={styles.sectionDivider} />
 
       <div className="title-row">
         <div>
@@ -263,7 +264,7 @@ export function WorkbenchMembersSection({
         <p className="subtle-line">{t("workbench.members.defaultPreparing")}</p>
       ) : null}
 
-      <div className="members-section-divider" />
+      <div className={styles.sectionDivider} />
 
       <h3>{t("workbench.members.invitations")}</h3>
 
@@ -272,7 +273,7 @@ export function WorkbenchMembersSection({
           <p className="subtle-line">
             {message(locale, "workbench.members.inviteGroup", { name: ownedGroup.organization.name })}
           </p>
-          <div className="members-invite-row">
+          <div className={styles.inviteRow}>
             <label className="field">
               <span>{t("workbench.members.inviteByEmail")}</span>
               <input
@@ -291,17 +292,17 @@ export function WorkbenchMembersSection({
                 <option value="manager">{t("workbench.members.manager")}</option>
               </select>
             </label>
-            <button type="button" className="members-inline-button" disabled={busy || !memberInviteEmail.trim() || !memberInviteRole} onClick={onSendInvitation}>
+            <button type="button" className={styles.inlineButton} disabled={busy || !memberInviteEmail.trim() || !memberInviteRole} onClick={onSendInvitation}>
               {t("workbench.members.sendInvitation")}
             </button>
-            <button type="button" className="members-inline-button" disabled={busy || !accessToken} onClick={onRefreshInvitations}>
+            <button type="button" className={styles.inlineButton} disabled={busy || !accessToken} onClick={onRefreshInvitations}>
               {t("workbench.members.refreshInvitations")}
             </button>
           </div>
         </>
       ) : null}
 
-      <h3 className="members-table-title">{t("workbench.members.sentReceived")}</h3>
+      <h3 className={styles.tableTitle}>{t("workbench.members.sentReceived")}</h3>
 
       <div className="table-wrap">
         <table className="compact-table">
@@ -351,12 +352,12 @@ export function WorkbenchMembersSection({
         </table>
       </div>
 
-      <div className="members-section-divider members-role-divider" />
+      <div className={`${styles.sectionDivider} ${styles.roleDivider}`} />
 
-      <h3 className="members-table-title">{t("workbench.members.roleAuthorizations")}</h3>
+      <h3 className={styles.tableTitle}>{t("workbench.members.roleAuthorizations")}</h3>
 
       <div className="table-wrap">
-        <table className="compact-table role-authorizations-table">
+        <table className={`compact-table ${styles.roleAuthorizationsTable}`}>
           <thead>
             <tr>
               <th>{t("workbench.members.capability")}</th>

@@ -8,6 +8,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { annualSavings, billingCatalog, type BillingInterval, type PaidPlan } from "@/lib/billing/catalog";
 import { useLanguage } from "@/components/language-provider";
 import { message as renderMessage, type StaticMessageKey } from "@/lib/i18n";
+import styles from "./lockstock-payment.module.css";
 
 const PAYMENT_PLAN_MESSAGES: Record<PaidPlan, { title: StaticMessageKey; description: StaticMessageKey; highlights: readonly StaticMessageKey[] }> = {
   starter: { title: "payment.plan.starter.title", description: "payment.plan.starter.description", highlights: ["payment.plan.starter.highlightOne", "payment.plan.starter.highlightTwo", "payment.plan.starter.highlightThree", "payment.plan.starter.highlightFour"] },
@@ -145,23 +146,23 @@ export function LockstockPayment() {
   }
 
   return (
-    <main className="payment-page" data-i18n-rendered="true">
-      <header className="payment-header">
-        <Link className="payment-brand" href="/"><span aria-hidden="true" />LockStock</Link>
+    <main className={styles.page} data-i18n-rendered="true">
+      <header className={styles.header}>
+        <Link className={styles.brand} href="/"><span aria-hidden="true" />LockStock</Link>
         <Link className="ghost-btn" href="/account">{t("payment.account")}</Link>
       </header>
-      <section className="payment-hero">
+      <section className={styles.hero}>
         <p>{t("payment.eyebrow")}</p>
         <h1>{t("payment.titleFirst")}<br />{t("payment.titleSecond")}</h1>
-        <div className="payment-period" aria-label={t("payment.billingPeriod")}>
-          <button className={interval === "monthly" ? "active" : ""} onClick={() => setInterval("monthly")}>{t("payment.monthly")}</button>
-          <button className={interval === "annual" ? "active" : ""} onClick={() => setInterval("annual")}>{t("payment.annual")}</button>
+        <div className={styles.period} aria-label={t("payment.billingPeriod")}>
+          <button className={interval === "monthly" ? styles.active : ""} onClick={() => setInterval("monthly")}>{t("payment.monthly")}</button>
+          <button className={interval === "annual" ? styles.active : ""} onClick={() => setInterval("annual")}>{t("payment.annual")}</button>
         </div>
       </section>
 
-      {!authResolved ? <p className="payment-message">{t("payment.checking")}</p> : null}
+      {!authResolved ? <p className={styles.message}>{t("payment.checking")}</p> : null}
       {authResolved && !session ? (
-        <section className="payment-auth-gate">
+        <section className={styles.authGate}>
           <div><p>{t("payment.emailConfirmation")}</p><h2>{t("payment.signInPrompt")}</h2></div>
           <form onSubmit={signIn}>
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("payment.email")} required />
@@ -171,17 +172,17 @@ export function LockstockPayment() {
         </section>
       ) : null}
 
-      <section className="payment-grid" aria-label={t("payment.paidPlans")}>
+      <section className={styles.grid} aria-label={t("payment.paidPlans")}>
         {(Object.keys(PAYMENT_PLAN_MESSAGES) as PaidPlan[]).map((billingPlan) => {
           const plan = PAYMENT_PLAN_MESSAGES[billingPlan];
           const tariff = billingCatalog[billingPlan];
           const annual = annualSavings(billingPlan);
           return (
-            <article className={`payment-plan ${billingPlan === "operations" ? "featured" : ""}`} key={billingPlan}>
+            <article className={`${styles.plan} ${billingPlan === "operations" ? styles.featured : ""}`} key={billingPlan}>
               <p>{t(billingPlan === "operations" ? "payment.mostOperational" : "payment.lockstockPlan")}</p>
               <h2>{t(plan.title)}</h2>
-              <p className="payment-plan-description">{t(plan.description)}</p>
-              <strong className="payment-price">€{interval === "monthly" ? tariff.monthly : tariff.annual}</strong>
+              <p className={styles.planDescription}>{t(plan.description)}</p>
+              <strong className={styles.price}>€{interval === "monthly" ? tariff.monthly : tariff.annual}</strong>
               <span>{interval === "monthly" ? t("payment.monthlyPrice") : renderMessage(locale, "payment.annualPrice", { monthlyEquivalent: String(tariff.annualMonthlyEquivalent), savings: String(annual.amount) })}</span>
               <ul>{plan.highlights.map((item) => <li key={item}>{t(item)}</li>)}</ul>
               <button disabled={!session || Boolean(busy)} onClick={() => void choosePlan(billingPlan)}>
@@ -192,12 +193,12 @@ export function LockstockPayment() {
         })}
       </section>
 
-      <section className="payment-alternatives">
+      <section className={styles.alternatives}>
         <article><p>{t("payment.notReady")}</p><h2>{t("payment.trialTitle")}</h2><span>{t("payment.trialDescription")}</span><button disabled={!session || Boolean(busy)} onClick={() => void startTrial()}>{busy === "trial" ? t("payment.starting") : t("payment.startTrial")}</button></article>
         <article><p>{t("payment.complexOrg")}</p><h2>{t("payment.enterprise")}</h2><span>{t("payment.enterpriseDescription")}</span><Link className="ghost-btn" href="/contact">{t("payment.contactSales")}</Link></article>
       </section>
-      {summary ? <p className="payment-current">{renderMessage(locale, "payment.current", { plan: summary.plan, interval: summary.billing_interval, status: summary.status })}{summary.scheduled_plan ? renderMessage(locale, "payment.currentScheduled", { plan: summary.scheduled_plan }) : ""}</p> : null}
-      {message ? <p className="payment-message" role="status">{message}</p> : null}
+      {summary ? <p className={styles.current}>{renderMessage(locale, "payment.current", { plan: summary.plan, interval: summary.billing_interval, status: summary.status })}{summary.scheduled_plan ? renderMessage(locale, "payment.currentScheduled", { plan: summary.scheduled_plan }) : ""}</p> : null}
+      {message ? <p className={styles.message} role="status">{message}</p> : null}
     </main>
   );
 }

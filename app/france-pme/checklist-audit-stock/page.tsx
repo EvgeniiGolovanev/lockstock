@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FranceCampaignShell } from "@/components/france-campaign-shell";
 import { TranslatedMessage } from "@/components/translated-message";
 import type { StaticMessageKey } from "@/lib/i18n";
+import styles from "@/components/france-campaign.module.css";
 
 const checklistSections = [
   {
@@ -31,15 +32,15 @@ export const metadata: Metadata = {
 export default function ChecklistAuditStockPage() {
   return (
     <FranceCampaignShell>
-      <main className="france-campaign-main">
-        <section className="france-hero france-checklist-hero">
-          <div className="landing-wrap france-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow"><TranslatedMessage id="france.checklist.eyebrow" /></p>
+              <p className={styles.eyebrow}><TranslatedMessage id="france.checklist.eyebrow" /></p>
               <h1><TranslatedMessage id="france.checklist.title" /></h1>
-              <p className="france-hero-copy"><TranslatedMessage id="france.checklist.description" /></p>
+              <p className={styles.heroCopy}><TranslatedMessage id="france.checklist.description" /></p>
               <div className="landing-hero-actions">
-                <Link className="ghost-btn france-primary-link" href="/contact">
+                <Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">
                   <TranslatedMessage id="france.checklist.guidedVersion" />
                 </Link>
                 <Link className="ghost-btn" href="/france-pme">
@@ -47,7 +48,7 @@ export default function ChecklistAuditStockPage() {
                 </Link>
               </div>
             </div>
-            <aside className="france-command-board">
+            <aside className={styles.commandBoard}>
               <span><TranslatedMessage id="france.checklist.result" /></span>
               <strong><TranslatedMessage id="france.checklist.resultTitle" /></strong>
               <p><TranslatedMessage id="france.checklist.resultDescription" /></p>
@@ -56,9 +57,9 @@ export default function ChecklistAuditStockPage() {
         </section>
 
         <section className="landing-section">
-          <div className="landing-wrap france-checklist-grid">
+          <div className={`landing-wrap ${styles.checklistGrid}`}>
             {checklistSections.map((section, sectionIndex) => (
-              <article key={section.title} className="france-checklist-card">
+              <article key={section.title} className={styles.checklistCard}>
                 <h2><TranslatedMessage id={section.title} /></h2>
                 <ol start={sectionIndex * 5 + 1}>
                   {section.items.map((item) => (

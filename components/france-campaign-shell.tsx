@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { TranslatedMessage } from "@/components/translated-message";
+import styles from "./france-campaign.module.css";
+import shellStyles from "./marketing-shell.module.css";
 
 export function FranceCampaignHeader() {
   return (
-    <header className="landing-header france-campaign-header">
+    <header className={`landing-header ${styles.campaignHeader}`}>
       <div className="landing-wrap landing-header-row">
-        <Link className="landing-brand about-brand-link" href="/france-pme">
+        <Link className="landing-brand" href="/france-pme">
           <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
             <rect x="2" y="4" width="60" height="8" />
             <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
@@ -67,7 +69,7 @@ export function FranceCampaignFooter() {
 
 export function FranceCampaignShell({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="landing-page france-campaign-page">
+    <div className={shellStyles.scope}>
       <FranceCampaignHeader />
       {children}
       <FranceCampaignFooter />
