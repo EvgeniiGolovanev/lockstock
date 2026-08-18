@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createPurchaseOrderSchema } from "@/lib/validators/purchase-order";
+import type { Database } from "@/types/database";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       .range(from, to);
 
     if (status && status !== "all" && PO_STATUSES.has(status)) {
-      query = query.eq("status", status);
+      query = query.eq("status", status as Database["public"]["Enums"]["po_status"]);
     }
 
     if (supplierId && supplierId !== "all") {
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { orgId, userId, role, supabase } = await requireRequestContext(request);
+    const { orgId, role, supabase } = await requireRequestContext(request);
     requireMinRole(role, "manager");
     const payload = createPurchaseOrderSchema.parse(await request.json());
     const poNumber = payload.po_number ?? makePoNumber();
@@ -115,39 +116,21 @@ export async function POST(request: NextRequest) {
       throw new ApiError(400, "Purchase orders can only use active suppliers.");
     }
 
-    const { data: po, error: poError } = await supabase
-      .from("purchase_orders")
-      .insert({
-        org_id: orgId,
-        supplier_id: payload.supplier_id,
-        currency: payload.currency,
-        po_number: poNumber,
-        expected_at: payload.expected_at ?? null,
-        notes: payload.notes ?? null,
-        created_by: userId,
-        status: "draft"
-      })
-      .select("*")
-      .single();
+    const { data, error } = await supabase.rpc("create_purchase_order_with_lines", {
+      p_org_id: orgId,
+      p_supplier_id: payload.supplier_id,
+      p_po_number: poNumber,
+      p_currency: payload.currency,
+      ...(payload.expected_at ? { p_expected_at: payload.expected_at } : {}),
+      ...(payload.notes ? { p_notes: payload.notes } : {}),
+      p_lines: payload.lines
+    });
 
-    if (poError) {
-      throw poError;
+    if (error) {
+      throw error;
     }
 
-    const lineRows = payload.lines.map((line) => ({
-      org_id: orgId,
-      purchase_order_id: po.id,
-      material_id: line.material_id,
-      quantity_ordered: line.quantity_ordered,
-      unit_price: line.unit_price ?? null
-    }));
-
-    const { data: lines, error: linesError } = await supabase.from("po_lines").insert(lineRows).select("*");
-    if (linesError) {
-      throw linesError;
-    }
-
-    return NextResponse.json({ data: { ...po, lines } }, { status: 201 });
+    return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

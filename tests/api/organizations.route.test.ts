@@ -4,6 +4,8 @@ import { GET, POST } from "@/app/api/organizations/route";
 import { DELETE, PATCH } from "@/app/api/organizations/[id]/route";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
+import { getOrganizationEntitlements } from "@/lib/billing/server";
+import { resolveEntitlements } from "@/lib/billing/entitlements";
 
 vi.mock("@/lib/supabase-user", () => ({
   getSupabaseUserClient: vi.fn()
@@ -12,6 +14,10 @@ vi.mock("@/lib/supabase-user", () => ({
 vi.mock("@/lib/api/auth", () => ({
   extractBearerToken: vi.fn(),
   requireAuthenticatedUserId: vi.fn()
+}));
+
+vi.mock("@/lib/billing/server", () => ({
+  getOrganizationEntitlements: vi.fn()
 }));
 
 type Role = "viewer" | "member" | "manager" | "owner";
@@ -94,6 +100,9 @@ describe("organization group endpoints", () => {
     vi.clearAllMocks();
     vi.mocked(extractBearerToken).mockReturnValue("token");
     vi.mocked(requireAuthenticatedUserId).mockResolvedValue("user-1");
+    vi.mocked(getOrganizationEntitlements).mockResolvedValue(
+      resolveEntitlements({ plan: "starter", status: "active", trialEndsAt: null, currentPeriodEnd: null })
+    );
   });
 
   it("lists groups for the authenticated user", async () => {
@@ -119,7 +128,7 @@ describe("organization group endpoints", () => {
     const request = new NextRequest("http://localhost:3000/api/organizations", {
       method: "POST",
       headers: { Authorization: "Bearer token", "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Alex Group" })
+      body: JSON.stringify({ name: "Alex Group", plan: "business" })
     });
 
     const response = await POST(request);
@@ -128,7 +137,33 @@ describe("organization group endpoints", () => {
     expect(response.status).toBe(201);
     expect(body.data.id).toBe("22222222-2222-4222-8222-222222222222");
     expect(supabase.rpc).toHaveBeenCalledWith("create_organization_with_owner", {
-      p_name: "Alex Group"
+      p_name: "Alex Group",
+      p_plan: "business"
+    });
+  });
+
+  it("creates an incomplete workspace after the account trial has been redeemed", async () => {
+    const supabase = createSupabaseForOrganizations();
+    supabase.rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "Trial already redeemed" } })
+      .mockResolvedValueOnce({ data: { id: "33333333-3333-4333-8333-333333333333" }, error: null });
+    vi.mocked(getSupabaseUserClient).mockReturnValue(supabase as never);
+
+    const response = await POST(new NextRequest("http://localhost:3000/api/organizations", {
+      method: "POST",
+      headers: { Authorization: "Bearer token", "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Second Workspace", plan: "operations" })
+    }));
+
+    expect(response.status).toBe(201);
+    expect(supabase.rpc).toHaveBeenNthCalledWith(1, "create_organization_with_owner", {
+      p_name: "Second Workspace",
+      p_plan: "operations"
+    });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, "create_organization_with_owner", {
+      p_name: "Second Workspace",
+      p_plan: "operations",
+      p_start_trial: false
     });
   });
 

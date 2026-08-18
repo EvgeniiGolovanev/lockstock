@@ -60,54 +60,16 @@ export async function DELETE(
       throw new ApiError(400, "Owners cannot remove themselves from organization.");
     }
 
-    const { data: existingMembership, error: existingMembershipError } = await supabase
-      .from("org_users")
-      .select("user_id,role")
-      .eq("org_id", orgId)
-      .eq("user_id", targetUserId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("remove_org_member_with_team_memberships", {
+      p_org_id: orgId,
+      p_target_user_id: targetUserId
+    });
 
-    if (existingMembershipError) {
-      throw new ApiError(500, "Failed to load existing membership.", existingMembershipError.message);
+    if (error) {
+      throw error;
     }
 
-    if (!existingMembership) {
-      throw new ApiError(404, "Organization member not found.");
-    }
-
-    if (existingMembership.role === "owner") {
-      throw new ApiError(400, "Cannot remove an owner from organization.");
-    }
-
-    const { data: teams, error: teamsError } = await supabase.from("teams").select("id").eq("org_id", orgId);
-    if (teamsError) {
-      throw new ApiError(500, "Failed to load organization teams.", teamsError.message);
-    }
-
-    const teamIds = (teams ?? []).map((team) => team.id as string);
-    if (teamIds.length > 0) {
-      const { error: removeTeamMembershipsError } = await supabase
-        .from("team_members")
-        .delete()
-        .eq("user_id", targetUserId)
-        .in("team_id", teamIds);
-
-      if (removeTeamMembershipsError) {
-        throw new ApiError(500, "Failed to remove team memberships.", removeTeamMembershipsError.message);
-      }
-    }
-
-    const { error: removeMembershipError } = await supabase
-      .from("org_users")
-      .delete()
-      .eq("org_id", orgId)
-      .eq("user_id", targetUserId);
-
-    if (removeMembershipError) {
-      throw new ApiError(500, "Failed to remove organization membership.", removeMembershipError.message);
-    }
-
-    return NextResponse.json({ data: { user_id: targetUserId, removed: true } });
+    return NextResponse.json({ data });
   } catch (error) {
     return handleApiError(error);
   }

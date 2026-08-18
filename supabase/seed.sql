@@ -5,6 +5,10 @@ insert into public.organizations (id, name)
 values ('11111111-1111-1111-1111-111111111111', 'LockStock Demo')
 on conflict (id) do nothing;
 
+insert into public.organization_billing (org_id, plan, status, billing_interval)
+values ('11111111-1111-1111-1111-111111111111', 'starter', 'active', 'monthly')
+on conflict (org_id) do nothing;
+
 insert into public.org_users (org_id, user_id, role)
 values ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'owner')
 on conflict (org_id, user_id) do nothing;

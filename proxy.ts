@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
 
-const PUBLIC_API_PATHS = new Set(["/api/health", "/api/contact"]);
+const PUBLIC_API_PATHS = new Set(["/api/health", "/api/contact", "/api/billing/webhook"]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  // Playwright supplies deterministic browser fixtures and intercepts every
+  // protected API response. Its development server has no Supabase Auth
+  // service, so keep this opt-in escape hatch confined to that process.
+  if (process.env.PLAYWRIGHT_E2E === "true") {
     return NextResponse.next();
   }
 

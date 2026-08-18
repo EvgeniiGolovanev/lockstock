@@ -1,75 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { TranslatedMessage } from "@/components/translated-message";
+import { buildPricingCards, buildPricingLimitRows } from "@/lib/billing/plan-contract";
+import styles from "./page.module.css";
+import shellStyles from "@/components/marketing-shell.module.css";
 
 export const metadata: Metadata = {
   title: "Pricing | LockStock",
   description: "Compare LockStock plans for inventory, purchasing, teams, audit logs, and operational limits."
 };
 
-const plans = [
-  {
-    name: "Starter",
-    price: "EUR 49",
-    annual: "EUR 39/mo, billed annually",
-    description: "For small teams replacing spreadsheets.",
-    highlight: false,
-    features: ["3 users included", "3 stock locations", "500 materials/SKUs", "50 purchase orders per month"]
-  },
-  {
-    name: "Operations",
-    price: "EUR 109",
-    annual: "EUR 89/mo, billed annually",
-    description: "For teams running daily stock and purchasing workflows.",
-    highlight: true,
-    features: ["8 users included", "Unlimited locations", "5,000 materials/SKUs", "Audit CSV export"]
-  },
-  {
-    name: "Business",
-    price: "EUR 219",
-    annual: "EUR 179/mo, billed annually",
-    description: "For multi-site teams that need controls and history.",
-    highlight: false,
-    features: ["20 users included", "3 workspaces", "25,000 materials/SKUs", "Onboarding session"]
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    annual: "Annual contract",
-    description: "For larger organizations with custom security and support needs.",
-    highlight: false,
-    features: ["Custom users", "Custom workspaces", "Custom retention", "SLA options"]
-  }
-];
-
-const limitRows = [
-  ["Monthly price", "EUR 49", "EUR 109", "EUR 219", "Custom"],
-  ["Annual equivalent", "EUR 39/mo", "EUR 89/mo", "EUR 179/mo", "Custom"],
-  ["Included users", "3", "8", "20", "Custom"],
-  ["Extra users", "EUR 9/user/mo", "EUR 9/user/mo", "EUR 7/user/mo", "Custom"],
-  ["Organizations / workspaces", "1", "1", "3", "Custom"],
-  ["Teams / groups", "1", "5", "20", "Custom"],
-  ["Locations", "3", "Unlimited", "Unlimited", "Unlimited"],
-  ["Materials / SKUs", "500", "5,000", "25,000", "Custom"],
-  ["Suppliers / vendors", "50", "500", "2,500", "Custom"],
-  ["Purchase orders / month", "50", "500", "2,500", "Custom"],
-  ["Stock movements / month", "500", "10,000", "50,000", "Custom"],
-  ["CSV material import", "100 rows/import", "1,000 rows/import", "10,000 rows/import", "Custom"],
-  ["Low-stock alerts", "Included", "Included", "Included", "Included"],
-  ["Stock-health report", "Included", "Included", "Included", "Included"],
-  ["Workflow guides", "Included", "Included", "Included", "Included"],
-  ["Audit log in app", "Own recent activity", "Latest 20 organization events", "Latest 20 organization events", "Custom"],
-  ["Audit CSV export", "Not included", "90 days/export", "366 days/export", "Custom"],
-  ["Data retention", "12 months", "36 months", "7 years", "Custom"],
-  ["Support", "Email", "Priority email", "Priority + onboarding", "SLA / dedicated"]
-];
+const plans = buildPricingCards();
+const limitRows = buildPricingLimitRows();
 
 export default function PricingPage() {
   return (
-    <div className="landing-page pricing-page">
+    <div className={shellStyles.scope}>
       <header className="landing-header">
         <div className="landing-wrap landing-header-row">
-          <Link className="landing-brand about-brand-link" href="/">
+          <Link className={`landing-brand ${styles.brandLink}`} href="/">
             <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
               <rect x="2" y="4" width="60" height="8" />
               <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
@@ -78,75 +28,76 @@ export default function PricingPage() {
             <span className="landing-brand-text">LockStock</span>
           </Link>
           <nav className="landing-nav">
-            <Link href="/#features">Features</Link>
-            <Link href="/#benefits">Benefits</Link>
-            <Link href="/pricing">Pricing</Link>
+            <Link href="/#features"><TranslatedMessage id="pricing.features" /></Link>
+            <Link href="/#benefits"><TranslatedMessage id="pricing.benefits" /></Link>
+            <Link href="/pricing"><TranslatedMessage id="pricing.nav" /></Link>
           </nav>
           <div className="landing-actions">
             <LanguageSwitcher />
             <Link className="ghost-btn" href="/">
-              Home
+              <TranslatedMessage id="pricing.home" />
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="pricing-main">
-        <section className="pricing-hero">
-          <div className="landing-wrap pricing-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow">Pricing</p>
-              <h1>Plans for controlled inventory and purchasing operations</h1>
+              <p className={styles.eyebrow}><TranslatedMessage id="pricing.eyebrow" /></p>
+              <h1><TranslatedMessage id="pricing.title" /></h1>
             </div>
-            <div className="pricing-hero-copy">
+            <div className={styles.heroCopy}>
               <p>
-                Prices are listed in EUR, excluding VAT. Annual billing gives a lower monthly equivalent while keeping the
-                same operational limits.
+                <TranslatedMessage id="pricing.descriptionOne" />
               </p>
               <p>
-                Operations is the recommended plan for most teams because it unlocks unlimited locations, higher daily
-                volume, team workflows, and audit exports.
+                <TranslatedMessage id="pricing.descriptionTwo" />
               </p>
             </div>
           </div>
         </section>
 
-        <section className="pricing-plans" aria-label="LockStock pricing plans">
-          <div className="landing-wrap pricing-plan-grid">
+        <section className={styles.plans} aria-label="LockStock pricing plans">
+          <div className={`landing-wrap ${styles.planGrid}`}>
             {plans.map((plan) => (
-              <article key={plan.name} className={`pricing-plan-card${plan.highlight ? " pricing-plan-card-featured" : ""}`}>
-                {plan.highlight ? <span className="pricing-plan-badge">Recommended</span> : null}
-                <h2>{plan.name}</h2>
+              <article key={plan.id} className={`${styles.planCard}${plan.recommended ? ` ${styles.planCardFeatured}` : ""}`}>
+                {plan.recommended ? <span className={styles.planBadge}><TranslatedMessage id="pricing.recommended" /></span> : null}
+                <h2>{plan.title}</h2>
                 <p>{plan.description}</p>
-                <div className="pricing-plan-price">
-                  {plan.price}
-                  {plan.price !== "Custom" ? <span>/mo excl. VAT</span> : null}
+                <div className={styles.planPrice}>
+                  {plan.priceLabel}
+                  {plan.priceLabel !== "Custom" ? <span><TranslatedMessage id="pricing.monthlySuffix" /></span> : null}
                 </div>
-                <div className="pricing-plan-annual">{plan.annual}</div>
+                <div className={styles.planAnnual}>
+                  {plan.annualLabel}
+                  {plan.id !== "enterprise" ? <TranslatedMessage id="pricing.chargedUpfront" /> : ""}
+                </div>
                 <ul>
-                  {plan.features.map((feature) => (
+                  {plan.highlights.map((feature) => (
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-                <Link className="ghost-btn" href="/">
-                  Start trial
+                <Link className="ghost-btn" href={plan.id === "enterprise" ? "/contact" : `/payment?onboarding=paid&plan=${plan.id}`}>
+                  {plan.ctaLabel}
                 </Link>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="pricing-limits" aria-labelledby="pricing-limits-title">
+        <section className={styles.limits} aria-labelledby="pricing-limits-title">
           <div className="landing-wrap">
             <div className="landing-section-head">
-              <h2 id="pricing-limits-title">Limits by Plan</h2>
-              <p>Plan boundaries follow the current LockStock modules: teams, roles, locations, materials, suppliers, stock movements, purchase orders, imports, reports, and audit logs.</p>
+              <h2 id="pricing-limits-title"><TranslatedMessage id="pricing.limitsTitle" /></h2>
+              <p><TranslatedMessage id="pricing.limitsDescription" /></p>
             </div>
-            <div className="pricing-table-wrap">
-              <table className="pricing-table">
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th scope="col">Limit</th>
+                    <th scope="col"><TranslatedMessage id="pricing.limit" /></th>
                     <th scope="col">Starter</th>
                     <th scope="col">Operations</th>
                     <th scope="col">Business</th>
@@ -181,30 +132,28 @@ export default function PricingPage() {
               </svg>
               <span className="landing-brand-text">LockStock</span>
             </div>
-            <p className="landing-footer-text">
-              Modern inventory management for modern businesses. Track, manage, and optimize your stock with ease.
-            </p>
+            <p className="landing-footer-text"><TranslatedMessage id="pricing.footerDescription" /></p>
           </div>
           <div>
-            <h4>Product</h4>
-            <Link href="/#features">Features</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/inventory">App</Link>
+            <h4><TranslatedMessage id="pricing.product" /></h4>
+            <Link href="/#features"><TranslatedMessage id="pricing.features" /></Link>
+            <Link href="/pricing"><TranslatedMessage id="pricing.nav" /></Link>
+            <Link href="/inventory"><TranslatedMessage id="pricing.app" /></Link>
           </div>
           <div>
-            <h4>Company</h4>
-            <Link href="/about">About</Link>
-            <Link href="/#benefits">Blog</Link>
-            <Link href="/#benefits">Contact</Link>
+            <h4><TranslatedMessage id="pricing.company" /></h4>
+            <Link href="/about"><TranslatedMessage id="pricing.about" /></Link>
+            <Link href="/#benefits"><TranslatedMessage id="footer.blog" /></Link>
+            <Link href="/#benefits"><TranslatedMessage id="pricing.contact" /></Link>
           </div>
           <div>
-            <h4>Legal</h4>
-            <Link href="/#pricing">Privacy Policy</Link>
-            <Link href="/#pricing">Terms of Service</Link>
-            <Link href="/#pricing">Security</Link>
+            <h4><TranslatedMessage id="pricing.legal" /></h4>
+            <Link href="/#pricing"><TranslatedMessage id="pricing.privacy" /></Link>
+            <Link href="/#pricing"><TranslatedMessage id="pricing.terms" /></Link>
+            <Link href="/#pricing"><TranslatedMessage id="pricing.security" /></Link>
           </div>
         </div>
-        <div className="landing-wrap landing-footer-bottom">(c) 2026 LockStock. All rights reserved.</div>
+        <div className="landing-wrap landing-footer-bottom"><TranslatedMessage id="pricing.copyright" /></div>
       </footer>
     </div>
   );

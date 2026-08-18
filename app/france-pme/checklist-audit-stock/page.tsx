@@ -1,41 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FranceCampaignShell } from "@/components/france-campaign-shell";
+import { TranslatedMessage } from "@/components/translated-message";
+import type { StaticMessageKey } from "@/lib/i18n";
+import styles from "@/components/france-campaign.module.css";
 
 const checklistSections = [
   {
-    title: "Donnees articles",
-    items: [
-      "Chaque article a un SKU stable, un nom clair, une unite et une categorie.",
-      "Les seuils minimums sont renseignes pour les articles critiques.",
-      "Les doublons, variantes mal nommees et anciennes references sont identifies."
-    ]
+    title: "france.checklist.data.title",
+    items: ["france.checklist.data.one", "france.checklist.data.two", "france.checklist.data.three"]
   },
   {
-    title: "Emplacements et quantites",
-    items: [
-      "Les stocks sont suivis par depot, chantier, zone, vehicule ou local technique.",
-      "Les ecarts entre stock reel et stock fichier sont mesures au moins chaque semaine.",
-      "Les transferts entre emplacements sont traces."
-    ]
+    title: "france.checklist.locations.title",
+    items: ["france.checklist.locations.one", "france.checklist.locations.two", "france.checklist.locations.three"]
   },
   {
-    title: "Achats et fournisseurs",
-    items: [
-      "Chaque fournisseur important a des coordonnees, delais et conditions a jour.",
-      "Les commandes ouvertes sont visibles avant tout nouvel achat.",
-      "Les receptions partielles modifient le stock sans perdre l'historique."
-    ]
+    title: "france.checklist.purchasing.title",
+    items: ["france.checklist.purchasing.one", "france.checklist.purchasing.two", "france.checklist.purchasing.three"]
   },
   {
-    title: "Roles, audit et pilotage",
-    items: [
-      "Les personnes peuvent seulement faire les actions utiles a leur role.",
-      "Les mouvements sensibles gardent une trace exploitable.",
-      "Les indicateurs suivis sont visites, essais, demandes demo, leads qualifies, activation, conversion payante et CAC estime."
-    ]
+    title: "france.checklist.governance.title",
+    items: ["france.checklist.governance.one", "france.checklist.governance.two", "france.checklist.governance.three"]
   }
-];
+] as const satisfies ReadonlyArray<{ title: StaticMessageKey; items: readonly StaticMessageKey[] }>;
 
 export const metadata: Metadata = {
   title: "Checklist audit stock PME | LockStock",
@@ -45,46 +32,41 @@ export const metadata: Metadata = {
 export default function ChecklistAuditStockPage() {
   return (
     <FranceCampaignShell>
-      <main className="france-campaign-main">
-        <section className="france-hero france-checklist-hero">
-          <div className="landing-wrap france-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow">Audit stock PME</p>
-              <h1>Checklist audit stock PME: 20 points pour sortir d&apos;Excel</h1>
-              <p className="france-hero-copy">
-                Passez en revue les articles, emplacements, achats, fournisseurs, roles et controles qui rendent votre
-                suivi de stock fiable au quotidien.
-              </p>
+              <p className={styles.eyebrow}><TranslatedMessage id="france.checklist.eyebrow" /></p>
+              <h1><TranslatedMessage id="france.checklist.title" /></h1>
+              <p className={styles.heroCopy}><TranslatedMessage id="france.checklist.description" /></p>
               <div className="landing-hero-actions">
-                <Link className="ghost-btn france-primary-link" href="/contact">
-                  Recevoir la version accompagnee
+                <Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">
+                  <TranslatedMessage id="france.checklist.guidedVersion" />
                 </Link>
                 <Link className="ghost-btn" href="/france-pme">
-                  Decouvrir LockStock pour les PME
+                  <TranslatedMessage id="france.checklist.discover" />
                 </Link>
               </div>
             </div>
-            <aside className="france-command-board">
-              <span>Resultat</span>
-              <strong>Identifier les points faibles avant d&apos;investir dans un outil</strong>
-              <p>
-                Reperer les fichiers multiples, mouvements non traces, seuils absents et commandes difficiles a suivre.
-              </p>
+            <aside className={styles.commandBoard}>
+              <span><TranslatedMessage id="france.checklist.result" /></span>
+              <strong><TranslatedMessage id="france.checklist.resultTitle" /></strong>
+              <p><TranslatedMessage id="france.checklist.resultDescription" /></p>
             </aside>
           </div>
         </section>
 
         <section className="landing-section">
-          <div className="landing-wrap france-checklist-grid">
+          <div className={`landing-wrap ${styles.checklistGrid}`}>
             {checklistSections.map((section, sectionIndex) => (
-              <article key={section.title} className="france-checklist-card">
-                <h2>{section.title}</h2>
+              <article key={section.title} className={styles.checklistCard}>
+                <h2><TranslatedMessage id={section.title} /></h2>
                 <ol start={sectionIndex * 5 + 1}>
                   {section.items.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li key={item}><TranslatedMessage id={item} /></li>
                   ))}
-                  <li>Le responsable sait qui corrige ce point et sous quel delai.</li>
-                  <li>Le point peut etre mesure dans un tableau de suivi hebdomadaire.</li>
+                  <li><TranslatedMessage id="france.checklist.owner" /></li>
+                  <li><TranslatedMessage id="france.checklist.measure" /></li>
                 </ol>
               </article>
             ))}

@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useLanguage } from "@/components/language-provider";
+import { message } from "@/lib/i18n";
+import styles from "./workflow-guide.module.css";
 import {
   WORKFLOWS,
   workflowImageForLocale,
@@ -29,15 +31,15 @@ function WorkflowPreview({
   const imageSrc = workflowImageForLocale(workflow, locale);
 
   return (
-    <article className={`workflow-preview workflow-preview-${mode}`} data-locale-ignore="true">
-      <div className="workflow-preview-head">
+    <article className={styles.preview} data-i18n-rendered="true">
+      <div className={styles.previewHead}>
         <div>
           <h3>{workflow.title[locale]}</h3>
           <p>{workflow.summary[locale]}</p>
         </div>
-        <span className="workflow-locale-pill">{locale.toUpperCase()}</span>
+        <span className={styles.localePill}>{locale.toUpperCase()}</span>
       </div>
-      <div className="workflow-image-frame">
+      <div className={styles.imageFrame}>
         <Image src={imageSrc} alt={workflow.title[locale]} width={1440} height={980} unoptimized />
       </div>
     </article>
@@ -58,32 +60,43 @@ export function WorkflowGuideButton({ workflows }: WorkflowGuideButtonProps) {
 
   return (
     <>
-      <div className="workflow-button-group">
+      <div className={styles.buttonGroup} data-i18n-rendered="true">
         {workflows.map((workflow) => (
           <button
             key={workflow.id}
             type="button"
-            className="ghost-btn workflow-guide-btn"
+            className={`ghost-btn ${styles.guideButton}`}
             onClick={() => setActiveWorkflowId(workflow.id)}
           >
-            Workflow
+            {message(locale, "workflow.open")}
           </button>
         ))}
       </div>
 
       {activeWorkflowId && selectedWorkflow ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Workflow guide">
-          <div className="modal-card workflow-modal-card">
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={message(locale, "workflow.guide")}
+          data-i18n-rendered="true"
+        >
+          <div className={`modal-card ${styles.modalCard}`}>
             <div className="title-row po-modal-head">
               <div>
-                <h4 data-locale-ignore="true">{selectedWorkflow.title[locale]}</h4>
-                <p className="po-modal-subtitle">Workflow guide</p>
+                <h4>{selectedWorkflow.title[locale]}</h4>
+                <p className="po-modal-subtitle">{message(locale, "workflow.guide")}</p>
               </div>
-              <button type="button" className="ghost-btn po-modal-close" onClick={() => setActiveWorkflowId(null)}>
+              <button
+                type="button"
+                className="ghost-btn po-modal-close"
+                aria-label={message(locale, "common.close")}
+                onClick={() => setActiveWorkflowId(null)}
+              >
                 x
               </button>
             </div>
-            <div className="workflow-modal-body">
+            <div className={styles.modalBody}>
               <WorkflowPreview workflow={selectedWorkflow} mode="modal" />
             </div>
           </div>
@@ -95,8 +108,8 @@ export function WorkflowGuideButton({ workflows }: WorkflowGuideButtonProps) {
 
 export function WorkflowGallery({ workflows = WORKFLOWS }: WorkflowGalleryProps) {
   return (
-    <section className="card workflow-gallery-card">
-      <div className="workflow-gallery-grid">
+    <section className={`card ${styles.galleryCard}`}>
+      <div className={styles.galleryGrid}>
         {workflows.map((workflow) => (
           <WorkflowPreview key={workflow.id} workflow={workflow} mode="card" />
         ))}

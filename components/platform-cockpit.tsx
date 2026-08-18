@@ -4,13 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import { useLanguage } from "@/components/language-provider";
+import styles from "./platform-cockpit.module.css";
+import { message, type StaticMessageKey } from "@/lib/i18n";
+import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
-import {
-  buildPlatformMeRequest,
-  buildPlatformOverviewRequest,
-  platformAccessState,
-  platformSessionStatus
-} from "@/lib/ui/platform-cockpit";
+import { platformAccessState, platformSessionStatus } from "@/lib/ui/platform-cockpit";
 
 type PlatformMetrics = {
   totalOrganizations: number;
@@ -58,19 +57,27 @@ type PlatformOverview = {
   recentAudit: PlatformAudit[];
 };
 
-function formatInteger(value: number) {
-  return new Intl.NumberFormat("en").format(value);
+function formatInteger(value: number, locale: "en" | "fr") {
+  return new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-GB").format(value);
 }
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | null, locale: "en" | "fr") {
   if (!value) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function dateTimeLocalValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function titleCase(value: string) {
@@ -96,25 +103,42 @@ function RefreshIcon() {
   );
 }
 
-function MetricTile({ label, value, detail }: { label: string; value: number; detail: string }) {
+function MetricTile({ label, value, detail, locale }: { label: string; value: number; detail: string; locale: "en" | "fr" }) {
   return (
-    <div className="platform-metric">
+    <div className={styles.metric}>
       <span>{label}</span>
-      <strong>{formatInteger(value)}</strong>
+      <strong>{formatInteger(value, locale)}</strong>
       <small>{detail}</small>
     </div>
   );
 }
 
+function statusClassName(status: string) {
+  const statusClass = {
+    active: styles.statusActive,
+    trialing: styles.statusTrialing,
+    past_due: styles.statusPastDue,
+    unpaid: styles.statusUnpaid,
+    incomplete: styles.statusIncomplete,
+    cancelled: styles.statusCancelled
+  }[status];
+
+  return statusClass ? `${styles.statusPill} ${statusClass}` : styles.statusPill;
+}
+
 export function PlatformCockpit() {
   const router = useRouter();
+  const { locale } = useLanguage();
+  const t = useCallback((key: StaticMessageKey) => message(locale, key), [locale]);
   const [session, setSession] = useState<Session | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean | null>(null);
+  const [platformRole, setPlatformRole] = useState<"support" | "operator" | "admin" | null>(null);
   const [query, setQuery] = useState("");
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [trialDrafts, setTrialDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let unmounted = false;
@@ -141,7 +165,7 @@ export function PlatformCockpit() {
           if (unmounted) {
             return;
           }
-          setError(sessionError instanceof Error ? sessionError.message : "Failed to load the current session.");
+          setError(sessionError instanceof Error ? sessionError.message : t("platform.sessionLoadFailed"));
           setSession(null);
           setAuthResolved(true);
         });
@@ -160,7 +184,7 @@ export function PlatformCockpit() {
 
       unsubscribe = () => authListener.data.subscription.unsubscribe();
     } catch (sessionError) {
-      setError(sessionError instanceof Error ? sessionError.message : "Supabase browser auth is not configured.");
+      setError(sessionError instanceof Error ? sessionError.message : t("platform.authUnavailable"));
       setAuthResolved(true);
     }
 
@@ -168,7 +192,7 @@ export function PlatformCockpit() {
       unmounted = true;
       unsubscribe();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!authResolved || !session?.access_token) {
@@ -180,17 +204,16 @@ export function PlatformCockpit() {
 
     async function loadPlatformAccess() {
       try {
-        const request = buildPlatformMeRequest(session?.access_token ?? "");
-        const response = await fetch(request.url, { headers: request.headers });
-        const payload = (await response.json()) as { isPlatformAdmin?: boolean };
+        const payload = await browserApiRequest<{ isPlatformAdmin?: boolean; role?: "support" | "operator" | "admin" | null }>("/api/platform/me");
 
         if (!unmounted) {
-          setIsPlatformAdmin(response.ok && payload.isPlatformAdmin === true);
+          setIsPlatformAdmin(payload.isPlatformAdmin === true);
+          setPlatformRole(payload.role ?? null);
         }
       } catch (accessError) {
         if (!unmounted) {
           setIsPlatformAdmin(false);
-          setError(accessError instanceof Error ? accessError.message : "Failed to validate platform access.");
+          setError(accessError instanceof Error ? accessError.message : t("platform.accessValidationFailed"));
         }
       }
     }
@@ -200,16 +223,16 @@ export function PlatformCockpit() {
     return () => {
       unmounted = true;
     };
-  }, [authResolved, session?.access_token]);
+  }, [authResolved, session?.access_token, t]);
 
   const loadOverview = useCallback(async () => {
     const status = platformSessionStatus(session);
     if (!status.isAuthenticated || !session?.access_token) {
-      setError(status.message);
+      setError(t("platform.signedOutPrompt"));
       return;
     }
     if (isPlatformAdmin !== true) {
-      setError("Platform admin access is required.");
+      setError(t("platform.adminRequired"));
       setOverview(null);
       return;
     }
@@ -218,26 +241,45 @@ export function PlatformCockpit() {
     setError("");
 
     try {
-      const request = buildPlatformOverviewRequest({
-        accessToken: session.access_token,
-        query
-      });
-
-      const response = await fetch(request.url, { headers: request.headers });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load platform overview.");
+      const params = new URLSearchParams();
+      const trimmedQuery = query.trim();
+      if (trimmedQuery) {
+        params.set("q", trimmedQuery);
       }
 
-      setOverview(payload as PlatformOverview);
+      const payload = await browserApiRequest<PlatformOverview>(`/api/platform/overview${params.size ? `?${params.toString()}` : ""}`);
+
+      setOverview(payload);
+      setTrialDrafts(
+        Object.fromEntries(
+          payload.tenants.map((tenant) => [tenant.id, dateTimeLocalValue(tenant.trialEndsAt)])
+        )
+      );
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load platform overview.");
+      setError(loadError instanceof Error ? loadError.message : t("platform.overviewLoadFailed"));
       setOverview(null);
     } finally {
       setBusy(false);
     }
-  }, [isPlatformAdmin, query, session]);
+  }, [isPlatformAdmin, query, session, t]);
+
+  const updateTrialEnd = useCallback(async (tenantId: string) => {
+    const draft = trialDrafts[tenantId];
+    if (!session?.access_token || !draft) return;
+    setBusy(true);
+    setError("");
+    try {
+      await browserApiRequest(`/api/platform/organizations/${tenantId}/billing`, {
+        method: "PATCH",
+        body: { trialEndsAt: new Date(draft).toISOString() }
+      });
+      await loadOverview();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : t("platform.trialUpdateFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }, [loadOverview, session?.access_token, t, trialDrafts]);
 
   useEffect(() => {
     if (authResolved && session?.access_token && isPlatformAdmin === true) {
@@ -255,11 +297,11 @@ export function PlatformCockpit() {
       setIsPlatformAdmin(null);
       setOverview(null);
     } catch (signOutError) {
-      setError(signOutError instanceof Error ? signOutError.message : "Failed to sign out.");
+      setError(signOutError instanceof Error ? signOutError.message : t("platform.signOutFailed"));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   const planMix = useMemo(() => {
     const counts = new Map<string, number>();
@@ -273,6 +315,11 @@ export function PlatformCockpit() {
   }, [overview]);
 
   const sessionStatus = platformSessionStatus(session);
+  const sessionMessage = !sessionStatus.isAuthenticated
+    ? t("platform.signedOutPrompt")
+    : session?.user?.email
+      ? message(locale, "platform.signedInAs", { email: session.user.email })
+      : t("platform.signedIn");
   const accessState = platformAccessState({
     authResolved,
     isAuthenticated: sessionStatus.isAuthenticated,
@@ -290,88 +337,89 @@ export function PlatformCockpit() {
   }
 
   return (
-    <main className="platform-shell">
-      <header className="platform-header">
+    <main className={styles.shell}>
+      <header className={`${styles.content} ${styles.header}`}>
         <div>
-          <Link className="platform-brand" href="/">
-            <span className="platform-brand-mark" aria-hidden="true" />
+          <Link className={styles.brand} href="/">
+            <span className={styles.brandMark} aria-hidden="true" />
             LockStock
           </Link>
-          <h1>Platform Cockpit</h1>
+          <h1>{t("platform.title")}</h1>
         </div>
-        <div className="platform-session-panel">
+        <div className={styles.sessionPanel}>
           <div>
-            <span>Session</span>
-            <strong>{authResolved ? sessionStatus.message : "Checking session..."}</strong>
+            <span>{t("platform.session")}</span>
+            <strong>{authResolved ? sessionMessage : t("platform.checking")}</strong>
           </div>
           {!sessionStatus.isAuthenticated && authResolved ? (
-            <Link className="platform-session-link" href="/inventory">
-              Sign in
+            <Link className={styles.sessionLink} href="/inventory">
+              {t("platform.signIn")}
             </Link>
           ) : null}
           {sessionStatus.isAuthenticated ? (
-            <button type="button" className="platform-session-link" disabled={busy} onClick={() => void handleSignOut()}>
-              Sign out
+            <button type="button" className={styles.sessionLink} disabled={busy} onClick={() => void handleSignOut()}>
+              {t("platform.signOut")}
             </button>
           ) : null}
-          <button type="button" className="platform-icon-button" disabled={busy} onClick={() => void loadOverview()} title="Refresh cockpit">
+          <button type="button" className={styles.iconButton} disabled={busy} onClick={() => void loadOverview()} title={t("platform.refresh")}>
             <RefreshIcon />
           </button>
         </div>
       </header>
 
-      <section className="platform-command-strip">
+      <section className={`${styles.content} ${styles.commandStrip}`}>
         <div>
-          <p>Internal operations</p>
-          <strong>Cross-tenant visibility with read-only access logging.</strong>
+          <p>{t("platform.internalOperations")}</p>
+          <strong>{t("platform.crossTenant")}</strong>
         </div>
         <form
-          className="platform-search"
+          className={styles.search}
           onSubmit={(event) => {
             event.preventDefault();
             void loadOverview();
           }}
         >
           <SearchIcon />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tenants by name" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("platform.search")} />
           <button type="submit" disabled={busy}>
-            Search
+            {t("platform.searchAction")}
           </button>
         </form>
       </section>
 
-      {error ? <div className="platform-error">{error}</div> : null}
+      {error ? <div className={styles.error}>{error}</div> : null}
 
-      <section className="platform-metrics-grid" aria-label="Platform metrics">
-        <MetricTile label="Tenants" value={overview?.metrics.totalOrganizations ?? 0} detail={planMix || "No plan data loaded"} />
-        <MetricTile label="Registered users" value={overview?.metrics.registeredUsers ?? 0} detail={`${overview?.metrics.tenantUsers ?? 0} tenant memberships`} />
-        <MetricTile label="Stock movements" value={overview?.metrics.totalStockMovements ?? 0} detail={`${overview?.metrics.totalMaterials ?? 0} materials tracked`} />
-        <MetricTile label="Open POs" value={overview?.metrics.openPurchaseOrders ?? 0} detail={`${overview?.metrics.totalPurchaseOrders ?? 0} total purchase orders`} />
+      <section className={`${styles.content} ${styles.metricsGrid}`} aria-label={t("platform.metrics")}>
+        <MetricTile label={t("platform.tenants")} value={overview?.metrics.totalOrganizations ?? 0} detail={planMix || t("platform.noPlanData")} locale={locale} />
+        <MetricTile label={t("platform.registeredUsers")} value={overview?.metrics.registeredUsers ?? 0} detail={`${formatInteger(overview?.metrics.tenantUsers ?? 0, locale)} ${t("platform.tenantMemberships")}`} locale={locale} />
+        <MetricTile label={t("platform.stockMovements")} value={overview?.metrics.totalStockMovements ?? 0} detail={`${formatInteger(overview?.metrics.totalMaterials ?? 0, locale)} ${t("platform.materialsTracked")}`} locale={locale} />
+        <MetricTile label={t("platform.openPos")} value={overview?.metrics.openPurchaseOrders ?? 0} detail={`${formatInteger(overview?.metrics.totalPurchaseOrders ?? 0, locale)} ${t("platform.totalPurchaseOrders")}`} locale={locale} />
       </section>
 
-      <section className="platform-grid">
-        <div className="platform-panel platform-panel-wide">
-          <div className="platform-panel-head">
+      <section className={`${styles.content} ${styles.grid}`}>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
             <div>
-              <p>Tenants</p>
-              <h2>Plan and operational footprint</h2>
+              <p>{t("platform.tenants")}</p>
+              <h2>{t("platform.footprint")}</h2>
             </div>
-            <span>{overview?.tenants.length ?? 0} shown</span>
+            <span>{message(locale, "platform.shown", { count: formatInteger(overview?.tenants.length ?? 0, locale) })}</span>
           </div>
 
-          <div className="platform-table-wrap">
-            <table className="platform-table">
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Tenant</th>
-                  <th>Plan</th>
-                  <th>Status</th>
-                  <th>Users</th>
-                  <th>Materials</th>
-                  <th>Locations</th>
-                  <th>Movements</th>
-                  <th>Open POs</th>
-                  <th>Last activity</th>
+                  <th>{t("platform.tenant")}</th>
+                  <th>{t("platform.plan")}</th>
+                  <th>{t("platform.status")}</th>
+                  <th>{t("platform.users")}</th>
+                  <th>{t("platform.materials")}</th>
+                  <th>{t("platform.locations")}</th>
+                  <th>{t("platform.movements")}</th>
+                  <th>{t("platform.openPos")}</th>
+                  <th>{t("platform.lastActivity")}</th>
+                  {platformRole === "admin" ? <th>{t("platform.trialControl")}</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -382,24 +430,37 @@ export function PlatformCockpit() {
                       <small>{tenant.id}</small>
                     </td>
                     <td>
-                      <span className="platform-plan-pill">{titleCase(tenant.plan)}</span>
+                      <span className={styles.planPill}>{titleCase(tenant.plan)}</span>
                       <small>{titleCase(tenant.billingInterval)}</small>
                     </td>
                     <td>
-                      <span className={`platform-status-pill platform-status-${tenant.billingStatus}`}>{titleCase(tenant.billingStatus)}</span>
-                      <small>{tenant.currentPeriodEnd ? `Period ends ${tenant.currentPeriodEnd}` : tenant.trialEndsAt ? `Trial ends ${formatDateTime(tenant.trialEndsAt)}` : "-"}</small>
+                      <span className={statusClassName(tenant.billingStatus)}>{titleCase(tenant.billingStatus)}</span>
+                      <small>{tenant.currentPeriodEnd ? message(locale, "platform.periodEnds", { date: tenant.currentPeriodEnd }) : tenant.trialEndsAt ? message(locale, "platform.trialEnds", { date: formatDateTime(tenant.trialEndsAt, locale) }) : "-"}</small>
                     </td>
-                    <td>{formatInteger(tenant.users)}</td>
-                    <td>{formatInteger(tenant.materials)}</td>
-                    <td>{formatInteger(tenant.locations)}</td>
-                    <td>{formatInteger(tenant.stockMovements)}</td>
-                    <td>{formatInteger(tenant.openPurchaseOrders)}</td>
-                    <td>{formatDateTime(tenant.lastActivityAt)}</td>
+                    <td>{formatInteger(tenant.users, locale)}</td>
+                    <td>{formatInteger(tenant.materials, locale)}</td>
+                    <td>{formatInteger(tenant.locations, locale)}</td>
+                    <td>{formatInteger(tenant.stockMovements, locale)}</td>
+                    <td>{formatInteger(tenant.openPurchaseOrders, locale)}</td>
+                    <td>{formatDateTime(tenant.lastActivityAt, locale)}</td>
+                    {platformRole === "admin" ? (
+                      <td>
+                        <input
+                          type="datetime-local"
+                          value={trialDrafts[tenant.id] ?? ""}
+                          onChange={(event) => setTrialDrafts((current) => ({ ...current, [tenant.id]: event.target.value }))}
+                          aria-label={message(locale, "platform.trialEndAria", { name: tenant.name })}
+                        />
+                        <button type="button" disabled={busy || !trialDrafts[tenant.id]} onClick={() => void updateTrialEnd(tenant.id)}>
+                          {t("platform.save")}
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
                 {overview && overview.tenants.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>No tenants match the current search.</td>
+                    <td colSpan={platformRole === "admin" ? 10 : 9}>{t("platform.noTenants")}</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -407,19 +468,19 @@ export function PlatformCockpit() {
           </div>
         </div>
 
-        <aside className="platform-panel">
-          <div className="platform-panel-head">
+        <aside className={styles.panel}>
+          <div className={styles.panelHead}>
             <div>
-              <p>Audit</p>
-              <h2>Recent activity</h2>
+              <p>{t("platform.audit")}</p>
+              <h2>{t("platform.recentActivity")}</h2>
             </div>
           </div>
-          <div className="platform-audit-list">
+          <div className={styles.auditList}>
             {(overview?.recentAudit ?? []).map((entry) => (
-              <article key={entry.id} className="platform-audit-item">
+              <article key={entry.id} className={styles.auditItem}>
                 <div>
                   <span>{entry.organizationName}</span>
-                  <time>{formatDateTime(entry.created_at)}</time>
+                  <time>{formatDateTime(entry.created_at, locale)}</time>
                 </div>
                 <strong>{entry.message}</strong>
                 <p>
@@ -428,7 +489,7 @@ export function PlatformCockpit() {
                 </p>
               </article>
             ))}
-            {overview && overview.recentAudit.length === 0 ? <p className="platform-empty">No recent audit events.</p> : null}
+            {overview && overview.recentAudit.length === 0 ? <p className={styles.empty}>{t("platform.noAudit")}</p> : null}
           </div>
         </aside>
       </section>

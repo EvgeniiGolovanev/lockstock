@@ -1,0 +1,526 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { useLanguage } from "@/components/language-provider";
+import poStyles from "./purchase-order-shared.module.css";
+import { message, type StaticMessageKey } from "@/lib/i18n";
+import type { PurchaseOrderCurrency } from "@/lib/ui/parity-models";
+import { currencySymbol, formatCurrencyAmount } from "@/lib/ui/parity-models";
+
+type PurchaseOrderDraftLine = {
+  id: string;
+  material_id: string;
+  quantity_ordered: number;
+  unit_price: number | null;
+};
+
+type PurchaseOrderLine = {
+  id: string;
+  material_id: string;
+  quantity_ordered: number;
+  quantity_received: number;
+  unit_price: number | null;
+};
+
+type PurchaseOrder = {
+  id: string;
+  po_number: string;
+  status: "draft" | "sent" | "partial" | "received" | "cancelled";
+  supplier: { id: string; name: string } | null;
+  lines: PurchaseOrderLine[];
+};
+
+type MaterialLookup = {
+  id: string;
+  sku: string;
+  name: string;
+  uom: string;
+};
+
+type LocationLookup = {
+  id: string;
+  code?: string | null;
+  name: string;
+};
+
+type PurchaseOrderFormsProps = {
+  busy: boolean;
+  isOrgScopedReady: boolean;
+  canManageCatalog: boolean;
+  canReceivePurchaseOrders: boolean;
+  apiRequest: <T>(
+    path: string,
+    options?: {
+      method?: "GET" | "POST" | "PATCH" | "DELETE";
+      body?: Record<string, unknown>;
+      orgOverride?: string;
+      requireOrg?: boolean;
+      tokenOverride?: string;
+    }
+  ) => Promise<T>;
+  onActivity: (message: string) => void;
+  onBusyChange: (busy: boolean) => void;
+  onRefreshCoreData: () => Promise<void>;
+  showPoCreateForm: boolean;
+  showPoReceiveForm: boolean;
+  activeSuppliers: Array<{ id: string; name: string }>;
+  activeMaterials: MaterialLookup[];
+  purchaseOrders: PurchaseOrder[];
+  activeLocations: LocationLookup[];
+  initialReceivePoId: string;
+  initialReceivePoLineId: string;
+  onClosePoCreateForm: () => void;
+  onClosePoReceiveForm: () => void;
+};
+
+export function WorkbenchPurchaseOrderForms({
+  busy,
+  isOrgScopedReady,
+  canManageCatalog,
+  canReceivePurchaseOrders,
+  apiRequest,
+  onActivity,
+  onBusyChange,
+  onRefreshCoreData,
+  showPoCreateForm,
+  showPoReceiveForm,
+  activeSuppliers,
+  activeMaterials,
+  purchaseOrders,
+  activeLocations,
+  initialReceivePoId,
+  initialReceivePoLineId,
+  onClosePoCreateForm,
+  onClosePoReceiveForm,
+}: PurchaseOrderFormsProps) {
+  const { locale } = useLanguage();
+  const t = (key: StaticMessageKey) => message(locale, key);
+  const [poSupplierId, setPoSupplierId] = useState("");
+  const [poCurrency, setPoCurrency] = useState<PurchaseOrderCurrency>("EUR");
+  const [poExpectedAt, setPoExpectedAt] = useState("");
+  const [poNotes, setPoNotes] = useState("");
+  const [poMaterialId, setPoMaterialId] = useState("");
+  const [poQuantityOrdered, setPoQuantityOrdered] = useState(1);
+  const [poUnitPrice, setPoUnitPrice] = useState(0);
+  const [poDraftLines, setPoDraftLines] = useState<PurchaseOrderDraftLine[]>([]);
+  const [receivePoId, setReceivePoId] = useState("");
+  const [receivePoLineId, setReceivePoLineId] = useState("");
+  const [receiveLocationId, setReceiveLocationId] = useState("");
+  const [receiveQuantity, setReceiveQuantity] = useState(1);
+
+  useEffect(() => {
+    if (!showPoCreateForm) {
+      setPoSupplierId("");
+      setPoCurrency("EUR");
+      setPoExpectedAt("");
+      setPoNotes("");
+      setPoMaterialId("");
+      setPoQuantityOrdered(1);
+      setPoUnitPrice(0);
+      setPoDraftLines([]);
+    }
+  }, [showPoCreateForm]);
+
+  useEffect(() => {
+    if (!showPoReceiveForm) {
+      setReceivePoId("");
+      setReceivePoLineId("");
+      setReceiveLocationId("");
+      setReceiveQuantity(1);
+    }
+  }, [showPoReceiveForm]);
+
+  useEffect(() => {
+    if (!showPoReceiveForm) {
+      return;
+    }
+
+    setReceivePoId(initialReceivePoId);
+    setReceivePoLineId(initialReceivePoLineId);
+  }, [initialReceivePoId, initialReceivePoLineId, showPoReceiveForm]);
+
+  const selectedPurchaseOrder = useMemo(() => purchaseOrders.find((po) => po.id === receivePoId) ?? null, [purchaseOrders, receivePoId]);
+  const selectedReceiveLine = useMemo(
+    () => selectedPurchaseOrder?.lines.find((line) => line.id === receivePoLineId) ?? null,
+    [receivePoLineId, selectedPurchaseOrder]
+  );
+  const selectedReceiveMaterial = useMemo(
+    () => (selectedReceiveLine ? activeMaterials.find((item) => item.id === selectedReceiveLine.material_id) ?? null : null),
+    [activeMaterials, selectedReceiveLine]
+  );
+  const poDraftSummary = useMemo(() => {
+    const lineCount = poDraftLines.length;
+    const totalAmount = poDraftLines.reduce((sum, line) => sum + Number(line.quantity_ordered || 0) * Number(line.unit_price || 0), 0);
+    return {
+      lineCount,
+      totalAmount,
+      currency: poCurrency
+    };
+  }, [poCurrency, poDraftLines]);
+
+  function handleAddPoDraftLine() {
+    if (!poMaterialId || poQuantityOrdered <= 0) {
+      return;
+    }
+
+    setPoDraftLines((current) => [
+      ...current,
+      {
+        id: `${poMaterialId}-${Date.now()}`,
+        material_id: poMaterialId,
+        quantity_ordered: Number(poQuantityOrdered),
+        unit_price: poUnitPrice > 0 ? Number(poUnitPrice) : null
+      }
+    ]);
+    setPoMaterialId("");
+    setPoQuantityOrdered(1);
+    setPoUnitPrice(0);
+  }
+
+  function handleRemovePoDraftLine(lineId: string) {
+    setPoDraftLines((current) => current.filter((line) => line.id !== lineId));
+  }
+
+  function closeCreateForm() {
+    setPoSupplierId("");
+    setPoCurrency("EUR");
+    setPoExpectedAt("");
+    setPoNotes("");
+    setPoMaterialId("");
+    setPoQuantityOrdered(1);
+    setPoUnitPrice(0);
+    setPoDraftLines([]);
+    onClosePoCreateForm();
+  }
+
+  function closeReceiveForm() {
+    setReceivePoId("");
+    setReceivePoLineId("");
+    setReceiveLocationId("");
+    setReceiveQuantity(1);
+    onClosePoReceiveForm();
+  }
+
+  async function handleCreatePurchaseOrder() {
+    try {
+      onBusyChange(true);
+      const lines =
+        poDraftLines.length > 0
+          ? poDraftLines.map((line) => ({
+              material_id: line.material_id,
+              quantity_ordered: Number(line.quantity_ordered),
+              unit_price: line.unit_price ?? undefined
+            }))
+          : poMaterialId && poQuantityOrdered > 0
+            ? [
+                {
+                  material_id: poMaterialId,
+                  quantity_ordered: Number(poQuantityOrdered),
+                  unit_price: poUnitPrice > 0 ? Number(poUnitPrice) : undefined
+                }
+              ]
+            : [];
+
+      if (!poSupplierId || lines.length === 0) {
+        onActivity(t("workbench.po.activityCreateValidation"));
+        return false;
+      }
+
+      await apiRequest("/api/purchase-orders", {
+        method: "POST",
+        body: {
+          supplier_id: poSupplierId,
+          currency: poCurrency,
+          expected_at: poExpectedAt || undefined,
+          notes: poNotes.trim() || undefined,
+          lines
+        }
+      });
+      onActivity(t("workbench.po.activityCreated"));
+      closeCreateForm();
+      await onRefreshCoreData();
+      return true;
+    } catch (error) {
+      onActivity(message(locale, "workbench.po.activityCreateFailed", { reason: (error as Error).message }));
+      return false;
+    } finally {
+      onBusyChange(false);
+    }
+  }
+
+  async function handleReceivePurchaseOrder() {
+    try {
+      onBusyChange(true);
+      await apiRequest(`/api/purchase-orders/${receivePoId}/receive`, {
+        method: "POST",
+        body: {
+          receipts: [
+            {
+              po_line_id: receivePoLineId,
+              location_id: receiveLocationId,
+              quantity_received: Number(receiveQuantity)
+            }
+          ]
+        }
+      });
+      onActivity(t("workbench.po.activityReceived"));
+      closeReceiveForm();
+      await onRefreshCoreData();
+      return true;
+    } catch (error) {
+      onActivity(message(locale, "workbench.po.activityReceiveFailed", { reason: (error as Error).message }));
+      return false;
+    } finally {
+      onBusyChange(false);
+    }
+  }
+
+  return (
+    <>
+      {showPoCreateForm && canManageCatalog ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.createDialogAria")}>
+          <div className={`modal-card ${poStyles.modalCard}`}>
+            <div className={`title-row ${poStyles.modalHead}`}>
+              <h4>{t("workbench.po.createTitle")}</h4>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={onClosePoCreateForm}>
+                x
+              </button>
+            </div>
+            <div className={poStyles.modalBody}>
+              <section className={poStyles.modalSection}>
+                <h5>{t("workbench.po.basicInfo")}</h5>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>{t("workbench.po.supplier")}</span>
+                    <select value={poSupplierId} onChange={(event) => setPoSupplierId(event.target.value)}>
+                      <option value="">{t("workbench.po.selectSupplier")}</option>
+                      {activeSuppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.po.currency")}</span>
+                    <select value={poCurrency} onChange={(event) => setPoCurrency(event.target.value as PurchaseOrderCurrency)}>
+                      <option value="EUR">{t("workbench.po.euro")}</option>
+                      <option value="USD">{t("workbench.po.usDollar")}</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.po.expectedDate")}</span>
+                    <input type="date" value={poExpectedAt} onChange={(event) => setPoExpectedAt(event.target.value)} />
+                  </label>
+                  <label className={`field ${poStyles.modalSpan2}`}>
+                    <span>{t("workbench.po.notes")}</span>
+                    <textarea rows={3} value={poNotes} onChange={(event) => setPoNotes(event.target.value)} placeholder={t("workbench.po.instructions")} />
+                  </label>
+                </div>
+              </section>
+
+              <section className={poStyles.modalSection}>
+                <h5>{t("workbench.po.addItems")}</h5>
+                <div className={poStyles.itemGrid}>
+                  <label className="field">
+                    <span>{t("workbench.po.material")}</span>
+                    <select value={poMaterialId} onChange={(event) => setPoMaterialId(event.target.value)}>
+                      <option value="">{t("workbench.po.selectMaterial")}</option>
+                      {activeMaterials.map((material) => (
+                        <option key={material.id} value={material.id}>
+                          {material.sku} - {material.name} ({material.uom})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.po.quantity")}</span>
+                    <input type="number" min={0.001} step="0.001" value={poQuantityOrdered} onChange={(event) => setPoQuantityOrdered(Number(event.target.value))} />
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.po.unitPriceWithCurrency")} ({currencySymbol(poCurrency)})</span>
+                    <input type="number" min={0} step="0.01" value={poUnitPrice} onChange={(event) => setPoUnitPrice(Number(event.target.value))} />
+                  </label>
+                  <div className={`actions ${poStyles.itemAction}`}>
+                    <button type="button" disabled={busy || !poMaterialId || poQuantityOrdered <= 0} onClick={handleAddPoDraftLine}>
+                      {t("workbench.po.addItem")}
+                    </button>
+                  </div>
+                </div>
+
+                {poDraftLines.length > 0 ? (
+                  <div className={poStyles.draftLinesWrap}>
+                    <table className={poStyles.linesTable}>
+                      <thead>
+                        <tr>
+                          <th>{t("workbench.po.material")}</th>
+                          <th>{t("workbench.po.uom")}</th>
+                          <th>{t("workbench.po.quantity")}</th>
+                          <th>{t("workbench.po.unitPrice")}</th>
+                          <th>{t("workbench.snapshot.totalValue")}</th>
+                          <th>{t("workbench.po.action")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {poDraftLines.map((line) => {
+                          const material = activeMaterials.find((item) => item.id === line.material_id);
+                          const lineTotal = Number(line.quantity_ordered || 0) * Number(line.unit_price || 0);
+                          return (
+                            <tr key={line.id}>
+                              <td>{material ? `${material.sku} - ${material.name}` : t("workbench.po.unknownMaterial")}</td>
+                              <td>{material?.uom ?? "-"}</td>
+                              <td>{line.quantity_ordered}</td>
+                              <td>{formatCurrencyAmount(Number(line.unit_price || 0), poCurrency)}</td>
+                              <td>{formatCurrencyAmount(lineTotal, poCurrency)}</td>
+                              <td>
+                                <button type="button" className={`ghost-btn ${poStyles.lineRemove}`} onClick={() => handleRemovePoDraftLine(line.id)}>
+                                  {t("workbench.po.remove")}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className={poStyles.lineEmpty}>{t("workbench.po.noItems")}</p>
+                )}
+
+                <p className={poStyles.draftSummary}>
+                  {message(locale, "workbench.po.draftSummary", {
+                    count: String(poDraftSummary.lineCount),
+                    item: poDraftSummary.lineCount === 1 ? t("workbench.po.material") : t("workbench.po.materials"),
+                    total: formatCurrencyAmount(poDraftSummary.totalAmount, poCurrency)
+                  })}
+                </p>
+              </section>
+            </div>
+            <div className={`actions ${poStyles.modalFooter}`}>
+                <button type="button" className="ghost-btn" disabled={busy} onClick={closeCreateForm}>
+                {t("workbench.po.cancel")}
+              </button>
+                <button
+                  type="button"
+                  disabled={busy || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
+                  onClick={() => void handleCreatePurchaseOrder()}
+                >
+                  {t("workbench.po.createTitle")}
+                </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showPoReceiveForm && canReceivePurchaseOrders ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.receiveDialogAria")}>
+          <div className={`modal-card ${poStyles.modalCard}`}>
+            <div className={`title-row ${poStyles.modalHead}`}>
+              <h4>{t("workbench.po.receiveTitle")}</h4>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={onClosePoReceiveForm}>
+                x
+              </button>
+            </div>
+            <div className={poStyles.modalBody}>
+              <section className={poStyles.modalSection}>
+                <h5>{t("workbench.po.receiptDetails")}</h5>
+                <div className="grid grid-2">
+                  <label className="field">
+                    <span>{t("workbench.po.purchaseOrder")}</span>
+                    <select value={receivePoId} onChange={(event) => setReceivePoId(event.target.value)}>
+                      <option value="">{t("workbench.po.selectPurchaseOrder")}</option>
+                      {purchaseOrders
+                        .filter((po) => po.status !== "received" && po.status !== "cancelled")
+                        .map((po) => (
+                          <option key={po.id} value={po.id}>
+                            {po.po_number} - {po.supplier?.name ?? t("workbench.po.unknown")} ({po.status})
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.po.lineLabel")}</span>
+                    <select value={receivePoLineId} onChange={(event) => setReceivePoLineId(event.target.value)}>
+                      <option value="">{t("workbench.po.selectLine")}</option>
+                      {(selectedPurchaseOrder?.lines ?? []).map((line) => {
+                        const material = activeMaterials.find((item) => item.id === line.material_id);
+                        return (
+                          <option key={line.id} value={line.id}>
+                            {message(locale, "workbench.po.receiptLineOption", {
+                              material: material?.sku ?? t("workbench.po.material"),
+                              ordered: String(line.quantity_ordered),
+                              received: String(line.quantity_received)
+                            })}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.movement.location")}</span>
+                    <select value={receiveLocationId} onChange={(event) => setReceiveLocationId(event.target.value)}>
+                      <option value="">{t("workbench.po.selectLocation")}</option>
+                      {(activeLocations ?? []).map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.code ? `${location.code} - ` : ""}
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t("workbench.po.quantityReceived")}</span>
+                    <input type="number" min={0.001} step="0.001" value={receiveQuantity} onChange={(event) => setReceiveQuantity(Number(event.target.value))} />
+                  </label>
+                </div>
+              </section>
+
+              <section className={poStyles.modalSection}>
+                <h5>{t("workbench.po.selectedLine")}</h5>
+                {selectedReceiveLine ? (
+                  <div className={poStyles.receiveSummary}>
+                    <div>
+                      <p className={poStyles.metaLabel}>{t("workbench.po.material")}</p>
+                      <p className={poStyles.metaValue}>
+                        {selectedReceiveMaterial ? `${selectedReceiveMaterial.sku} - ${selectedReceiveMaterial.name}` : selectedReceiveLine.material_id}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={poStyles.metaLabel}>{t("workbench.po.ordered")}</p>
+                      <p className={poStyles.metaValue}>{selectedReceiveLine.quantity_ordered}</p>
+                    </div>
+                    <div>
+                      <p className={poStyles.metaLabel}>{t("workbench.po.alreadyReceived")}</p>
+                      <p className={poStyles.metaValue}>{selectedReceiveLine.quantity_received}</p>
+                    </div>
+                    <div>
+                      <p className={poStyles.metaLabel}>{t("workbench.po.remaining")}</p>
+                      <p className={poStyles.metaValue}>
+                        {Math.max(0, Number(selectedReceiveLine.quantity_ordered || 0) - Number(selectedReceiveLine.quantity_received || 0))}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className={poStyles.lineEmpty}>{t("workbench.po.selectLineHelp")}</p>
+                )}
+              </section>
+            </div>
+            <div className={`actions ${poStyles.modalFooter}`}>
+              <button type="button" className="ghost-btn" disabled={busy} onClick={closeReceiveForm}>
+                {t("workbench.po.cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={busy || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
+                onClick={() => void handleReceivePurchaseOrder()}
+              >
+                {t("workbench.po.receive")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

@@ -18,6 +18,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body suppressHydrationWarning>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try { var locale = localStorage.getItem('lockstock.locale'); if (locale) { locale = locale.toLowerCase().startsWith('fr') ? 'fr' : 'en'; document.documentElement.lang = locale; document.documentElement.dataset.locale = locale; } } catch (_) {}"
+          }}
+        />
         <LanguageProvider>
           {children}
         </LanguageProvider>

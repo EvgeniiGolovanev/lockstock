@@ -1,0 +1,31 @@
+.modalCard { width: min(880px, 100%); max-height: 90vh; overflow-y: auto; padding: 0; }
+.modalHead { padding: 1rem 1rem 0.8rem; border-bottom: 2px solid #111111; }
+.modalHead h4 { margin: 0; font-size: 1.12rem; }
+.modalSubtitle { margin: 0.25rem 0 0; color: #64748b; font-size: 0.84rem; }
+.modalClose { min-width: 2rem; width: 2rem; height: 2rem; padding: 0; font-size: 1.1rem; line-height: 1; }
+.modalBody { padding: 1rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.modalSection { border: 2px solid #111111; border-radius: 0; background: #f8f5ef; padding: 0.85rem; }
+.modalSection h5 { margin: 0 0 0.75rem; font-size: 0.96rem; font-weight: 650; }
+.modalSpan2 { grid-column: span 2; }
+.itemGrid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, auto); gap: 0.6rem; align-items: end; }
+.itemAction { align-self: end; margin-top: 0; }
+.itemAction button { width: 100%; min-height: 2.55rem; }
+.draftLinesWrap { margin-top: 0.75rem; border: 1px solid #e6ebf4; border-radius: 10px; overflow: hidden; background: #ffffff; }
+.lineRemove { padding: 0.24rem 0.48rem; font-size: 0.78rem; }
+.draftSummary { margin: 0.65rem 0 0; font-size: 0.85rem; color: #32455f; font-weight: 600; }
+.modalFooter { justify-content: flex-end; padding: 0 1rem 1rem; margin-top: 0; border-top: 2px solid #111111; padding-top: 0.85rem; }
+.receiveSummary, .detailSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
+.receiveSummary > div, .detailSummary > div { border: 2px solid #111111; border-radius: 0; background: #f8f5ef; padding: 0.55rem 0.6rem; }
+.metaLabel { margin: 0; font-size: 0.73rem; color: #6b7b91; }
+.metaValue { margin: 0.1rem 0 0; font-size: 0.84rem; font-weight: 600; color: #1f2b3d; }
+.linesWrap { margin-top: 0.75rem; border: 2px solid #111111; border-radius: 0; overflow: hidden; background: #f8f5ef; }
+.linesTable { width: 100%; border-collapse: collapse; }
+.linesTable th, .linesTable td { text-align: left; padding: 0.46rem 0.55rem; border-bottom: 1px solid #ddd5cc; font-size: 0.82rem; background: #fffdf9; }
+.linesTable th { font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #ffffff; background: #111111; border-color: #111111; }
+.linesTable tr:last-child td { border-bottom: none; }
+.lineEmpty { margin: 0.75rem 0 0; font-size: 0.83rem; color: #64748b; }
+
+@media (max-width: 768px) {
+  .modalSpan2 { grid-column: auto; }
+  .itemGrid, .receiveSummary, .detailSummary { grid-template-columns: 1fr; }
+}

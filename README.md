@@ -1,11 +1,13 @@
-# LockStock Scaffold
+# LockStock
 
-Starter scaffold for LockStock, a material stock management web application built for low-ops maintenance by a solo founder.
+LockStock is a material stock management web application designed for
+low-operations maintenance by a solo founder.
 
 ## Stack
 
 - Next.js (App Router, TypeScript)
 - Supabase (Postgres + Auth + RPC)
+- Stripe Billing, Checkout, Tax, and Customer Portal
 - Zod for request validation
 
 ## Quick Start
@@ -27,12 +29,31 @@ Email integration vars:
 - `RESEND_API_KEY`: API key for sending organization invitation emails.
 - `EMAIL_FROM`: sender identity used by invitation emails (must be a verified domain in your provider).
 
-3. Apply SQL migrations in order:
-   - `supabase/migrations/202602231350_init.sql`
-   - `supabase/migrations/202602232210_user_scoped_org_bootstrap.sql`
-   - `supabase/migrations/202602240110_fix_is_org_member_rls.sql`
+Stripe billing requires the server keys and six recurring Price IDs documented
+in [`docs/billing-setup.md`](docs/billing-setup.md).
 
-4. Run development server:
+3. Start the local Supabase stack:
+
+```bash
+supabase start
+```
+
+The repository uses ports outside common Windows-managed ranges:
+
+- API: `http://127.0.0.1:55321`
+- Database: `postgresql://postgres:postgres@127.0.0.1:55322/postgres`
+- Studio: `http://127.0.0.1:55323`
+
+Set `NEXT_PUBLIC_SUPABASE_URL` to the local API URL and use the keys from
+`supabase status` in `.env.local`.
+
+4. Reset the local database to apply every migration and seed deterministically:
+
+```bash
+supabase db reset
+```
+
+5. Run development server:
 
 ```bash
 npm run dev
@@ -67,7 +88,8 @@ curl -X POST http://localhost:3000/api/organizations \
   -d "{\"name\":\"Demo Org\"}"
 ```
 
-Account signup uses Supabase Auth email confirmation with redirect back to `/account`.
+Account signup uses Supabase Auth email confirmation with redirect to `/payment`.
+Users can then start a 15-day Starter trial or purchase a monthly or annual plan.
 
 ## Implemented Endpoints
 
@@ -97,18 +119,20 @@ Account signup uses Supabase Auth email confirmation with redirect back to `/acc
 - `POST /api/import/materials-csv` (CSV body; columns: `sku,name,uom,min_stock`)
 - `GET /api/alerts/low-stock`
 - `GET /api/reports/stock-health`
+- `GET /api/billing/summary`
+- `POST /api/billing/checkout-session`
+- `POST /api/billing/start-trial`
+- `POST /api/billing/change-preview`
+- `POST /api/billing/change`
+- `POST /api/billing/cancel`
+- `POST /api/billing/reactivate`
+- `POST /api/billing/portal-session`
+- `POST /api/billing/webhook` (Stripe signature required)
 
 List endpoint query params:
 
 - `GET /api/materials?q=&page=&limit=`
 - `GET /api/purchase-orders?q=&status=&supplier_id=&page=&limit=`
-
-## Suggested Next Steps
-
-1. Add audit log table + endpoint for critical stock and PO operations.
-2. Add integration workers (QBO/Shopify) behind feature flags.
-3. Add role-aware UI controls (viewer/member/manager/owner) to hide forbidden actions.
-4. Add optimistic updates to reduce full reload calls after create/receive actions.
 
 ## Smoke Test Script
 
@@ -144,43 +168,65 @@ Run API integration-style tests for `401` auth and `403` role enforcement:
 npm run test:api
 ```
 
+## Verification
+
+Run the application verification contract locally with:
+
+```bash
+npm run verify
+```
+
+This runs typecheck, lint, the Vitest suite, and a production build in the same
+order used by CI. Each command remains individually callable.
+
+Database authorization tests require Docker and Supabase CLI `2.98.2` or newer:
+
+```bash
+npm run test:db
+```
+
+The database command copies the local Supabase project into a temporary
+directory, assigns a unique local project ID and free database port, resets it
+from all migrations, seeds it, runs the pgTAP RLS/RPC assertions, and removes
+the temporary containers and volume. It always uses `--local`; it does not use
+or modify a linked Supabase project or an already-running development stack.
+
 ## CI Pipeline Gates
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
 
-It enforces, in order:
+The application job runs `npm run verify`, which enforces, in order:
 
 1. `npm run typecheck`
 2. `npm run lint`
 3. `npm run test:api`
 4. `npm run build`
 
-On pushes to `main`, it also runs a linked-database migration drift gate and fails if the remote DB is missing any local migration in `supabase/migrations`.
+The database job separately runs the same `npm run test:db` command documented
+above against a disposable local Supabase project.
 
-Required repository secrets for the migration gate:
+## Database migration workflow
 
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_REF`
-- `SUPABASE_DB_PASSWORD`
+GitHub Actions workflow: `.github/workflows/supabase-migrations.yml`.
+It runs when a migration is pushed to `main`, applies it to the configured
+preview environment. The production job targets the GitHub `production`
+environment; configure required reviewers in that environment when manual
+approval is required. Application deployment is not automated by this
+repository.
 
-## Release Automation
-
-GitHub Actions workflow: `.github/workflows/release.yml`
-
-Trigger:
-
-- Runs automatically after `CI` succeeds on pushes to `main`.
-
-Steps:
-
-1. Link Supabase project and apply pending migrations (`supabase db push --linked`).
-2. Build and deploy production app to Vercel.
-
-Required repository secrets:
+The migration workflow requires these repository secrets:
 
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
 - `SUPABASE_DB_PASSWORD`
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+
+## Repository assets and agent skills
+
+[`docs/repository-assets.md`](docs/repository-assets.md) records the source and
+runtime ownership of workflow diagrams, demo media, and compatibility skill
+trees. Use these commands when you change an authored asset or skill:
+
+```bash
+npm run sync:repository-assets
+npm run repo:hygiene
+```

@@ -1,13 +1,14 @@
 "use client";
 
 import { useLanguage } from "@/components/language-provider";
+import { message } from "@/lib/i18n";
 
 export function LanguageSwitcher() {
   const { locale, setLocale } = useLanguage();
-  const languageLabel = locale === "fr" ? "Langue" : "Language";
+  const languageLabel = message(locale, "language.label");
 
   return (
-    <div className="locale-switcher" data-locale-ignore="true" aria-label={languageLabel}>
+    <div className="locale-switcher" aria-label={languageLabel}>
       <div className="locale-switcher-actions">
         <button
           type="button"

@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Typecheck, Lint, Test, Build
+    name: Application verification
     runs-on: ubuntu-latest
 
     steps:
@@ -24,14 +24,68 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Production dependency audit
+        run: npm run audit:prod
 
-      - name: Lint
-        run: npm run lint
+      - name: Verify repository provenance and documentation
+        run: npm run repo:hygiene
 
-      - name: API tests
-        run: npm run test:api
+      - name: Verify application
+        run: npm run verify
 
-      - name: Build
-        run: npm run build
+      - name: Run coverage report
+        run: npm run test:coverage
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run critical E2E suite
+        run: npm run test:e2e
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-artifacts
+          path: test-results
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockstock-coverage
+          path: coverage
+
+  database:
+    name: Disposable database verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.98.2
+
+      - name: Reset and test disposable database
+        run: npm run test:db
+
+      - name: Start database for generated type check
+        run: supabase start > "$RUNNER_TEMP/supabase-start.log"
+
+      - name: Check generated database types
+        run: npm run db:types:check
+
+      - name: Stop generated type check database
+        if: always()
+        run: supabase stop > /dev/null

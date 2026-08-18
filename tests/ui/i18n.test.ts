@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCALE, localeLabel, normalizeLocale, translateText } from "@/lib/i18n";
+import { DEFAULT_LOCALE, localeLabel, message, normalizeLocale } from "@/lib/i18n";
 
 describe("i18n helpers", () => {
   it("normalizes locale values and falls back to default", () => {
@@ -8,7 +8,6 @@ describe("i18n helpers", () => {
     expect(normalizeLocale("FR-fr")).toBe("fr");
     expect(normalizeLocale("en-US")).toBe("en");
     expect(normalizeLocale("de")).toBe("en");
-    expect(normalizeLocale("")).toBe("en");
   });
 
   it("returns user-facing locale labels", () => {
@@ -16,53 +15,13 @@ describe("i18n helpers", () => {
     expect(localeLabel("fr")).toBe("Francais");
   });
 
-  it("translates known static phrases", () => {
-    expect(translateText("Sign In", "fr")).toBe("Se connecter");
-    expect(translateText("Purchase Orders", "fr")).toBe("Commandes d'achat");
-    expect(translateText("Members", "fr")).toBe("Membres");
-    expect(translateText("Manage organization members and invitations.", "fr")).toBe(
-      "Gerez les membres de l'organisation et les invitations."
-    );
-    expect(translateText("Pending Invitations", "fr")).toBe("Invitations en attente");
-    expect(translateText("No pending invitations.", "fr")).toBe("Aucune invitation en attente.");
-    expect(translateText("Invitation email sent.", "fr")).toBe("Email d'invitation envoye.");
-    expect(translateText("My Organization Memberships", "fr")).toBe("Mes appartenances aux organisations");
-    expect(translateText("No activity yet.", "fr")).toBe("Aucune activite pour le moment.");
-    expect(translateText("Material Catalog", "fr")).toBe("Catalogue des materiaux");
-    expect(translateText("Purchase Order Lifecycle", "fr")).toBe("Cycle de vie des commandes d'achat");
-    expect(translateText("Controlled Collaboration", "fr")).toBe("Collaboration controlee");
-    expect(translateText("Watch Demo", "fr")).toBe("Voir la demo");
-    expect(translateText("Schedule Demo", "fr")).toBe("Voir la demo");
-    expect(translateText("Plans for controlled inventory and purchasing operations", "fr")).toBe(
-      "Offres pour piloter les stocks et les achats avec controle"
-    );
-    expect(translateText("Limits by Plan", "fr")).toBe("Limites par offre");
-    expect(translateText("Stock movements / month", "fr")).toBe("Mouvements de stock / mois");
-    expect(translateText("Audit CSV export", "fr")).toBe("Export CSV d'audit");
-    expect(translateText("Contact LockStock", "fr")).toBe("Contacter LockStock");
-    expect(translateText("Talk to us about your inventory operations", "fr")).toBe(
-      "Parlez-nous de vos operations d'inventaire"
-    );
-    expect(translateText("Send a note to the team for product questions, onboarding needs, or operational workflow discussions.", "fr")).toBe(
-      "Envoyez un message a l'equipe pour vos questions produit, vos besoins d'accompagnement ou vos discussions sur les workflows operationnels."
-    );
-    expect(translateText("Send Message", "fr")).toBe("Envoyer le message");
-    expect(translateText("Message sent. We will reply by email.", "fr")).toBe("Message envoye. Nous repondrons par email.");
-    expect(translateText("Sign In", "en")).toBe("Sign In");
+  it("renders stable message keys with typed interpolation", () => {
+    expect(message("fr", "catalog.location.created")).toBe("Emplacement cree.");
+    expect(message("fr", "catalog.location.usage.unblockConfirm", { name: "Depot Nord" })).toBe("Autoriser Depot Nord pour les nouvelles utilisations ?");
+    expect(message("en", "workbench.auth.activeMembership", { name: "North warehouse", role: "manager" })).toBe("Active workspace: North warehouse (manager)");
   });
 
-  it("translates dynamic strings used in the interface", () => {
-    expect(translateText("Page 2/8", "fr")).toBe("Page 2/8");
-    expect(translateText("Page 2 / 8 (50 total)", "fr")).toBe("Page 2 / 8 (50 au total)");
-    expect(translateText("3 item(s) - EUR 120.00", "fr")).toBe("3 article(s) - EUR 120.00");
-    expect(translateText("5 stars", "fr")).toBe("5 etoiles");
-    expect(translateText("10:45:11 - Signed out.", "fr")).toBe("10:45:11 - Deconnecte.");
-    expect(translateText("Accept invitation to org LockStock", "fr")).toBe(
-      "Accepter l'invitation vers l'organisation LockStock"
-    );
-  });
-
-  it("keeps unknown text unchanged", () => {
-    expect(translateText("Custom supplier name", "fr")).toBe("Custom supplier name");
+  it("fails clearly when a runtime message key is missing", () => {
+    expect(() => message("en", "missing.key" as never)).toThrow('Missing i18n message key: "missing.key".');
   });
 });

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+vi.mock("@/lib/billing/server", () => ({ getOrganizationEntitlements: vi.fn().mockResolvedValue({ isReadOnly: false }) }));
 import { ApiError } from "@/lib/api/errors";
 import { PATCH } from "@/app/api/purchase-orders/[id]/status/route";
 import { getSupabaseUserClient } from "@/lib/supabase-user";
@@ -32,22 +33,13 @@ function createSupabaseForStatus(role: Role, currentStatus: Status = "draft") {
     })
   };
 
-  const poUpdateResult = {
-    single: vi.fn().mockResolvedValue({
-      data: { id: "po-1", po_number: "PO-1", status: "sent", sent_at: "2026-04-29T10:00:00.000Z" },
-      error: null
-    })
-  };
-
-  const poUpdateQuery = {
-    eq: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnValue(poUpdateResult)
-  };
-
   const purchaseOrdersTable = {
-    select: vi.fn().mockReturnValue(poLookupQuery),
-    update: vi.fn().mockReturnValue(poUpdateQuery)
+    select: vi.fn().mockReturnValue(poLookupQuery)
   };
+  const rpc = vi.fn().mockResolvedValue({
+    data: { id: "po-1", po_number: "PO-1", status: "sent", sent_at: "2026-04-29T10:00:00.000Z" },
+    error: null
+  });
 
   return {
     from: vi.fn((table: string) => {
@@ -59,7 +51,8 @@ function createSupabaseForStatus(role: Role, currentStatus: Status = "draft") {
       }
       throw new Error(`Unexpected table access in test: ${table}`);
     }),
-    purchaseOrdersTable
+    purchaseOrdersTable,
+    rpc
   };
 }
 
@@ -105,7 +98,7 @@ describe("PATCH /api/purchase-orders/[id]/status role and transition enforcement
 
     expect(response.status).toBe(403);
     expect(body.error).toContain("manager");
-    expect(supabase.purchaseOrdersTable.update).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid transition", async () => {
@@ -125,7 +118,7 @@ describe("PATCH /api/purchase-orders/[id]/status role and transition enforcement
 
     expect(response.status).toBe(400);
     expect(body.error).toContain("Invalid status transition");
-    expect(supabase.purchaseOrdersTable.update).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
   it("allows manager to transition draft to sent", async () => {
@@ -145,11 +138,13 @@ describe("PATCH /api/purchase-orders/[id]/status role and transition enforcement
 
     expect(response.status).toBe(200);
     expect(body.data.status).toBe("sent");
-    expect(supabase.purchaseOrdersTable.update).toHaveBeenCalledOnce();
-    expect(supabase.purchaseOrdersTable.update).toHaveBeenCalledWith(
+    expect(supabase.rpc).toHaveBeenCalledOnce();
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "transition_purchase_order_status",
       expect.objectContaining({
-        status: "sent",
-        sent_at: expect.any(String)
+        p_org_id: orgId,
+        p_po_id: "po-1",
+        p_status: "sent"
       })
     );
   });
@@ -169,9 +164,12 @@ describe("PATCH /api/purchase-orders/[id]/status role and transition enforcement
     const response = await PATCH(request, { params: Promise.resolve({ id: "po-1" }) });
 
     expect(response.status).toBe(200);
-    expect(supabase.purchaseOrdersTable.update).toHaveBeenCalledWith(
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "transition_purchase_order_status",
       expect.objectContaining({
-        status: "cancelled"
+        p_org_id: orgId,
+        p_po_id: "po-1",
+        p_status: "cancelled"
       })
     );
   });
@@ -193,6 +191,6 @@ describe("PATCH /api/purchase-orders/[id]/status role and transition enforcement
 
     expect(response.status).toBe(400);
     expect(body.error).toContain("Invalid status transition");
-    expect(supabase.purchaseOrdersTable.update).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 });

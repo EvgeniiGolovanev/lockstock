@@ -1,0 +1,8 @@
+.toolbar {
+  grid-template-columns: minmax(0, 1fr) 190px;
+}
+
+.locationsTable th,
+.locationsTable td {
+  vertical-align: middle;
+}

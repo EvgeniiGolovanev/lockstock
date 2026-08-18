@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         p_from_location_id: payload.from_location_id,
         p_to_location_id: payload.to_location_id,
         p_quantity: payload.quantity,
-        p_note: payload.note ?? null,
+        ...(payload.note ? { p_note: payload.note } : {}),
         p_created_by: userId
       });
 
@@ -121,9 +121,9 @@ export async function POST(request: NextRequest) {
       p_location_id: payload.location_id,
       p_quantity_delta: payload.quantity_delta,
       p_reason: payload.reason,
-      p_note: payload.note ?? null,
-      p_reference_type: "reference_type" in payload ? (payload.reference_type ?? null) : null,
-      p_reference_id: "reference_id" in payload ? (payload.reference_id ?? null) : null,
+      ...(payload.note ? { p_note: payload.note } : {}),
+      ...("reference_type" in payload && payload.reference_type ? { p_reference_type: payload.reference_type } : {}),
+      ...("reference_id" in payload && payload.reference_id ? { p_reference_id: payload.reference_id } : {}),
       p_created_by: userId
     });
 

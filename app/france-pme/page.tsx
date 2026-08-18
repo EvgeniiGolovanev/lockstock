@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FranceCampaignShell } from "@/components/france-campaign-shell";
-import {
-  franceCampaignPromise,
-  franceCampaignSegments,
-  franceSeoUseCases
-} from "@/lib/marketing/france";
+import { FranceSegmentCards, FranceUseCaseCards } from "@/components/france-campaign-content";
+import { TranslatedMessage } from "@/components/translated-message";
+import styles from "@/components/france-campaign.module.css";
 
 export const metadata: Metadata = {
   title: "Logiciel gestion stock PME France | LockStock",
@@ -16,94 +14,71 @@ export const metadata: Metadata = {
 export default function FrancePmePage() {
   return (
     <FranceCampaignShell>
-      <main className="france-campaign-main">
-        <section className="france-hero">
-          <div className="landing-wrap france-hero-grid">
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={`landing-wrap ${styles.heroGrid}`}>
             <div>
-              <p className="about-eyebrow">PME France</p>
-              <h1>Remplacez Excel pour gerer stocks, achats et fournisseurs</h1>
-              <p className="france-hero-copy">{franceCampaignPromise}</p>
+              <p className={styles.eyebrow}><TranslatedMessage id="france.home.eyebrow" /></p>
+              <h1><TranslatedMessage id="france.home.title" /></h1>
+              <p className={styles.heroCopy}><TranslatedMessage id="france.home.promise" /></p>
               <div className="landing-hero-actions">
-                <Link className="ghost-btn france-primary-link" href="/contact">
-                  Demander une demo
+                <Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">
+                  <TranslatedMessage id="france.requestDemo" />
                 </Link>
                 <Link className="ghost-btn" href="/france-pme/checklist-audit-stock">
-                  Obtenir la checklist
+                  <TranslatedMessage id="france.home.checklist" />
                 </Link>
               </div>
               <ul className="landing-checks">
-                <li>Essai gratuit 14 jours</li>
-                <li>Prix en EUR hors TVA</li>
-                <li>Stock, achats, roles et audit dans un seul espace</li>
+                <li><TranslatedMessage id="france.home.trial" /></li>
+                <li><TranslatedMessage id="france.home.vat" /></li>
+                <li><TranslatedMessage id="france.home.oneWorkspace" /></li>
               </ul>
             </div>
-            <aside className="france-command-board" aria-label="Exemple de mise en route LockStock">
+            <aside className={styles.commandBoard} aria-labelledby="france-setup-title">
               <div>
-                <span>Mise en route</span>
-                <strong>Testez LockStock sur un perimetre simple</strong>
+                <span><TranslatedMessage id="france.home.setup" /></span>
+                <strong id="france-setup-title"><TranslatedMessage id="france.home.setupTitle" /></strong>
               </div>
               <dl>
                 <div>
-                  <dt>Articles</dt>
-                  <dd>10 references critiques</dd>
+                  <dt><TranslatedMessage id="france.home.items" /></dt>
+                  <dd><TranslatedMessage id="france.home.itemsValue" /></dd>
                 </div>
                 <div>
-                  <dt>Emplacement</dt>
-                  <dd>Un depot, chantier ou atelier</dd>
+                  <dt><TranslatedMessage id="france.home.location" /></dt>
+                  <dd><TranslatedMessage id="france.home.locationValue" /></dd>
                 </div>
                 <div>
-                  <dt>Achat</dt>
-                  <dd>Un fournisseur et une commande ouverte</dd>
+                  <dt><TranslatedMessage id="france.home.purchase" /></dt>
+                  <dd><TranslatedMessage id="france.home.purchaseValue" /></dd>
                 </div>
               </dl>
             </aside>
           </div>
         </section>
 
-        <section className="landing-section france-segments-section">
+        <section className="landing-section">
           <div className="landing-wrap">
             <div className="landing-section-head">
-              <h2>Trois verticals a tester en priorite</h2>
-              <p>Chaque page concentre les mots-cles, douleurs et appels a l&apos;action d&apos;un segment PME francais.</p>
+              <h2><TranslatedMessage id="france.home.verticalTitle" /></h2>
+              <p><TranslatedMessage id="france.home.verticalDescription" /></p>
             </div>
-            <div className="france-segment-grid">
-              {franceCampaignSegments.map((segment) => (
-                <article key={segment.slug} className="france-segment-card">
-                  <p className="about-eyebrow">{segment.eyebrow}</p>
-                  <h3>{segment.title}</h3>
-                  <p>{segment.description}</p>
-                  <ul>
-                    {segment.outcomes.map((outcome) => (
-                      <li key={outcome}>{outcome}</li>
-                    ))}
-                  </ul>
-                  <Link className="ghost-btn" href={`/france-pme/${segment.slug}`}>
-                    {segment.cta}
-                  </Link>
-                </article>
-              ))}
+            <div className={styles.segmentGrid}>
+              <FranceSegmentCards />
             </div>
           </div>
         </section>
 
-        <section className="landing-section france-seo-section">
-          <div className="landing-wrap france-two-column">
+        <section className="landing-section">
+          <div className={`landing-wrap ${styles.twoColumn}`}>
             <div>
-              <p className="about-eyebrow">Cas d&apos;usage</p>
-              <h2>Les workflows stock essentiels pour une PME</h2>
-              <p>
-                Centralisez la gestion du stock, remplacez les fichiers Excel disperses et suivez les commandes
-                fournisseurs sur plusieurs emplacements.
-              </p>
+              <p className={styles.eyebrow}><TranslatedMessage id="france.home.useCases" /></p>
+              <h2><TranslatedMessage id="france.home.workflows" /></h2>
+              <p><TranslatedMessage id="france.home.workflowDescription" /></p>
             </div>
-            <div className="france-usecase-list">
-              {franceSeoUseCases.map((useCase) => (
-                <article key={useCase.slug}>
-                  <h3>{useCase.title}</h3>
-                  <p>{useCase.description}</p>
-                  <small>Cas d&apos;usage LockStock</small>
-                </article>
-              ))}
+            <div className={styles.usecaseList}>
+              <FranceUseCaseCards />
             </div>
           </div>
         </section>

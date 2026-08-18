@@ -7,24 +7,40 @@
     "build": "next build",
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
     "lint": "eslint .",
+    "audit:prod": "node scripts/audit-prod.mjs",
+    "report:legacy-billing": "node scripts/legacy-billing-audit.mjs",
     "typecheck": "next typegen && tsc --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm run test:api && npm run build",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "db:types": "node scripts/database-types.mjs",
+    "db:types:check": "node scripts/database-types.mjs check",
     "check:migrations:linked": "node scripts/check-linked-migrations.js",
+    "repo:hygiene": "node scripts/repository-hygiene.mjs",
+    "sync:repository-assets": "node scripts/sync-repository-assets.mjs",
     "smoke:test": "powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1",
-    "test:api": "vitest run"
+    "test:api": "vitest run",
+    "test:db": "node scripts/verify-database.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.3",
-    "next": "^16.2.4",
+    "next": "16.3.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "stripe": "21.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.13.10",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
+    "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^15.5.12",
+    "eslint-config-next": "16.3.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.8.2",
     "vitest": "^3.2.4"
   }

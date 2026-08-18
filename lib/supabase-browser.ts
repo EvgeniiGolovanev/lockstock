@@ -1,6 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 
-let browserClient: ReturnType<typeof createClient> | null = null;
+let browserClient: SupabaseClient<Database> | null = null;
 
 export function getSupabaseBrowserClient() {
   if (browserClient) {
@@ -14,7 +15,7 @@ export function getSupabaseBrowserClient() {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   }
 
-  browserClient = createClient(url, anonKey, {
+  browserClient = createClient<Database>(url, anonKey, {
     auth: {
       // Avoid navigator lock contention errors in local/dev environments.
       lock: async (_name, _acquireTimeout, fn) => fn()

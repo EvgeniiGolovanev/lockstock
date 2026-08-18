@@ -3,21 +3,50 @@ import { handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createTeamSchema } from "@/lib/validators/team";
 
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { orgId, supabase } = await requireRequestContext(request);
+    const page = parsePositiveInt(request.nextUrl.searchParams.get("page"), 1);
+    const limit = Math.min(parsePositiveInt(request.nextUrl.searchParams.get("limit"), DEFAULT_LIMIT), MAX_LIMIT);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from("teams")
-      .select("*, members:team_members(user_id)")
+      .select("*, members:team_members(user_id)", { count: "exact" })
       .eq("org_id", orgId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) {
       throw error;
     }
 
-    return NextResponse.json({ data });
+    const total = count ?? 0;
+
+    return NextResponse.json({
+      data: data ?? [],
+      meta: {
+        page,
+        limit,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / limit))
+      }
+    });
   } catch (error) {
     return handleApiError(error);
   }
@@ -25,35 +54,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { orgId, userId, role, supabase } = await requireRequestContext(request);
+    const { orgId, role, supabase } = await requireRequestContext(request);
     requireMinRole(role, "manager");
     const payload = createTeamSchema.parse(await request.json());
 
-    const { data: team, error: teamError } = await supabase
-      .from("teams")
-      .insert({
-        org_id: orgId,
-        created_by: userId,
-        ...payload
-      })
-      .select("*")
-      .single();
-
-    if (teamError) {
-      throw teamError;
-    }
-
-    const { error: memberError } = await supabase.from("team_members").insert({
-      team_id: team.id,
-      user_id: userId,
-      created_by: userId
+    const { data, error } = await supabase.rpc("create_team_with_owner", {
+      p_org_id: orgId,
+      p_name: payload.name,
+      ...(payload.description ? { p_description: payload.description } : {})
     });
 
-    if (memberError) {
-      throw memberError;
+    if (error) {
+      throw error;
     }
 
-    return NextResponse.json({ data: team }, { status: 201 });
+    return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }
