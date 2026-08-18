@@ -7,6 +7,7 @@ const supabaseAnonKey = process.env.PLAYWRIGHT_SUPABASE_ANON_KEY ?? "playwright-
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}{ext}",
   fullyParallel: false,
   workers: 1,
   use: {
@@ -21,6 +22,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       PORT: String(port),
+      PLAYWRIGHT_E2E: "true",
       NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey
     }

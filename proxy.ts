@@ -10,6 +10,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Playwright supplies deterministic browser fixtures and intercepts every
+  // protected API response. Its development server has no Supabase Auth
+  // service, so keep this opt-in escape hatch confined to that process.
+  if (process.env.PLAYWRIGHT_E2E === "true") {
+    return NextResponse.next();
+  }
+
   if (PUBLIC_API_PATHS.has(pathname)) {
     return NextResponse.next();
   }

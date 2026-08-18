@@ -197,11 +197,11 @@ function baseAppState(): AppState {
 
 async function installAuthRoutes(page: Page, session = makeSession()) {
   await page.route("**/auth/v1/token*", async (route) => {
-    if (route.request().method() !== "POST") {
-      await route.continue();
-      return;
-    }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(session) });
+  });
+
+  await page.route("**/auth/v1/user", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(session.user) });
   });
 }
 
@@ -410,6 +410,7 @@ test("landing sign-in redirects into the inventory shell", async ({ page }) => {
 
 test("contact page persists the selected locale and renders explicit French messages", async ({ page }) => {
   await page.goto("/contact", { waitUntil: "domcontentloaded" });
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("lockstock.locale"))).toBe("en");
   await page.getByRole("button", { name: "FR" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
@@ -432,7 +433,8 @@ test("landing page renders French copy from message keys after a locale switch",
 });
 
 test("payment trial start stores the workspace and opens inventory", async ({ page }) => {
-  await seedSession(page);
+  await seedSignedInPage(page);
+  await installAuthRoutes(page);
   await installAppRoutes(page, baseAppState());
   await page.goto("/payment", { waitUntil: "domcontentloaded" });
 
@@ -476,18 +478,22 @@ test("critical pages stay accessible at desktop and mobile widths", async ({ pag
 test("inventory page can switch workspaces after login", async ({ page }) => {
   const state = baseAppState();
   await seedSignedInPage(page);
+  await installAuthRoutes(page);
   await installAppRoutes(page, state);
 
   await page.goto("/members", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Active group:")).toContainText("Northstar Materials");
+  await expect(page.getByText("Active workspace:")).toContainText("Northstar Materials");
 
-  await page.getByRole("button", { name: "Open Group" }).click();
-  await expect(page.getByText("Active group:")).toContainText("South Bay Logistics");
+  const openGroup = page.getByRole("button", { name: "Open Group" });
+  await expect(openGroup).toBeEnabled({ timeout: 15_000 });
+  await openGroup.click();
+  await expect(page.getByText("Active workspace:")).toContainText("South Bay Logistics");
 });
 
 test("stock movement creation works and rejects read-only workspaces", async ({ page }) => {
   const state = baseAppState();
   await seedSignedInPage(page);
+  await installAuthRoutes(page);
   await installAppRoutes(page, state);
 
   await page.goto("/stock-movements", { waitUntil: "domcontentloaded" });
@@ -503,6 +509,8 @@ test("stock movement creation works and rejects read-only workspaces", async ({ 
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(page.locator("tbody tr").first()).toContainText("3");
   expect(state.stockMovementPosts).toBe(1);
+  await moveDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(moveDialog).toBeHidden();
 
   state.readOnlyStockFailure = "Workspace is read-only.";
   state.entitlements = {

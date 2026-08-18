@@ -73,5 +73,12 @@ jobs:
       - name: Reset and test disposable database
         run: npm run test:db
 
+      - name: Start database for generated type check
+        run: supabase start > "$RUNNER_TEMP/supabase-start.log"
+
       - name: Check generated database types
         run: npm run db:types:check
+
+      - name: Stop generated type check database
+        if: always()
+        run: supabase stop > /dev/null

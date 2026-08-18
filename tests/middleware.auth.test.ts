@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
 import { extractBearerToken, requireAuthenticatedUserId } from "@/lib/api/auth";
@@ -11,6 +11,10 @@ vi.mock("@/lib/api/auth", () => ({
 describe("API middleware auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("returns 401 when Authorization header is missing", async () => {
@@ -48,6 +52,18 @@ describe("API middleware auth", () => {
 
     expect(response.status).toBe(200);
     expect(extractBearerToken).not.toHaveBeenCalled();
+    expect(requireAuthenticatedUserId).not.toHaveBeenCalled();
+  });
+
+  it("allows Playwright fixture requests without reaching a real Supabase Auth server", async () => {
+    vi.stubEnv("PLAYWRIGHT_E2E", "true");
+
+    const request = new NextRequest("http://localhost:3000/api/materials", {
+      headers: { Authorization: "Bearer fixture-token" }
+    });
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
     expect(requireAuthenticatedUserId).not.toHaveBeenCalled();
   });
 });

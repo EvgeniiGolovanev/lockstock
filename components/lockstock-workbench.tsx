@@ -436,7 +436,7 @@ export function LockstockWorkbench() {
   const pathname = usePathname();
   const router = useRouter();
   const { locale } = useLanguage();
-  const t = (key: StaticMessageKey) => message(locale, key);
+  const t = useCallback((key: StaticMessageKey) => message(locale, key), [locale]);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
   const [accessToken, setAccessToken] = useState("");
