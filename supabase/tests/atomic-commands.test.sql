@@ -82,9 +82,9 @@ select is(
     '99000000-0000-0000-0000-000000000003',
     'PO-ATOMIC-1',
     'EUR',
+    '[{"material_id":"99000000-0000-0000-0000-000000000002","quantity_ordered":3,"unit_price":12.50}]'::jsonb,
     null,
-    null,
-    '[{"material_id":"99000000-0000-0000-0000-000000000002","quantity_ordered":3,"unit_price":12.50}]'::jsonb
+    null
   )$$),
   'P0001',
   'purchase-order creation rolls back when a line insert fails'
@@ -103,9 +103,9 @@ select is(
     '99000000-0000-0000-0000-000000000003',
     'PO-ATOMIC-1',
     'EUR',
+    '[{"material_id":"99000000-0000-0000-0000-000000000002","quantity_ordered":3,"unit_price":12.50}]'::jsonb,
     null,
-    null,
-    '[{"material_id":"99000000-0000-0000-0000-000000000002","quantity_ordered":3,"unit_price":12.50}]'::jsonb
+    null
   )$$),
   'ok',
   'purchase-order creation succeeds atomically'
@@ -119,9 +119,9 @@ select is(
     '99000000-0000-0000-0000-000000000003',
     'PO-ATOMIC-1',
     'EUR',
+    '[{"material_id":"99000000-0000-0000-0000-000000000002","quantity_ordered":3,"unit_price":12.50}]'::jsonb,
     null,
-    null,
-    '[{"material_id":"99000000-0000-0000-0000-000000000002","quantity_ordered":3,"unit_price":12.50}]'::jsonb
+    null
   )$$),
   '23505',
   'purchase-order retries conflict cleanly on duplicate PO number'

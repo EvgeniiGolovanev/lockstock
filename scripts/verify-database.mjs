@@ -128,7 +128,7 @@ try {
         disposableRoot,
         "--exclude",
         excludedServices.join(",")
-      ])
+      ], { capture: true })
   });
   stackStarted = true;
   if (startResult.attempts > 1) {

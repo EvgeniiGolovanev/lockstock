@@ -27,6 +27,10 @@ create temp table trial_workspace_ids (org_id uuid primary key);
 insert into trial_workspace_ids
 select (public.create_organization_with_owner('Trial Plan Org', 'business'::public.billing_plan, true)).id;
 
+-- Billing columns are intentionally not exposed to an ordinary workspace
+-- member. The remaining assertions validate server-side state.
+reset role;
+
 select is(
   (select plan::text from public.organization_billing where org_id = (select org_id from trial_workspace_ids)),
   'business',

@@ -2,7 +2,19 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(15);
+
+create function pg_temp.try_sql(statement text)
+returns text
+language plpgsql
+as $$
+begin
+  execute statement;
+  return 'ok';
+exception when others then
+  return sqlstate;
+end;
+$$;
 
 insert into public.organizations (id, name)
 values
@@ -173,9 +185,11 @@ select is(
   pg_temp.try_sql($$update public.org_invitations
     set org_id = '10000000-0000-0000-0000-000000000002', role = 'owner'
     where id = '50000000-0000-0000-0000-000000000001'$$),
-  '42501',
-  'invitee cannot redirect an invitation to another organization'
+  'ok',
+  'invitee cannot redirect an invitation to another organization because RLS updates no rows'
 );
+
+reset role;
 
 select is(
   (select org_id from public.org_invitations where id = '50000000-0000-0000-0000-000000000001'),
@@ -189,7 +203,6 @@ select is(
   'invitee cannot elevate an invitation role'
 );
 
-reset role;
 insert into public.workspace_trial_redemptions (user_id, org_id)
 values ('20000000-0000-0000-0000-000000000099', '10000000-0000-0000-0000-000000000001');
 
