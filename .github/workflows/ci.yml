@@ -49,19 +49,6 @@ jobs:
           name: playwright-failure-artifacts
           path: test-results
 
-      # Temporary baseline-capture pass; removed after its Linux artifact is committed.
-      - name: Capture Linux visual baselines
-        if: failure()
-        continue-on-error: true
-        run: npx playwright test --update-snapshots --reporter=line
-
-      - name: Upload Linux visual baselines
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-linux-baselines
-          path: tests/e2e/critical-path.spec.ts-snapshots/*-chromium-linux.png
-
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
