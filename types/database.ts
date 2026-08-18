@@ -294,6 +294,8 @@ export type Database = {
         Row: {
           billing_interval: Database["public"]["Enums"]["billing_interval"]
           cancel_at_period_end: boolean
+          checkout_claim_token: string | null
+          checkout_claimed_at: string | null
           current_period_end: string | null
           last_stripe_event_created_at: string | null
           last_stripe_event_id: string | null
@@ -317,6 +319,8 @@ export type Database = {
         Insert: {
           billing_interval?: Database["public"]["Enums"]["billing_interval"]
           cancel_at_period_end?: boolean
+          checkout_claim_token?: string | null
+          checkout_claimed_at?: string | null
           current_period_end?: string | null
           last_stripe_event_created_at?: string | null
           last_stripe_event_id?: string | null
@@ -340,6 +344,8 @@ export type Database = {
         Update: {
           billing_interval?: Database["public"]["Enums"]["billing_interval"]
           cancel_at_period_end?: boolean
+          checkout_claim_token?: string | null
+          checkout_claimed_at?: string | null
           current_period_end?: string | null
           last_stripe_event_created_at?: string | null
           last_stripe_event_id?: string | null
@@ -635,7 +641,7 @@ export type Database = {
           last_attempt_at: string
           last_error_code: string | null
           last_error_message: string | null
-          processed_at: string
+          processed_at: string | null
           status: string
         }
         Insert: {
@@ -648,7 +654,7 @@ export type Database = {
           last_attempt_at?: string
           last_error_code?: string | null
           last_error_message?: string | null
-          processed_at?: string
+          processed_at?: string | null
           status?: string
         }
         Update: {
@@ -661,7 +667,7 @@ export type Database = {
           last_attempt_at?: string
           last_error_code?: string | null
           last_error_message?: string | null
-          processed_at?: string
+          processed_at?: string | null
           status?: string
         }
         Relationships: []
@@ -873,17 +879,17 @@ export type Database = {
       }
       workspace_trial_redemptions: {
         Row: {
-          org_id: string
+          org_id: string | null
           redeemed_at: string
           user_id: string
         }
         Insert: {
-          org_id: string
+          org_id?: string | null
           redeemed_at?: string
           user_id: string
         }
         Update: {
-          org_id?: string
+          org_id?: string | null
           redeemed_at?: string
           user_id?: string
         }
@@ -941,8 +947,26 @@ export type Database = {
           status: string
         }[]
       }
+      claim_workspace_checkout: {
+        Args: { p_org_id: string }
+        Returns: {
+          claim_token: string
+          state: string
+          stripe_checkout_session_id: string
+          stripe_customer_id: string
+        }[]
+      }
       complete_stripe_webhook_event: {
         Args: { p_event_id: string }
+        Returns: undefined
+      }
+      complete_workspace_checkout_claim: {
+        Args: {
+          p_claim_token: string
+          p_org_id: string
+          p_stripe_checkout_session_id: string
+          p_stripe_customer_id: string
+        }
         Returns: undefined
       }
       create_organization_with_owner: {
@@ -963,25 +987,6 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
-      }
-      claim_workspace_checkout: {
-        Args: { p_org_id: string }
-        Returns: { claim_token: string | null; state: string; stripe_checkout_session_id: string | null; stripe_customer_id: string | null }[]
-      }
-      complete_workspace_checkout_claim: {
-        Args: { p_claim_token: string; p_org_id: string; p_stripe_checkout_session_id: string; p_stripe_customer_id: string | null }
-        Returns: undefined
-      }
-      release_workspace_checkout_session: {
-        Args: { p_org_id: string; p_stripe_checkout_session_id: string }
-        Returns: undefined
-      }
-      start_workspace_trial: {
-        Args: { p_org_id: string }
-        Returns: {
-          org_id: string
-          trial_ends_at: string
-        }[]
       }
       create_purchase_order_with_lines: {
         Args: {
@@ -1087,9 +1092,20 @@ export type Database = {
         Args: { p_invitation_id: string }
         Returns: Json
       }
+      release_workspace_checkout_session: {
+        Args: { p_org_id: string; p_stripe_checkout_session_id: string }
+        Returns: undefined
+      }
       remove_org_member_with_team_memberships: {
         Args: { p_org_id: string; p_target_user_id: string }
         Returns: Json
+      }
+      start_workspace_trial: {
+        Args: { p_org_id: string }
+        Returns: {
+          org_id: string
+          trial_ends_at: string
+        }[]
       }
       transition_purchase_order_status: {
         Args: {
