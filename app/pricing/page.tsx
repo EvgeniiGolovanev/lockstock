@@ -148,9 +148,9 @@ export default function PricingPage() {
           </div>
           <div>
             <h4><TranslatedMessage id="pricing.legal" /></h4>
-            <Link href="/#pricing"><TranslatedMessage id="pricing.privacy" /></Link>
-            <Link href="/#pricing"><TranslatedMessage id="pricing.terms" /></Link>
-            <Link href="/#pricing"><TranslatedMessage id="pricing.security" /></Link>
+            <Link href="/privacy"><TranslatedMessage id="pricing.privacy" /></Link>
+            <Link href="/terms"><TranslatedMessage id="pricing.terms" /></Link>
+            <Link href="/security"><TranslatedMessage id="pricing.security" /></Link>
           </div>
         </div>
         <div className="landing-wrap landing-footer-bottom"><TranslatedMessage id="pricing.copyright" /></div>

@@ -7,6 +7,7 @@ import { priceIdForSelection } from "@/lib/billing/price-ids";
 import { getStripeClient } from "@/lib/billing/stripe";
 import { getSupabaseServiceClient } from "@/lib/supabase-service";
 import { requireAuthenticatedUserId } from "@/lib/api/auth";
+import { consumePublicRateLimit, getRateLimitSubject } from "@/lib/api/public-rate-limit";
 
 const schema = z.object({
   plan: z.enum(["starter", "operations", "business"]),
@@ -16,6 +17,12 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const userId = await requireAuthenticatedUserId(request);
+    const rateLimit = await consumePublicRateLimit("billing_checkout", getRateLimitSubject(request, userId));
+    if (!rateLimit.allowed) {
+      throw new ApiError(429, "Too many billing requests. Please try again later.", {
+        retryAfterSeconds: rateLimit.retryAfterSeconds
+      });
+    }
     const selection = schema.parse(await request.json());
     const { orgId } = await ensureOwnedOrganization(request, selection.plan, false);
     const supabase = getSupabaseServiceClient();

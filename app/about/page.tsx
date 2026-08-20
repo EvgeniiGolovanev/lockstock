@@ -106,9 +106,9 @@ export default function AboutPage() {
           </div>
           <div>
             <h4><TranslatedMessage id="footer.legal" /></h4>
-            <Link href="/#pricing"><TranslatedMessage id="footer.privacy" /></Link>
-            <Link href="/#pricing"><TranslatedMessage id="footer.terms" /></Link>
-            <Link href="/#pricing"><TranslatedMessage id="footer.security" /></Link>
+            <Link href="/privacy"><TranslatedMessage id="footer.privacy" /></Link>
+            <Link href="/terms"><TranslatedMessage id="footer.terms" /></Link>
+            <Link href="/security"><TranslatedMessage id="footer.security" /></Link>
           </div>
         </div>
         <div className="landing-wrap landing-footer-bottom"><TranslatedMessage id="footer.copyright" /></div>

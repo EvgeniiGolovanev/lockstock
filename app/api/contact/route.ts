@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
-import { checkContactRateLimit, getContactRateLimitKey } from "@/lib/api/contact-rate-limit";
+import { consumePublicRateLimit, getRateLimitSubject } from "@/lib/api/public-rate-limit";
 import { sendTransactionalEmail } from "@/lib/api/mailer";
 import { contactMessageSchema } from "@/lib/validators/contact";
 
@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
       throw new ApiError(400, "Could not send your message.");
     }
 
-    const rateLimit = checkContactRateLimit(getContactRateLimitKey(request, payload.email));
+    const rateLimit = await consumePublicRateLimit("contact", getRateLimitSubject(request, payload.email));
     if (!rateLimit.allowed) {
-      throw new ApiError(429, "Too many contact requests. Please try again later.");
+      throw new ApiError(429, "Too many contact requests. Please try again later.", { retryAfterSeconds: rateLimit.retryAfterSeconds });
     }
 
     const companyLine = payload.company ? `Company: ${payload.company}\n` : "";

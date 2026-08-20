@@ -1,11 +1,21 @@
 # Stage 2: Add distributed abuse controls
 
-## Status: deferred August 17, 2026
+## Status: implemented in the public-launch candidate on August 20, 2026
 
-This work is explicitly deferred by the product owner. Keep the current
-process-local contact limiter in place, and do not add shared rate-limit
-infrastructure until production uses multiple instances or contact abuse is
-observed. This task remains open and is not part of the current release scope.
+The release candidate replaces the process-local contact limiter with the
+database-backed `public_rate_limits` table and the service-role-only
+`consume_public_rate_limit` RPC. The control covers contact, checkout, and
+trial-start requests; hashes rate-limit subjects; expires stale rows; and fails
+closed when the durable store is unavailable.
+
+Before marking the release live, run `npm.cmd run test:db`, verify the exact
+migration state in production, and execute the public rate-limit acceptance
+checks in `docs/public-launch-runbook.md`. This ticket is superseded by that
+release gate and does not need a separate shared-store implementation.
+
+The previous deferred decision no longer applies. Do not restore the
+process-local limiter or add a second rate-limit store without an operational
+need and an explicit migration plan.
 
 Replace process-local abuse controls only when the deployment topology or
 incident volume justifies shared infrastructure. Minimal structured diagnostics
