@@ -45,6 +45,20 @@ function isDatabaseLikeError(error: unknown): error is DatabaseLikeError {
   return typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string";
 }
 
+function responseHeaders(requestId: string, status: number, details: unknown) {
+  const headers = new Headers({ "x-request-id": requestId });
+  const retryAfterSeconds =
+    typeof details === "object" && details !== null && "retryAfterSeconds" in details
+      ? (details as { retryAfterSeconds?: unknown }).retryAfterSeconds
+      : undefined;
+
+  if (status === 429 && typeof retryAfterSeconds === "number" && Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0) {
+    headers.set("retry-after", String(retryAfterSeconds));
+  }
+
+  return headers;
+}
+
 export function handleApiError(error: unknown) {
   const requestId = createCorrelationId();
 
@@ -56,7 +70,10 @@ export function handleApiError(error: unknown) {
       console.warn("API authorization failure", { requestId, status: error.status, code, message: error.message });
     }
 
-    return NextResponse.json({ error: error.message, code, requestId }, { status: error.status, headers: { "x-request-id": requestId } });
+    return NextResponse.json(
+      { error: error.message, code, requestId },
+      { status: error.status, headers: responseHeaders(requestId, error.status, error.details) }
+    );
   }
 
   if (error instanceof ZodError) {

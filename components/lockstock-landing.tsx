@@ -494,8 +494,8 @@ export function LockstockLanding() {
             <h4>{t("footer.company")}</h4>
             <a href="/about">{t("footer.about")}</a>
             <a href="/contact">{t("footer.contact")}</a>
-            <a href="#pricing">{t("footer.privacy")}</a>
-            <a href="#pricing">{t("footer.terms")}</a>
+            <a href="/privacy">{t("footer.privacy")}</a>
+            <a href="/terms">{t("footer.terms")}</a>
           </div>
         </div>
         <div className="landing-wrap landing-footer-bottom">{t("footer.copyright")}</div>

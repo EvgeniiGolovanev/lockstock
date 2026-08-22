@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(17);
 
 select set_eq(
   $$
@@ -38,6 +38,7 @@ select set_eq(
       ('remove_org_member_with_team_memberships'::text),
       ('workspace_has_write_access'::text),
       ('write_audit_log'::text)
+      ,('consume_public_rate_limit'::text)
   $$,
   'the SECURITY DEFINER inventory is explicit and complete'
 );
@@ -145,6 +146,21 @@ select ok(
     'execute'
   ),
   'authenticated cannot invoke the Stripe webhook ledger failure RPC'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.consume_public_rate_limit(text,text)'::regprocedure, 'execute'),
+  'anon cannot invoke the durable rate-limit RPC'
+);
+
+select ok(
+  not has_function_privilege('authenticated', 'public.consume_public_rate_limit(text,text)'::regprocedure, 'execute'),
+  'authenticated cannot invoke the durable rate-limit RPC'
+);
+
+select ok(
+  has_function_privilege('service_role', 'public.consume_public_rate_limit(text,text)'::regprocedure, 'execute'),
+  'service_role can invoke the durable rate-limit RPC'
 );
 
 select set_eq(

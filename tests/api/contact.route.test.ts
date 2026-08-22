@@ -1,18 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/contact/route";
-import { resetContactRateLimit } from "@/lib/api/contact-rate-limit";
 import { sendTransactionalEmail } from "@/lib/api/mailer";
+import { consumePublicRateLimit } from "@/lib/api/public-rate-limit";
 
 vi.mock("@/lib/api/mailer", () => ({
   sendTransactionalEmail: vi.fn()
+}));
+vi.mock("@/lib/api/public-rate-limit", () => ({
+  consumePublicRateLimit: vi.fn(),
+  getRateLimitSubject: (_request: Request, subject: string) => `subject:${subject}`
 }));
 
 describe("POST /api/contact", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetContactRateLimit();
     vi.mocked(sendTransactionalEmail).mockResolvedValue();
+    vi.mocked(consumePublicRateLimit).mockResolvedValue({ allowed: true, remaining: 4, retryAfterSeconds: 0 });
   });
 
   it("sends contact messages to the LockStock contact inbox", async () => {
@@ -97,9 +101,16 @@ describe("POST /api/contact", () => {
         })
       });
 
+    vi.mocked(consumePublicRateLimit)
+      .mockResolvedValueOnce({ allowed: true, remaining: 4, retryAfterSeconds: 0 })
+      .mockResolvedValueOnce({ allowed: true, remaining: 3, retryAfterSeconds: 0 })
+      .mockResolvedValueOnce({ allowed: true, remaining: 2, retryAfterSeconds: 0 })
+      .mockResolvedValueOnce({ allowed: true, remaining: 1, retryAfterSeconds: 0 })
+      .mockResolvedValueOnce({ allowed: true, remaining: 0, retryAfterSeconds: 0 })
+      .mockResolvedValueOnce({ allowed: false, remaining: 0, retryAfterSeconds: 900 });
+
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const response = await POST(createRequest());
-      expect(response.status).toBe(200);
+      expect((await POST(createRequest())).status).toBe(200);
     }
 
     const response = await POST(createRequest());
@@ -107,6 +118,7 @@ describe("POST /api/contact", () => {
 
     expect(response.status).toBe(429);
     expect(body.error).toBe("Too many contact requests. Please try again later.");
+    expect(response.headers.get("retry-after")).toBe("900");
     expect(sendTransactionalEmail).toHaveBeenCalledTimes(5);
   });
 

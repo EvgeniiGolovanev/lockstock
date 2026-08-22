@@ -80,8 +80,8 @@ export default function ContactPage() {
             <h4><TranslatedMessage id="footer.company" /></h4>
             <Link href="/about"><TranslatedMessage id="footer.about" /></Link>
             <Link href="/contact"><TranslatedMessage id="footer.contact" /></Link>
-            <Link href="/#pricing"><TranslatedMessage id="footer.privacy" /></Link>
-            <Link href="/#pricing"><TranslatedMessage id="footer.terms" /></Link>
+            <Link href="/privacy"><TranslatedMessage id="footer.privacy" /></Link>
+            <Link href="/terms"><TranslatedMessage id="footer.terms" /></Link>
           </div>
         </div>
         <div className="landing-wrap landing-footer-bottom"><TranslatedMessage id="footer.copyright" /></div>

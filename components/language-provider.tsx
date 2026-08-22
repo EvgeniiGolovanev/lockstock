@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_LOCALE, LANGUAGE_STORAGE_KEY, type Locale, normalizeLocale } from "@/lib/i18n";
 
 type LanguageContextValue = {
@@ -10,15 +10,12 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 export function LanguageProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof document === "undefined") {
-      return DEFAULT_LOCALE;
-    }
-    return normalizeLocale(document.documentElement.dataset.locale ?? document.documentElement.lang);
-  });
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
   const [localeHydrated, setLocaleHydrated] = useState(false);
+  const hasUserSelectedLocale = useRef(false);
 
   const setLocale = useCallback((nextLocale: Locale) => {
+    hasUserSelectedLocale.current = true;
     setLocaleState(normalizeLocale(nextLocale));
   }, []);
 
@@ -31,7 +28,9 @@ export function LanguageProvider({ children }: Readonly<{ children: React.ReactN
     const preloadedLocale = document.documentElement.dataset.locale;
     const savedLocale = normalizeLocale(rawSavedLocale);
     const detectedLocale = normalizeLocale(window.navigator.language);
-    setLocaleState(rawSavedLocale ? savedLocale : preloadedLocale ? normalizeLocale(preloadedLocale) : detectedLocale);
+    if (!hasUserSelectedLocale.current) {
+      setLocaleState(rawSavedLocale ? savedLocale : preloadedLocale ? normalizeLocale(preloadedLocale) : detectedLocale);
+    }
     setLocaleHydrated(true);
   }, []);
 

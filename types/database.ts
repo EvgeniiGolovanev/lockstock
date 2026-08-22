@@ -503,6 +503,30 @@ export type Database = {
           },
         ]
       }
+      public_rate_limits: {
+        Row: {
+          request_count: number
+          scope: string
+          subject_hash: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          request_count?: number
+          scope: string
+          subject_hash: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Update: {
+          request_count?: number
+          scope?: string
+          subject_hash?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       purchase_orders: {
         Row: {
           created_at: string
@@ -968,6 +992,14 @@ export type Database = {
           p_stripe_customer_id: string
         }
         Returns: undefined
+      }
+      consume_public_rate_limit: {
+        Args: { p_scope: string; p_subject: string }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          retry_after_seconds: number
+        }[]
       }
       create_organization_with_owner: {
         Args: {
