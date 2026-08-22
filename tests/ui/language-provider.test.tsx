@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
+import { act } from "react";
+import { hydrateRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider, useLanguage } from "@/components/language-provider";
+import { TranslatedMessage } from "@/components/translated-message";
 import { LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 
 function LocaleControls() {
@@ -56,6 +60,37 @@ describe("LanguageProvider", () => {
     expect(await screen.findByText("fr")).toBeInTheDocument();
     await new Promise((resolve) => window.setTimeout(resolve, 0));
     expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("fr");
+  });
+
+  it("hydrates server-rendered English before restoring a saved French locale", async () => {
+    const serverMarkup = renderToString(
+      <LanguageProvider>
+        <TranslatedMessage id="nav.features" />
+      </LanguageProvider>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = serverMarkup;
+    document.body.append(container);
+    document.documentElement.dataset.locale = "fr";
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    let root: ReturnType<typeof hydrateRoot>;
+    await act(async () => {
+      root = hydrateRoot(
+        container,
+        <LanguageProvider>
+          <TranslatedMessage id="nav.features" />
+        </LanguageProvider>
+      );
+      await Promise.resolve();
+    });
+
+    expect(consoleError.mock.calls.flat().some((entry) => String(entry).includes("Hydration failed"))).toBe(false);
+    expect(container).toHaveTextContent("Fonctionnalites");
+
+    root!.unmount();
+    consoleError.mockRestore();
   });
 
   it("does not observe or rewrite the application DOM", () => {

@@ -10,12 +10,7 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 export function LanguageProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof document === "undefined") {
-      return DEFAULT_LOCALE;
-    }
-    return normalizeLocale(document.documentElement.dataset.locale ?? document.documentElement.lang);
-  });
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
   const [localeHydrated, setLocaleHydrated] = useState(false);
 
   const setLocale = useCallback((nextLocale: Locale) => {
