@@ -16,13 +16,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: "try { var locale = localStorage.getItem('lockstock.locale'); if (locale) { locale = locale.toLowerCase().startsWith('fr') ? 'fr' : 'en'; document.documentElement.lang = locale; document.documentElement.dataset.locale = locale; } } catch (_) {}"
-          }}
-        />
         <LanguageProvider>
           {children}
         </LanguageProvider>

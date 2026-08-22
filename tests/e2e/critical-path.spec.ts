@@ -422,6 +422,17 @@ test("contact page persists the selected locale and renders explicit French mess
   await expect(page.getByRole("heading", { name: "Parlez-nous de vos operations d'inventaire" })).toBeVisible();
 });
 
+test("contact page restores a saved locale without pre-hydration document mutation", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("lockstock.locale", "fr");
+  });
+
+  await page.goto("/contact", { waitUntil: "networkidle" });
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page.locator("html")).not.toHaveAttribute("data-locale");
+});
+
 test("landing page renders French copy from message keys after a locale switch", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "FR", exact: true }).click();
@@ -580,9 +591,9 @@ test("public page responsive shells keep the desktop and mobile visual baseline"
   for (const path of ["/about", "/contact", "/pricing"]) {
     await page.setViewportSize({ width: 1280, height: 1200 });
     await page.goto(path, { waitUntil: "domcontentloaded" });
-    await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-desktop.png`, { animations: "disabled" });
+    await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-desktop.png`, { animations: "disabled", caret: "initial" });
 
     await page.setViewportSize({ width: 375, height: 1200 });
-    await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-mobile.png`, { animations: "disabled" });
+    await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-mobile.png`, { animations: "disabled", caret: "initial" });
   }
 });
