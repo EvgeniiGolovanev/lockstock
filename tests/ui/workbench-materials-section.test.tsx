@@ -13,7 +13,7 @@ describe("WorkbenchMaterialsSection", () => {
     const onEditMaterial = vi.fn();
     const onToggleMaterialUsage = vi.fn();
 
-    render(
+    const { container } = render(
       <WorkbenchMaterialsSection
         busy={false}
         canExportCsv={true}
@@ -76,5 +76,6 @@ describe("WorkbenchMaterialsSection", () => {
     expect(screen.getByRole("combobox", { name: "Category filter" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Subcategory filter" })).toBeInTheDocument();
     expect(screen.getByText("Page 1/3")).toBeInTheDocument();
+    expect(container.querySelectorAll(".field-icon")).toHaveLength(3);
   });
 });
