@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,6 +10,13 @@ vi.mock("@/components/language-provider", () => ({
 import { WorkbenchSnapshotSection } from "@/components/workbench/snapshot-section";
 
 describe("WorkbenchSnapshotSection", () => {
+  it("provides compact styles for the inventory filter SVG icons", () => {
+    const globalCss = readFileSync(path.join(process.cwd(), "app", "globals.css"), "utf8");
+
+    expect(globalCss).toMatch(/\.field-icon\s*\{[\s\S]*?position:\s*absolute;/);
+    expect(globalCss).toMatch(/\.field-icon svg\s*\{[\s\S]*?width:\s*1rem;/);
+  });
+
   it("renders the dashboard metrics, filters, and inventory table", () => {
     render(
       <WorkbenchSnapshotSection

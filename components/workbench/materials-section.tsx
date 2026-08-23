@@ -58,7 +58,7 @@ type SortableHeaderProps = {
 
 function SearchFieldIcon() {
   return (
-    <svg className="search-field-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="field-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M10 4a6 6 0 104.472 10.007l4.26 4.26 1.414-1.414-4.26-4.26A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z" />
     </svg>
   );
@@ -66,7 +66,7 @@ function SearchFieldIcon() {
 
 function SelectFieldIcon() {
   return (
-    <svg className="select-field-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="field-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M7 10l5 5 5-5H7z" />
     </svg>
   );

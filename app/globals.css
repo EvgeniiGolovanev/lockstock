@@ -494,9 +494,9 @@ button:disabled {
   position: relative;
 }
 
-.search-icon {
+.search-icon,
+.field-icon {
   position: absolute;
-  left: 0.85rem;
   top: 50%;
   transform: translateY(-50%);
   color: #7d8ba1;
@@ -504,7 +504,9 @@ button:disabled {
 }
 
 .search-icon svg,
-.filter-icon svg {
+.filter-icon svg,
+.field-icon,
+.field-icon svg {
   display: block;
   width: 1rem;
   height: 1rem;
@@ -520,6 +522,11 @@ button:disabled {
   padding-left: 2.1rem;
 }
 
+.search-icon,
+.search-input-wrap .field-icon {
+  left: 0.85rem;
+}
+
 .category-wrap {
   position: relative;
 }
@@ -531,6 +538,10 @@ button:disabled {
   transform: translateY(-50%);
   color: #8ca0b8;
   pointer-events: none;
+}
+
+.category-wrap .field-icon {
+  right: 0.9rem;
 }
 
 .category-wrap select {
@@ -1206,7 +1217,8 @@ input[readonly] {
 }
 
 .search-icon,
-.filter-icon {
+.filter-icon,
+.field-icon {
   color: #6b6259;
 }
 
