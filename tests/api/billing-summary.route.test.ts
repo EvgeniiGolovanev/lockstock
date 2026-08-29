@@ -24,7 +24,7 @@ describe("GET /api/billing/summary", () => {
       stripe_subscription_item_id: null,
       stripe_checkout_session_id: null,
       stripe_subscription_schedule_id: null,
-      trial_ends_at: "2026-08-28T10:00:00.000Z",
+      trial_ends_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       current_period_end: null,
       past_due_since: null,
       cancel_at_period_end: false,

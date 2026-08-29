@@ -26,6 +26,20 @@ function Harness() {
   );
 }
 
+function ControlledInputHarness() {
+  const [open, setOpen] = useState(true);
+  const [companyName, setCompanyName] = useState("");
+
+  return open ? (
+    <AccessibilityDialog title="Create account" onClose={() => setOpen(false)}>
+      <label>
+        Company name
+        <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} />
+      </label>
+    </AccessibilityDialog>
+  ) : null;
+}
+
 test("focuses the initial control, traps Tab, closes on Escape, and restores focus", () => {
   render(<Harness />);
 
@@ -52,4 +66,17 @@ test("focuses the initial control, traps Tab, closes on Escape, and restores foc
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog", { name: "Edit location" })).not.toBeInTheDocument();
   expect(trigger).toHaveFocus();
+});
+
+test("keeps focus in a controlled input when its parent re-renders", () => {
+  render(<ControlledInputHarness />);
+
+  const companyName = screen.getByRole("textbox", { name: "Company name" });
+  companyName.focus();
+  expect(companyName).toHaveFocus();
+
+  fireEvent.change(companyName, { target: { value: "Northstar" } });
+
+  expect(companyName).toHaveValue("Northstar");
+  expect(companyName).toHaveFocus();
 });
