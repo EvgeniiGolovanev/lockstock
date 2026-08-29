@@ -29,7 +29,12 @@ export function AccessibilityDialog({ title, onClose, children, closeLabel = "Cl
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -51,7 +56,7 @@ export function AccessibilityDialog({ title, onClose, children, closeLabel = "Cl
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -81,7 +86,7 @@ export function AccessibilityDialog({ title, onClose, children, closeLabel = "Cl
       dialog.removeEventListener("keydown", onKeyDown);
       restoreFocusRef.current?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialogRef}>
