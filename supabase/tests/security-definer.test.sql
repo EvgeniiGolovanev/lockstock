@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(19);
 
 select set_eq(
   $$
@@ -237,6 +237,21 @@ select is(
 );
 
 reset role;
+
+select ok(
+  (
+    select relrowsecurity
+    from pg_class
+    where oid = 'public.workspace_trial_redemptions'::regclass
+  ),
+  'workspace trial redemption ledger has RLS enabled'
+);
+
+select ok(
+  not has_table_privilege('anon', 'public.workspace_trial_redemptions', 'select,insert,update,delete')
+  and not has_table_privilege('authenticated', 'public.workspace_trial_redemptions', 'select,insert,update,delete'),
+  'client roles have no direct access to the workspace trial redemption ledger'
+);
 
 select * from finish();
 
