@@ -206,6 +206,20 @@ from all migrations, seeds it, runs the pgTAP RLS/RPC assertions, and removes
 the temporary containers and volume. It always uses `--local`; it does not use
 or modify a linked Supabase project or an already-running development stack.
 
+Run the real inventory browser/API acceptance suite, including the database
+checks above, with:
+
+```bash
+npx playwright install chromium
+npm run test:inventory
+```
+
+This creates two materials, locations, and vendors, then verifies adjustments,
+consumption, transfers, partial/full PO receipts, and final persisted stock.
+Additional tests check rejected operations, permissions, and concurrent writes.
+See [Inventory acceptance tests](docs/testing/inventory-acceptance.md) for the
+expected balances, coverage boundaries, and failure artifacts.
+
 ## CI Pipeline Gates
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
@@ -217,8 +231,9 @@ The application job runs `npm run verify`, which enforces, in order:
 3. `npm run test:api`
 4. `npm run build`
 
-The database job separately runs the same `npm run test:db` command documented
-above against a disposable local Supabase project.
+The database job runs `npm run test:inventory` against a disposable local
+Supabase project. This includes `test:db` verification and the real inventory
+acceptance tests, with browser traces and screenshots uploaded on failure.
 
 ## Database migration workflow
 
