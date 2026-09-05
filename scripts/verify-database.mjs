@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -11,7 +11,12 @@ const { rewriteSupabaseConfig, startWithPortRetry } = require("./verify-database
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceSupabaseDirectory = path.join(repositoryRoot, "supabase");
-const disposableRoot = mkdtempSync(path.join(tmpdir(), "lockstock-db-verification-"));
+// Webpack cannot make relative entry paths across Windows drive letters when
+// the disposable application links to the repository's node_modules.
+const disposableParent = process.argv.includes("--inventory") && process.platform === "win32"
+  ? path.dirname(repositoryRoot)
+  : tmpdir();
+const disposableRoot = mkdtempSync(path.join(disposableParent, "lockstock-db-verification-"));
 const disposableSupabaseDirectory = path.join(disposableRoot, "supabase");
 const projectId = `lockstock-db-verification-${process.pid}`;
 const migrationUnderTest = "202608131200_enforce_database_authorization_entitlements.sql";
@@ -180,6 +185,37 @@ try {
   if (apiVerification.error) throw apiVerification.error;
   if (apiVerification.status !== 0) {
     throw new Error(`Data API database verification failed with exit code ${apiVerification.status}.`);
+  }
+  if (process.argv.includes("--inventory")) {
+    // Copy application sources without local environment files or build output.
+    // Next may rewrite next-env.d.ts/tsconfig; keep those changes isolated too.
+    const applicationRoot = path.join(disposableRoot, "application");
+    for (const entry of ["app", "components", "lib", "public", "types", "styles", "next.config.mjs", "next-env.d.ts", "package.json", "tsconfig.json", "middleware.ts", "proxy.ts", "postcss.config.mjs"]) {
+      const source = path.join(repositoryRoot, entry);
+      if (existsSync(source)) cpSync(source, path.join(applicationRoot, entry), { recursive: true });
+    }
+    symlinkSync(path.join(repositoryRoot, "node_modules"), path.join(applicationRoot, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+    const status = JSON.parse(statusJson);
+    console.log("Running inventory acceptance tests against the disposable application and database.");
+    const inventoryVerification = spawnSync(process.execPath, [
+      path.join(repositoryRoot, "node_modules", "@playwright", "test", "cli.js"),
+      "test", "--config", "playwright.inventory.config.ts", ...process.argv.slice(2).filter((arg) => arg !== "--inventory")
+    ], {
+      cwd: repositoryRoot,
+      stdio: "inherit",
+      windowsHide: true,
+      env: {
+        ...process.env,
+        INVENTORY_APP_ROOT: applicationRoot,
+        INVENTORY_APP_PORT: String(await getFreePort()),
+        INVENTORY_DISPOSABLE_PROJECT: projectId,
+        INVENTORY_SUPABASE_URL: status.API_URL,
+        INVENTORY_ANON_KEY: status.ANON_KEY,
+        INVENTORY_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY
+      }
+    });
+    if (inventoryVerification.error) throw inventoryVerification.error;
+    if (inventoryVerification.status !== 0) throw new Error(`Inventory acceptance tests failed with exit code ${inventoryVerification.status}.`);
   }
 } finally {
   let cleanupFailure;

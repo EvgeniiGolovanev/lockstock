@@ -412,26 +412,6 @@ const NAV_ITEMS: Array<{ href: NavHref; labelKey: StaticMessageKey; icon: NavIco
   { href: "/workflows", labelKey: "workbench.nav.workflows", icon: "workflows" }
 ] as const;
 
-function SearchFieldIcon() {
-  return (
-    <span className="search-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" />
-      </svg>
-    </span>
-  );
-}
-
-function SelectFieldIcon() {
-  return (
-    <span className="filter-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </span>
-  );
-}
-
 export function LockstockWorkbench() {
   const pathname = usePathname();
   const router = useRouter();
@@ -2093,6 +2073,10 @@ export function LockstockWorkbench() {
             onMaterialPageChange={setMaterialPage}
             onSort={handleTableSort}
           />
+        </>
+      ) : null}
+
+      {showMaterialSection || showLocationSection ? (
           <WorkbenchCatalogForms
             busy={busy}
             canManageCatalog={canManageCatalog}
@@ -2114,7 +2098,6 @@ export function LockstockWorkbench() {
             onCloseEditMaterialForm={closeEditMaterialForm}
             onClosePendingMaterialUsageChange={() => setPendingMaterialUsageChange(null)}
           />
-        </>
       ) : null}
 
       {showStockMovementsSection ? (
@@ -2172,149 +2155,77 @@ export function LockstockWorkbench() {
         />
       ) : null}
       {showSupplierSection ? (
-        <>
-          <section className="card">
-            <div className="inventory-toolbar location-toolbar">
-              <div className="search-input-wrap">
-                <SearchFieldIcon />
-                <input
-                  value={supplierSearch}
-                  onChange={(event) => {
-                    setSupplierSearch(event.target.value);
-                    setSupplierPage(1);
-                  }}
-                  placeholder={t("workbench.supplier.filter")}
-                />
-              </div>
-              <div className="category-wrap">
-                <SelectFieldIcon />
-                <select
-                  value={supplierStatusFilter}
-                  onChange={(event) => {
-                    setSupplierStatusFilter(event.target.value);
-                    setSupplierPage(1);
-                  }}
-                  aria-label={t("workbench.location.status")}
-                >
-                  <option value="all">{t("workbench.location.allStatuses")}</option>
-                  <option value="active">{t("workbench.location.active")}</option>
-                  <option value="blocked">{t("workbench.location.blocked")}</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
-          <section className="card">
-            <div className="table-section-head">
-              <h2>{t("workbench.supplier.management")}</h2>
-              <div className="actions table-head-actions inventory-table-actions">
-                {canManageCatalog ? (
-                  <button type="button" onClick={openCreateSupplierForm}>
-                    Add Vendor
-                  </button>
-                ) : null}
-                {canExportCsv ? (
-                  <button
-                    type="button"
-                    className="ghost-btn export-csv-btn"
-                    disabled={supplierTableRows.length === 0}
-                    onClick={() =>
-                      exportTableCsv(
-                        "vendors.csv",
-                        ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
-                        supplierTableRows.map((row) => [
-                          row.vendorId,
-                          row.name,
-                          row.phone,
-                          row.address,
-                          row.leadTimeDays,
-                          row.status,
-                          row.openOrders,
-                          row.receivedOrders,
-                          row.totalOrders
-                        ])
-                      )
-                    }
-                  >
-                    Export CSV
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <WorkbenchSuppliersSection
-              busy={busy}
-              canExportCsv={canExportCsv}
-              canManageCatalog={canManageCatalog}
-              hasSuppliers={supplierTotal > 0}
-              isOrgScopedReady={isOrgScopedReady}
-              apiRequest={apiRequest}
-              onActivity={addActivity}
-              onBusyChange={setBusy}
-              onRefreshCoreData={refreshCoreData}
-              supplierPage={supplierPage}
-              supplierTotalPages={supplierTotalPages}
-              supplierTableRows={supplierTableRows}
-              supplierSearchQuery={supplierSearch}
-              supplierStatusFilter={supplierStatusFilter}
-              showSupplierForm={showSupplierForm}
-              editingSupplier={editingSupplier}
-              pendingSupplierUsageChange={pendingSupplierUsageChange}
-              onCreateSupplier={openCreateSupplierForm}
-              onEditSupplier={openEditSupplierForm}
-              onToggleSupplierUsage={setPendingSupplierUsageChange}
-              onCloseSupplierForm={closeSupplierForm}
-              onClosePendingSupplierUsageChange={() => setPendingSupplierUsageChange(null)}
-              onExportCsv={() =>
-                exportTableCsv(
-                  "vendors.csv",
-                  ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
-                  supplierTableRows.map((row) => [
-                    row.vendorId,
-                    row.name,
-                    row.phone,
-                    row.address,
-                    row.leadTimeDays,
-                    row.status,
-                    row.openOrders,
-                    row.receivedOrders,
-                    row.totalOrders
-                  ])
-                )
-              }
-              onSupplierSearchChange={(nextValue: string) => {
-                setSupplierSearch(nextValue);
-                setSupplierPage(1);
-                if (!orgId) {
-                  return;
-                }
-                void loadSuppliers(orgId, accessToken, { page: 1, status: supplierStatusFilter, query: nextValue }).catch((error) => {
-                  addActivity(`Loading suppliers failed: ${(error as Error).message}`);
-                });
-              }}
-              onSupplierStatusFilterChange={(nextValue: string) => {
-                setSupplierStatusFilter(nextValue);
-                setSupplierPage(1);
-                if (!orgId) {
-                  return;
-                }
-                void loadSuppliers(orgId, accessToken, { page: 1, status: nextValue, query: supplierSearch }).catch((error) => {
-                  addActivity(`Loading suppliers failed: ${(error as Error).message}`);
-                });
-              }}
-              onSupplierPageChange={(updater) => {
-                const nextPage = typeof updater === "function" ? updater(supplierPage) : updater;
-                setSupplierPage(nextPage);
-                if (!orgId) {
-                  return;
-                }
-                void loadSuppliers(orgId, accessToken, { page: nextPage, status: supplierStatusFilter, query: supplierSearch }).catch((error) => {
-                  addActivity(`Loading suppliers failed: ${(error as Error).message}`);
-                });
-              }}
-            />
-          </section>
-        </>
+        <WorkbenchSuppliersSection
+          busy={busy}
+          canExportCsv={canExportCsv}
+          canManageCatalog={canManageCatalog}
+          hasSuppliers={supplierTotal > 0}
+          isOrgScopedReady={isOrgScopedReady}
+          apiRequest={apiRequest}
+          onActivity={addActivity}
+          onBusyChange={setBusy}
+          onRefreshCoreData={refreshCoreData}
+          supplierPage={supplierPage}
+          supplierTotalPages={supplierTotalPages}
+          supplierTableRows={supplierTableRows}
+          supplierSearchQuery={supplierSearch}
+          supplierStatusFilter={supplierStatusFilter}
+          showSupplierForm={showSupplierForm}
+          editingSupplier={editingSupplier}
+          pendingSupplierUsageChange={pendingSupplierUsageChange}
+          onCreateSupplier={openCreateSupplierForm}
+          onEditSupplier={openEditSupplierForm}
+          onToggleSupplierUsage={setPendingSupplierUsageChange}
+          onCloseSupplierForm={closeSupplierForm}
+          onClosePendingSupplierUsageChange={() => setPendingSupplierUsageChange(null)}
+          onExportCsv={() =>
+            exportTableCsv(
+              "vendors.csv",
+              ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
+              supplierTableRows.map((row) => [
+                row.vendorId,
+                row.name,
+                row.phone,
+                row.address,
+                row.leadTimeDays,
+                row.status,
+                row.openOrders,
+                row.receivedOrders,
+                row.totalOrders
+              ])
+            )
+          }
+          onSupplierSearchChange={(nextValue: string) => {
+            setSupplierSearch(nextValue);
+            setSupplierPage(1);
+            if (!orgId) {
+              return;
+            }
+            void loadSuppliers(orgId, accessToken, { page: 1, status: supplierStatusFilter, query: nextValue }).catch((error) => {
+              addActivity(`Loading suppliers failed: ${(error as Error).message}`);
+            });
+          }}
+          onSupplierStatusFilterChange={(nextValue: string) => {
+            setSupplierStatusFilter(nextValue);
+            setSupplierPage(1);
+            if (!orgId) {
+              return;
+            }
+            void loadSuppliers(orgId, accessToken, { page: 1, status: nextValue, query: supplierSearch }).catch((error) => {
+              addActivity(`Loading suppliers failed: ${(error as Error).message}`);
+            });
+          }}
+          onSupplierPageChange={(updater) => {
+            const nextPage = typeof updater === "function" ? updater(supplierPage) : updater;
+            setSupplierPage(nextPage);
+            if (!orgId) {
+              return;
+            }
+            void loadSuppliers(orgId, accessToken, { page: nextPage, status: supplierStatusFilter, query: supplierSearch }).catch((error) => {
+              addActivity(`Loading suppliers failed: ${(error as Error).message}`);
+            });
+          }}
+        />
       ) : null}
       {showPurchaseOrderSection ? (
         <>
