@@ -53,6 +53,21 @@ Set `NEXT_PUBLIC_SUPABASE_URL` to the local API URL and use the keys from
 supabase db reset
 ```
 
+> **Warning:** `supabase db reset` deletes all local Auth users, sessions, and
+> application data. The SQL seed does not create Auth users. Recreate a local
+> development user with the same credentials after a reset:
+
+```powershell
+$env:DEV_USER_EMAIL = "you@example.test"
+$env:DEV_USER_PASSWORD = "choose-a-local-password"
+$env:DEV_USER_COMPANY = "Your Development Workspace" # optional
+npm run dev:provision-user
+```
+
+The command only operates against local Supabase. It creates a confirmed Auth
+user and starter workspace when missing, verifies the supplied password, and
+leaves an existing user and workspace unchanged.
+
 5. Run development server:
 
 ```bash
