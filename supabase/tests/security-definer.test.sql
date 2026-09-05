@@ -2,7 +2,25 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(20);
+
+select set_eq(
+  $$
+    select p.proname::text
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('is_org_owner', 'set_updated_at', 'assign_supplier_vendor_number')
+      and coalesce(p.proconfig, array[]::text[]) @> array['search_path=public']
+  $$,
+  $$
+    values
+      ('assign_supplier_vendor_number'::text),
+      ('is_org_owner'::text),
+      ('set_updated_at'::text)
+  $$,
+  'public helper and trigger functions use an immutable search path'
+);
 
 select set_eq(
   $$
