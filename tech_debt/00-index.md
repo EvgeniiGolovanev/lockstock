@@ -1,14 +1,26 @@
 # LockStock technical debt backlog
 
-This backlog converts the August 13, 2026 repository review into small,
-ordered tasks. Stage 1 protects correctness and creates safe seams for
-incremental refactoring. Stage 2 contains architectural changes that need a
-product or operating-cost decision before implementation.
+This index tracks the tasks from the August 13, 2026 repository review.
+The status summary below reflects the linked task records as of September 6,
+2026; it does not replace verification of a release commit or production.
 
-## Review baseline
+## Current status and next step
 
-The review used the current working tree, including the uncommitted billing
-and payment work. Existing product files were not changed. The baseline was:
+All 15 Stage 1 tasks are recorded as completed. Three Stage 2 tasks are also
+recorded as completed. Distributed abuse controls are implemented in the
+public-launch candidate, with production acceptance handled by the
+[public launch runbook](../docs/public-launch-runbook.md).
+
+For release work, start with that runbook and record evidence for the exact
+release commit. This index does not establish whether its production checks
+have passed. Reopen a completed task only when new evidence identifies a
+regression or an unmet acceptance criterion.
+
+## Historical review baseline — August 13, 2026
+
+The original review used the working tree at that time, including uncommitted
+billing and payment work. The following results are historical, not current
+test results or open findings:
 
 - `npm run test:api`: 52 files and 219 tests passed.
 - `npm run lint`: passed.
@@ -22,10 +34,11 @@ and payment work. Existing product files were not changed. The baseline was:
 - The Vitest environment is `node`; there is no component renderer, browser
   E2E suite, coverage provider, or database integration suite.
 
-## Execution order
+## Stage 1 — completed task records
 
-Complete the tasks in this order unless an active incident changes the order.
-Each task contains its own tests, non-goals, and rollback notes.
+All tasks below are marked completed in their linked records. The list retains
+the original execution order; each record contains acceptance criteria and
+implementation evidence.
 
 1. **P0** —
    [Restore verification and database test seams](p0-00-restore-green-verification-baseline.md).
@@ -58,19 +71,19 @@ Each task contains its own tests, non-goals, and rollback notes.
 15. **P2** —
     [Remove repository rudiments and documentation drift](p2-13-remove-rudiments-and-documentation-drift.md).
 
-## Stage 2 discussion and readiness queue
+## Stage 2 — task status
 
-Do not start these tasks automatically. Some require a product decision; others
-require evidence or completion of the Stage 1 extraction work.
+The linked records supersede the original deferred queue. Their recorded
+statuses are:
 
-1. [Decide the multi-workspace product
+1. **Completed August 17, 2026:** [Decide the multi-workspace product
    model](stage2-15-decide-multi-workspace-model.md).
-2. [Replace DOM-mutation
+2. **Completed August 18, 2026:** [Replace DOM-mutation
    translation](stage2-16-replace-dom-mutation-translation.md).
-3. [Modularize global CSS without
+3. **Completed August 18, 2026:** [Modularize global CSS without
    redesigning](stage2-17-modularize-global-css.md).
-4. [Add distributed abuse
-   controls](stage2-18-add-distributed-abuse-controls.md).
+4. **Implemented in the candidate August 20, 2026; release gate applies:**
+   [Add distributed abuse controls](stage2-18-add-distributed-abuse-controls.md).
 
 ## Definition of done for the backlog
 
