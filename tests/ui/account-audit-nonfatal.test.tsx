@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const { authMock, localeMock } = vi.hoisted(() => ({
@@ -72,6 +72,74 @@ function mockJsonResponse(body: unknown, ok = true) {
 }
 
 describe("LockstockAccount", () => {
+  afterEach(cleanup);
+  function overrideBilling(entitlements: Record<string, unknown> | null, summary: Record<string, unknown> = {}) {
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init);
+      const url = String(input);
+      if (url.includes("/api/billing/entitlements")) {
+        if (!entitlements) return mockJsonResponse({ error: "Access unavailable" }, false);
+        const body = await response.json();
+        return mockJsonResponse({ data: { ...body.data, ...entitlements } });
+      }
+      if (url.includes("/api/billing/summary")) {
+        const body = await response.json();
+        return mockJsonResponse({ data: { ...body.data, ...summary } });
+      }
+      return response;
+    }));
+  }
+
+  it.each([
+    ["trial_expired", "Read only — trial expired"],
+    ["subscription_inactive", "Read only — subscription inactive"],
+    ["billing_missing", "Read only — billing information missing"]
+  ])("explains restricted access from the server reason %s", async (accessReason, label) => {
+    overrideBilling({ isReadOnly: true, accessReason });
+    render(<LockstockAccount />);
+    expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(screen.queryByText("Read & write")).not.toBeInTheDocument();
+  });
+
+  it("shows paid controls and a formatted renewal date", async () => {
+    overrideBilling({ isReadOnly: false, accessReason: "active_subscription" }, {
+      status: "active", stripe_subscription_id: "sub-1", current_period_end: "2026-10-06T00:00:00Z"
+    });
+    render(<LockstockAccount />);
+    expect(await screen.findByText("Read & write")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText("6 Oct 2026")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Change plan" })).toHaveAttribute("href", "/payment");
+    expect(screen.getByRole("button", { name: "Payment method & invoices" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel renewal" })).toBeInTheDocument();
+  });
+
+  it("does not claim write access when entitlement loading fails", async () => {
+    overrideBilling(null);
+    render(<LockstockAccount />);
+    expect(await screen.findByText("Access unavailable", { selector: "dd" })).toBeInTheDocument();
+    expect(screen.queryByText("Read & write")).not.toBeInTheDocument();
+  });
+
+  it("keeps paid access and offers reactivation when renewal is cancelled", async () => {
+    overrideBilling({ isReadOnly: false, accessReason: "active_subscription" }, {
+      status: "active", stripe_subscription_id: "sub-1", cancel_at_period_end: true,
+      current_period_end: "2026-10-06T00:00:00Z"
+    });
+    render(<LockstockAccount />);
+    expect(await screen.findByText("Read & write")).toBeInTheDocument();
+    expect(screen.getByText("Access ends")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel renewal" })).not.toBeInTheDocument();
+  });
+
+  it("localizes the expired trial explanation", async () => {
+    localeMock.value = "fr";
+    overrideBilling({ isReadOnly: true, accessReason: "trial_expired" });
+    render(<LockstockAccount />);
+    expect(await screen.findByText("Lecture seule — essai expiré")).toBeInTheDocument();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     localeMock.value = "en";

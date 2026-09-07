@@ -19,16 +19,16 @@ type SortableHeaderProps = {
 function SortableHeader({ tableId, sortKey, label, sortState, onSort, sortAriaLabel }: SortableHeaderProps) {
   const isActive = sortState?.key === sortKey;
   return (
-    <th>
+    <th aria-sort={isActive ? (sortState?.direction === "asc" ? "ascending" : "descending") : "none"}>
       <button
         type="button"
-        className={`table-sort-trigger ${isActive ? "is-sorted" : ""}`}
+        className={styles.sortHeader}
         aria-label={sortAriaLabel}
         aria-pressed={isActive}
         onClick={() => onSort(tableId, sortKey)}
       >
         {label}
-        <span aria-hidden="true">{isActive ? (sortState?.direction === "asc" ? "↑" : "↓") : "↕"}</span>
+        {isActive ? <span aria-hidden="true">{sortState?.direction === "asc" ? "↑" : "↓"}</span> : null}
       </button>
     </th>
   );
@@ -176,7 +176,7 @@ export function WorkbenchMembersSection({
       {!ownedGroup ? <p className="subtle-line">{t("workbench.members.noOwnedGroup")}</p> : null}
 
       <div className="table-wrap">
-        <table className="compact-table">
+        <table className={`compact-table ${styles.membersTable}`}>
           <thead>
             <tr>
               <SortableHeader tableId="organization-members" sortKey="member" label={t("workbench.members.member")} sortState={tableSortStateOrganizationMembers} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.members.member"), tableSortStateOrganizationMembers, "member")} />
@@ -228,7 +228,7 @@ export function WorkbenchMembersSection({
       </div>
 
       <div className="table-wrap">
-        <table className="compact-table">
+        <table className={`compact-table ${styles.membersTable}`}>
           <thead>
             <tr>
               <SortableHeader tableId="memberships" sortKey="group" label={t("workbench.members.group")} sortState={tableSortStateMemberships} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.members.group"), tableSortStateMemberships, "group")} />
@@ -305,7 +305,7 @@ export function WorkbenchMembersSection({
       <h3 className={styles.tableTitle}>{t("workbench.members.sentReceived")}</h3>
 
       <div className="table-wrap">
-        <table className="compact-table">
+        <table className={`compact-table ${styles.membersTable}`}>
           <thead>
             <tr>
               <SortableHeader tableId="invitations" sortKey="direction" label={t("workbench.members.direction")} sortState={tableSortStateInvitations} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.members.direction"), tableSortStateInvitations, "direction")} />
@@ -357,7 +357,7 @@ export function WorkbenchMembersSection({
       <h3 className={styles.tableTitle}>{t("workbench.members.roleAuthorizations")}</h3>
 
       <div className="table-wrap">
-        <table className={`compact-table ${styles.roleAuthorizationsTable}`}>
+        <table className={`compact-table ${styles.membersTable} ${styles.roleAuthorizationsTable}`}>
           <thead>
             <tr>
               <th>{t("workbench.members.capability")}</th>

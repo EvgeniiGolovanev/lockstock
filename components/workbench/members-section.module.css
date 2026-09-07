@@ -24,6 +24,44 @@
   margin-top: 1.1rem;
 }
 
+.membersTable th {
+  height: 2.75rem;
+  padding: .58rem .5rem;
+  text-align: left;
+  vertical-align: middle;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.membersTable .sortHeader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .35rem;
+  width: 100%;
+  min-height: 1.6rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  box-shadow: none;
+}
+
+.membersTable .sortHeader:hover:not(:disabled) {
+  color: #f26522;
+  background: transparent;
+}
+
+.membersTable :global(.table-static-head) {
+  text-transform: inherit;
+}
+
 .roleAuthorizationsTable {
   min-width: 1040px;
 }
