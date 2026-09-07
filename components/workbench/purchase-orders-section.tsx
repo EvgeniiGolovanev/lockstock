@@ -83,16 +83,6 @@ function SearchFieldIcon() {
   );
 }
 
-function SelectFieldIcon() {
-  return (
-    <span className="field-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-        <path d="M7 10l5 5 5-5H7Z" />
-      </svg>
-    </span>
-  );
-}
-
 type PurchaseOrderFilterStatus = "all" | WorkbenchPurchaseOrder["status"];
 
 type WorkbenchPurchaseOrdersSectionProps = {
@@ -305,7 +295,6 @@ export function WorkbenchPurchaseOrdersSection({
             />
           </div>
           <label className="field">
-            <SelectFieldIcon />
             <select
               aria-label={t("workbench.location.status")}
               value={poFilterStatus}
@@ -322,7 +311,6 @@ export function WorkbenchPurchaseOrdersSection({
             </select>
           </label>
           <label className="field">
-            <SelectFieldIcon />
             <select
               aria-label={t("workbench.po.supplier")}
               value={poFilterSupplierId}

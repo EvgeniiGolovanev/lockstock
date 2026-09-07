@@ -14,6 +14,7 @@ import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { summarizeAuditMetadata } from "@/lib/ui/audit-log";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
+import type { PlanEntitlements } from "@/lib/billing/entitlements";
 
 type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 type OrgRole = "owner" | "manager" | "member" | "viewer";
@@ -91,6 +92,21 @@ function canExportAuditLog(role: OrgRole | "") {
   return role === "owner" || role === "manager" || role === "member";
 }
 
+function formatBillingDate(value: string | null, locale: "en" | "fr") {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
+    day: "numeric", month: "short", year: "numeric", timeZone: "UTC"
+  }).format(date);
+}
+
+const billingStatusLabels: Record<string, StaticMessageKey> = {
+  trialing: "account.statusTrial", active: "account.statusActive", past_due: "account.statusPastDue",
+  cancelled: "account.statusCancelled", unpaid: "account.statusUnpaid", incomplete: "account.statusIncomplete",
+  incomplete_expired: "account.statusIncompleteExpired", paused: "account.statusPaused"
+};
+
 export function LockstockAccount() {
   const pathname = usePathname();
   const router = useRouter();
@@ -115,6 +131,7 @@ export function LockstockAccount() {
     selectedPlan: string;
     effectivePlan: string;
     isReadOnly: boolean;
+    accessReason?: PlanEntitlements["accessReason"];
     canExportAudit: boolean;
   } | null>(null);
   const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
@@ -286,7 +303,7 @@ export function LockstockAccount() {
         const [auditResponse, organizationsResponse, entitlementsResponse, billingResponse] = await Promise.allSettled([
           browserApiRequest<{ data: AuditLogEntry[] }>("/api/audit-log", { orgId: activeOrgId }),
           browserApiRequest<{ data: OrganizationMembership[] }>("/api/organizations"),
-          browserApiRequest<{ data: { selectedPlan: string; effectivePlan: string; isReadOnly: boolean; features: { auditCsvExport: boolean } } }>("/api/billing/entitlements", { orgId: activeOrgId }),
+          browserApiRequest<{ data: PlanEntitlements }>("/api/billing/entitlements", { orgId: activeOrgId }),
           browserApiRequest<{ data: BillingSummary }>("/api/billing/summary", { orgId: activeOrgId })
         ]);
 
@@ -304,9 +321,11 @@ export function LockstockAccount() {
             selectedPlan: entitlementsResponse.value.data.selectedPlan,
             effectivePlan: entitlementsResponse.value.data.effectivePlan,
             isReadOnly: entitlementsResponse.value.data.isReadOnly,
+            accessReason: entitlementsResponse.value.data.accessReason,
             canExportAudit: entitlementsResponse.value.data.features.auditCsvExport
           });
         } else {
+          setPlanAccess(null);
           errors.push(entitlementsResponse.reason instanceof Error ? entitlementsResponse.reason.message : "Unable to load entitlement context.");
         }
 
@@ -530,6 +549,14 @@ export function LockstockAccount() {
     }
   }
 
+  const readOnlyLabels: Partial<Record<PlanEntitlements["accessReason"], StaticMessageKey>> = {
+    trial_expired: "account.readOnlyTrialExpired",
+    subscription_inactive: "account.readOnlyInactive",
+    billing_missing: "account.readOnlyBillingMissing"
+  };
+  const accessLabel = !planAccess ? t("account.accessUnavailable") : !planAccess.isReadOnly ? t("account.writable")
+    : t((planAccess.accessReason && readOnlyLabels[planAccess.accessReason]) || "account.readOnly");
+
   return (
     <>
       <section className="card shell-nav">
@@ -690,29 +717,33 @@ export function LockstockAccount() {
 
       {activeOrgRole === "owner" && billingSummary ? (
         <section className={`card ${styles.billingCard}`}>
-          <div className="title-row">
-            <div>
-              <h3>{t("account.subscription")}</h3>
-              <p>{t("account.subscriptionDescription")}</p>
+          <article className={styles.accountCard}>
+            <div className={styles.billingHeading}>
+              <div>
+                <h3>{t("account.subscription")}</h3>
+                <p>{t("account.subscriptionDescription")}</p>
+              </div>
+              <span className={styles.billingStatus} data-status={billingSummary.status}>
+                {t(billingStatusLabels[billingSummary.status] ?? "account.statusUnknown")}
+              </span>
             </div>
-            <span className={`platform-status-pill platform-status-${billingSummary.status}`}>{billingSummary.status.replaceAll("_", " ")}</span>
-          </div>
-          <div className={styles.billingSummaryGrid}>
-            <div><span>{t("account.currentPlan")}</span><strong>{billingSummary.plan}</strong></div>
-            <div><span>{t("account.billing")}</span><strong>{billingSummary.billing_interval}</strong></div>
-            <div><span>{billingSummary.status === "trialing" ? t("account.trialEnds") : t("account.renews")}</span><strong>{billingSummary.status === "trialing" ? billingSummary.trial_ends_at?.slice(0, 10) ?? "-" : billingSummary.current_period_end ?? "-"}</strong></div>
-            <div><span>{t("account.access")}</span><strong>{planAccess?.isReadOnly ? t("account.readOnly") : t("account.writable")}</strong></div>
-          </div>
-          {billingSummary.scheduled_plan ? (
-            <p className="subtle-line">{message(locale, "account.scheduled", { plan: billingSummary.scheduled_plan, interval: billingSummary.scheduled_interval ?? "", date: billingSummary.scheduled_effective_at?.slice(0, 10) ?? "" })}</p>
-          ) : null}
-          {billingSummary.past_due_since ? <p className="subtle-line">{message(locale, "account.gracePeriod", { date: billingSummary.past_due_since.slice(0, 10) })}</p> : null}
-          <div className="button-row">
-            <Link className="ghost-btn" href="/payment">{t("account.changePlan")}</Link>
-            {billingSummary.stripe_subscription_id ? <button type="button" className="ghost-btn" disabled={busy} onClick={() => void handleBillingAction("portal-session")}>{t("account.paymentMethod")}</button> : null}
-            {billingSummary.stripe_subscription_id && !billingSummary.cancel_at_period_end ? <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleBillingAction("cancel")}>{t("account.cancelRenewal")}</button> : null}
-            {billingSummary.cancel_at_period_end ? <button type="button" disabled={busy} onClick={() => void handleBillingAction("reactivate")}>{t("account.reactivate")}</button> : null}
-          </div>
+            <dl className={styles.billingSummaryGrid}>
+              <div className="field"><dt><span>{t("account.currentPlan")}</span></dt><dd className={styles.billingPlan}>{billingSummary.plan}</dd></div>
+              <div className="field"><dt><span>{t("account.billing")}</span></dt><dd>{t(billingSummary.billing_interval === "annual" ? "account.billingAnnual" : "account.billingMonthly")}</dd></div>
+              <div className="field"><dt><span>{billingSummary.status === "trialing" ? t("account.trialEnds") : billingSummary.cancel_at_period_end ? t("account.accessEnds") : t("account.renews")}</span></dt><dd>{formatBillingDate(billingSummary.status === "trialing" ? billingSummary.trial_ends_at : billingSummary.current_period_end, locale)}</dd></div>
+              <div className="field"><dt><span>{t("account.access")}</span></dt><dd>{accessLabel}</dd></div>
+            </dl>
+            {billingSummary.scheduled_plan ? (
+              <p className="subtle-line">{message(locale, "account.scheduled", { plan: billingSummary.scheduled_plan, interval: billingSummary.scheduled_interval ?? "", date: billingSummary.scheduled_effective_at?.slice(0, 10) ?? "" })}</p>
+            ) : null}
+            {billingSummary.past_due_since ? <p className="subtle-line">{message(locale, "account.gracePeriod", { date: billingSummary.past_due_since.slice(0, 10) })}</p> : null}
+            <div className={`actions ${styles.billingActions}`}>
+              <Link className={styles.billingPrimary} href="/payment">{t("account.changePlan")}</Link>
+              {billingSummary.stripe_subscription_id ? <button type="button" className={styles.billingSecondary} disabled={busy} onClick={() => void handleBillingAction("portal-session")}>{t("account.paymentMethod")}</button> : null}
+              {billingSummary.stripe_subscription_id && !billingSummary.cancel_at_period_end ? <button type="button" className={styles.billingCancel} disabled={busy} onClick={() => void handleBillingAction("cancel")}>{t("account.cancelRenewal")}</button> : null}
+              {billingSummary.cancel_at_period_end ? <button type="button" disabled={busy} onClick={() => void handleBillingAction("reactivate")}>{t("account.reactivate")}</button> : null}
+            </div>
+            </article>
         </section>
       ) : null}
 
