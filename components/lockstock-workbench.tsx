@@ -2076,7 +2076,7 @@ export function LockstockWorkbench() {
         </>
       ) : null}
 
-      {showLocationSection || showMaterialSection ? (
+      {showMaterialSection || showLocationSection ? (
           <WorkbenchCatalogForms
             busy={busy}
             canManageCatalog={canManageCatalog}

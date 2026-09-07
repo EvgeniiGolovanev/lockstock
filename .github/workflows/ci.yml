@@ -77,8 +77,18 @@ jobs:
         with:
           version: 2.98.2
 
-      - name: Reset and test disposable database
-        run: npm run test:db
+      - name: Install browser for inventory acceptance tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify disposable database and inventory workflows
+        run: npm run test:inventory
+
+      - name: Upload inventory test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-failure-artifacts
+          path: test-results
 
       - name: Start database for generated type check
         run: supabase start > "$RUNNER_TEMP/supabase-start.log"
