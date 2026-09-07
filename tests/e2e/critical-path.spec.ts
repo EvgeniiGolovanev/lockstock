@@ -555,10 +555,10 @@ test("purchase orders and owner billing actions follow the critical path", async
 
   await page.goto("/account", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Subscription" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel at renewal" }).click();
+  await page.getByRole("button", { name: "Cancel renewal" }).click();
   await expect(page.getByText("Reactivate")).toBeVisible();
   await page.getByRole("button", { name: "Reactivate" }).click();
-  await expect(page.getByRole("button", { name: "Cancel at renewal" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel renewal" })).toBeVisible();
 });
 
 test("members table keeps the desktop and mobile visual baseline", async ({ page }) => {
@@ -570,11 +570,11 @@ test("members table keeps the desktop and mobile visual baseline", async ({ page
   const membersTable = page.getByTestId("members-section").locator("table").first();
   await expect(membersTable).toBeVisible();
   await page.mouse.move(1279, 1199);
-  await expect(membersTable).toHaveScreenshot("members-desktop.png", { animations: "disabled" });
+  await expect.soft(membersTable).toHaveScreenshot("members-desktop.png", { animations: "disabled" });
 
   await page.setViewportSize({ width: 375, height: 1200 });
   await page.mouse.move(374, 1199);
-  await expect(membersTable).toHaveScreenshot("members-mobile.png", { animations: "disabled" });
+  await expect.soft(membersTable).toHaveScreenshot("members-mobile.png", { animations: "disabled" });
 });
 
 test("landing shell keeps the desktop and mobile visual baseline", async ({ page }) => {
