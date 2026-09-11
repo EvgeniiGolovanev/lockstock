@@ -13,7 +13,7 @@
 .draftLinesWrap { margin-top: 0.75rem; border: 1px solid #e6ebf4; border-radius: 10px; overflow: hidden; background: #ffffff; }
 .lineRemove { padding: 0.24rem 0.48rem; font-size: 0.78rem; }
 .draftSummary { margin: 0.65rem 0 0; font-size: 0.85rem; color: #32455f; font-weight: 600; }
-.modalFooter { justify-content: flex-end; padding: 0 1rem 1rem; margin-top: 0; border-top: 2px solid #111111; padding-top: 0.85rem; }
+.modalFooter { justify-content: flex-start; padding: 0 1rem 1rem; margin-top: 0; border-top: 2px solid #111111; padding-top: 0.85rem; }
 .receiveSummary, .detailSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
 .receiveSummary > div, .detailSummary > div { border: 2px solid #111111; border-radius: 0; background: #f8f5ef; padding: 0.55rem 0.6rem; }
 .metaLabel { margin: 0; font-size: 0.73rem; color: #6b7b91; }

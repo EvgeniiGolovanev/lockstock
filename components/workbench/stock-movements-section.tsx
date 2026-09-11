@@ -310,9 +310,6 @@ export function WorkbenchStockMovementsSection({
                 <h4>{t("workbench.movement.open")}</h4>
                 <p className="subtle-line">{t("workbench.movement.description")}</p>
               </div>
-              <button type="button" className="ghost-btn" disabled={busy} onClick={() => onShowMovementFormChange(false)}>
-                {t("common.close")}
-              </button>
             </div>
             <div className="materials-form-wrap">
               <div className={styles.formGrid}>

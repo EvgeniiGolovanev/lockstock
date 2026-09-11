@@ -283,9 +283,6 @@ export function WorkbenchPurchaseOrderForms({
           <div className={`modal-card ${poStyles.modalCard}`}>
             <div className={`title-row ${poStyles.modalHead}`}>
               <h4>{t("workbench.po.createTitle")}</h4>
-              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={onClosePoCreateForm}>
-                x
-              </button>
             </div>
             <div className={poStyles.modalBody}>
               <section className={poStyles.modalSection}>
@@ -398,16 +395,16 @@ export function WorkbenchPurchaseOrderForms({
               </section>
             </div>
             <div className={`actions ${poStyles.modalFooter}`}>
-                <button type="button" className="ghost-btn" disabled={busy} onClick={closeCreateForm}>
+              <button
+                type="button"
+                disabled={busy || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
+                onClick={() => void handleCreatePurchaseOrder()}
+              >
+                {t("workbench.po.createTitle")}
+              </button>
+              <button type="button" className="ghost-btn" disabled={busy} onClick={closeCreateForm}>
                 {t("workbench.po.cancel")}
               </button>
-                <button
-                  type="button"
-                  disabled={busy || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
-                  onClick={() => void handleCreatePurchaseOrder()}
-                >
-                  {t("workbench.po.createTitle")}
-                </button>
             </div>
           </div>
         </div>
@@ -418,9 +415,6 @@ export function WorkbenchPurchaseOrderForms({
           <div className={`modal-card ${poStyles.modalCard}`}>
             <div className={`title-row ${poStyles.modalHead}`}>
               <h4>{t("workbench.po.receiveTitle")}</h4>
-              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={onClosePoReceiveForm}>
-                x
-              </button>
             </div>
             <div className={poStyles.modalBody}>
               <section className={poStyles.modalSection}>
@@ -507,15 +501,15 @@ export function WorkbenchPurchaseOrderForms({
               </section>
             </div>
             <div className={`actions ${poStyles.modalFooter}`}>
-              <button type="button" className="ghost-btn" disabled={busy} onClick={closeReceiveForm}>
-                {t("workbench.po.cancel")}
-              </button>
               <button
                 type="button"
                 disabled={busy || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
                 onClick={() => void handleReceivePurchaseOrder()}
               >
                 {t("workbench.po.receive")}
+              </button>
+              <button type="button" className="ghost-btn" disabled={busy} onClick={closeReceiveForm}>
+                {t("workbench.po.cancel")}
               </button>
             </div>
           </div>

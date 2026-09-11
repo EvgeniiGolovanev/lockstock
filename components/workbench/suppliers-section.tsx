@@ -328,9 +328,6 @@ export function WorkbenchSuppliersSection({
           <div className="modal-card">
             <div className="title-row">
               <h4>{editingSupplier ? t("workbench.supplier.edit") : t("workbench.supplier.add")}</h4>
-              <button type="button" className="ghost-btn" onClick={onCloseSupplierForm}>
-                {t("common.close")}
-              </button>
             </div>
             <div className="grid grid-2">
               <label className="field">
@@ -373,6 +370,9 @@ export function WorkbenchSuppliersSection({
             <div className="actions">
               <button type="button" disabled={busy || !isOrgScopedReady || !supplierName.trim()} onClick={() => void handleSaveSupplier()}>
                 {editingSupplier ? t("workbench.supplier.update") : t("workbench.supplier.create")}
+              </button>
+              <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseSupplierForm}>
+                {t("workbench.movement.cancel")}
               </button>
             </div>
           </div>
