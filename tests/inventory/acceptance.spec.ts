@@ -23,7 +23,7 @@ async function move(page: Page, material: Material, location: Location, reason: 
   }
   await dialog.getByLabel(reason === "adjustment" ? "Quantity Delta" : "Quantity", { exact: true }).fill(String(reason === "consumption" ? -quantity : quantity));
   await submit(page, "/stock/movements", () => dialog.getByRole("button", { name: reason === "consumption" ? "Record Consumption" : "Add to Stock", exact: true }).click());
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toBeHidden();
 }
 

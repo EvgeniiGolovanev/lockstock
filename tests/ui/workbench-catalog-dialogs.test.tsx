@@ -46,7 +46,7 @@ describe("catalog dialogs in the complete workbench", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Edit" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit location" });
     expect(within(dialog).getByRole("textbox", { name: "Code" })).toHaveValue("MAIN");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     fireEvent.click(within(row).getByRole("button", { name: "Block" }));
     expect(await screen.findByRole("dialog", { name: "Confirm location usage change" })).toHaveTextContent("Main Warehouse");
   });

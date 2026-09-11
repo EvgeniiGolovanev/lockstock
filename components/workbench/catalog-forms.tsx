@@ -362,9 +362,6 @@ export function WorkbenchCatalogForms({
           <div className="modal-card">
             <div className="title-row">
               <h4>{editingLocation ? t("workbench.catalog.editLocation") : t("workbench.catalog.addLocation")}</h4>
-              <button type="button" className="ghost-btn" onClick={onCloseLocationForm}>
-                {t("common.close")}
-              </button>
             </div>
             <div className="grid grid-2">
               <label className="field">
@@ -383,6 +380,9 @@ export function WorkbenchCatalogForms({
             <div className="actions">
               <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => void handleSaveLocation()}>
                 {editingLocation ? t("workbench.catalog.saveLocation") : t("workbench.catalog.createLocation")}
+              </button>
+              <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseLocationForm}>
+                {t("workbench.movement.cancel")}
               </button>
             </div>
           </div>
@@ -420,9 +420,6 @@ export function WorkbenchCatalogForms({
           <div className="modal-card">
             <div className="title-row">
               <h4>{t("workbench.catalog.createMaterialDialog")}</h4>
-              <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseMaterialCreateForm}>
-                {t("common.close")}
-              </button>
             </div>
             <div className={`materials-form-wrap ${styles.materialEditForm}`}>
               <div className="grid grid-2">

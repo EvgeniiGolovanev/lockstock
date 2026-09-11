@@ -17,7 +17,7 @@ test("vendors page has one set of filters and management actions", async ({ page
   expect((await download).suggestedFilename()).toBe("vendors.csv");
   await page.getByRole("button", { name: "Add Vendor", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Add vendor", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "Add Vendor", exact: true })).toBeVisible();
   await expect(page.locator(".search-input-wrap input")).toHaveCount(1);
