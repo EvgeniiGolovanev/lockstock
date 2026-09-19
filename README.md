@@ -32,6 +32,9 @@ Email integration vars:
 Stripe billing requires the server keys and six recurring Price IDs documented
 in [`docs/billing-setup.md`](docs/billing-setup.md).
 
+Google sign-in requires a Google OAuth client and the Supabase provider settings
+documented in [`docs/google-auth-setup.md`](docs/google-auth-setup.md).
+
 3. Start the local Supabase stack:
 
 ```bash

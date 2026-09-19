@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -1891,6 +1893,7 @@ export function LockstockWorkbench() {
             {t("workbench.auth.signIn")}
           </button>
           <Link href="/forgot-password">{t("recovery.link")}</Link>
+          {!signedInAs && <GoogleSignInButton disabled={Boolean(busy)} />}
           <button type="button" disabled={busy || !signedInAs} onClick={handleLogout}>
             {t("workbench.auth.signOut")}
           </button>

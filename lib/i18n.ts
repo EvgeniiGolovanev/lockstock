@@ -49,6 +49,13 @@ type MessageParams = {
 };
 
 const MESSAGES = {
+  "google.failed": { en: "Google sign-in could not be completed. Please try signing in again.", fr: "La connexion Google a échoué. Veuillez réessayer de vous connecter." },
+  "google.cancelled": { en: "Google sign-in was cancelled or denied. You can try again.", fr: "La connexion Google a été annulée ou refusée. Vous pouvez réessayer." },
+  "google.checking": { en: "Completing sign-in…", fr: "Connexion en cours…" },
+  "google.completeTitle": { en: "Complete your account", fr: "Complétez votre compte" },
+  "google.completeIntro": { en: "Confirm your company and choose how to get started.", fr: "Confirmez votre entreprise et choisissez comment démarrer." },
+  "google.complete": { en: "Continue", fr: "Continuer" },
+  "google.completeFailed": { en: "Your account setup could not be completed. Check your details and try again.", fr: "La configuration de votre compte a échoué. Vérifiez vos informations et réessayez." },
   "recovery.title": { en: "Forgot your password?", fr: "Mot de passe oublié ?" },
   "recovery.link": { en: "Forgot password?", fr: "Mot de passe oublié ?" },
   "recovery.resetTitle": { en: "Set a new password", fr: "Définir un nouveau mot de passe" },

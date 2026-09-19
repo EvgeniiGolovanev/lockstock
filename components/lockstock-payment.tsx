@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
+
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
@@ -92,7 +94,7 @@ export function LockstockPayment() {
   }
 
   async function startTrial() {
-    if (!orgId) return;
+    if (!session || busy) return;
     setBusy("trial"); setMessage("");
     try {
       const payload = await browserApiRequest<{ data: { orgId: string } }>("/api/billing/start-trial", { method: "POST", orgId });
@@ -106,7 +108,7 @@ export function LockstockPayment() {
   }
 
   async function choosePlan(plan: PaidPlan) {
-    if (!orgId) return;
+    if (!session || busy) return;
     setBusy(plan); setMessage("");
     try {
       const existingSubscription = Boolean(summary?.stripe_subscription_id);
@@ -169,6 +171,7 @@ export function LockstockPayment() {
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("payment.password")} required />
             <Link href="/forgot-password">{t("recovery.link")}</Link>
             <button disabled={busy === "signin"}>{t("payment.signIn")}</button>
+            <GoogleSignInButton disabled={Boolean(busy)} intent={{ onboardingMode: "paid", returnTo: `/payment?interval=${interval}` }} />
           </form>
         </section>
       ) : null}
