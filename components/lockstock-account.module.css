@@ -50,3 +50,5 @@
 @media (max-width: 360px) {
   .billingSummaryGrid { grid-template-columns: 1fr; }
 }
+.passwordFeedback { margin: 1rem 0 0; padding: 0.8rem 1rem; border: 1px solid #b64a3b; border-left-width: 4px; background: #fff0ed; color: #8b251b; font-weight: 600; }
+.passwordFeedback[data-success="true"] { border-color: #497539; background: #edf2e8; color: #305024; }

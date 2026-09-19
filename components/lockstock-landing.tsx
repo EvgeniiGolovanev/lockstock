@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AccessibilityDialog } from "@/components/accessibility-dialog";
 import { useLanguage } from "@/components/language-provider";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { LandingHeader } from "@/components/landing-header";
 import { message as renderMessage, type StaticMessageKey } from "@/lib/i18n";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { buildPostSignUpPath, buildSignUpPayload, rememberPostSignUpWorkspace } from "@/lib/auth/signup";
@@ -174,6 +174,16 @@ export function LockstockLanding() {
 
   useEffect(() => {
     const requestedPlan = new URLSearchParams(window.location.search).get("plan");
+    if (new URLSearchParams(window.location.search).get("signup") === "1") {
+      setAuthMode("signup");
+      setAuthOpen(true);
+      return;
+    }
+    if (new URLSearchParams(window.location.search).get("signin") === "1") {
+      setAuthMode("signin");
+      setAuthOpen(true);
+      return;
+    }
     if (["starter", "operations", "business", "enterprise"].includes(requestedPlan ?? "")) {
       setSelectedPlan(requestedPlan as SelectedPlan);
       setOnboardingMode("paid");
@@ -308,46 +318,9 @@ export function LockstockLanding() {
 
   return (
     <div className={shellStyles.scope} data-i18n-rendered="true">
-      <header className="landing-header">
-        <div className="landing-wrap landing-header-row">
-          <div className="landing-brand">
-            <svg className="landing-brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
-              <rect x="2" y="4" width="60" height="8" />
-              <rect className="landing-brand-mark-accent" x="2" y="16" width="60" height="8" />
-              <rect x="2" y="28" width="60" height="8" />
-            </svg>
-            <span className="landing-brand-text">LockStock</span>
-          </div>
-          <nav className="landing-nav">
-            <a href="#features">{t("nav.features")}</a>
-            <a href="#benefits">{t("nav.benefits")}</a>
-            <a href="/pricing">{t("nav.pricing")}</a>
-            <Link href="/france-pme">{t("france.nav.pme")}</Link>
-          </nav>
-          <div className="landing-actions">
-            <LanguageSwitcher />
-            {signedInAs ? (
-              <>
-                <button type="button" className="ghost-btn" onClick={() => router.push("/account")}>
-                  {t("auth.account")}
-                </button>
-                <button type="button" onClick={handleSignOut} disabled={busy}>
-                  {t("auth.signOut")}
-                </button>
-              </>
-            ) : (
-              <>
-                <button type="button" className="ghost-btn" onClick={() => openAuth("signin")}>
-                  {t("auth.signIn")}
-                </button>
-                <button type="button" onClick={() => openAuth("signup")}>
-                  {t("auth.getStarted")}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <LandingHeader home signedInAs={signedInAs} busy={busy}
+        onSignIn={() => openAuth("signin")} onGetStarted={() => openAuth("signup")}
+        onAccount={() => router.push("/account")} onSignOut={handleSignOut} />
 
       <section className="landing-hero">
         <div className="landing-wrap landing-hero-grid">
@@ -574,6 +547,7 @@ export function LockstockLanding() {
             <button type="submit" disabled={busy || !email || !password}>
               {busy ? t("landing.auth.wait") : authMode === "signin" ? t("auth.signIn") : t("landing.auth.createAccount")}
             </button>
+            {authMode === "signin" && <Link href="/forgot-password">{t("recovery.link")}</Link>}
 
             <div className={authStyles.divider}>
               <span>{t("landing.auth.or")}</span>

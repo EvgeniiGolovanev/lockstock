@@ -167,6 +167,7 @@ export function LockstockPayment() {
           <form onSubmit={signIn}>
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("payment.email")} required />
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("payment.password")} required />
+            <Link href="/forgot-password">{t("recovery.link")}</Link>
             <button disabled={busy === "signin"}>{t("payment.signIn")}</button>
           </form>
         </section>
