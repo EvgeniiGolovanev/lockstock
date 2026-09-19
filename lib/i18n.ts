@@ -49,6 +49,25 @@ type MessageParams = {
 };
 
 const MESSAGES = {
+  "recovery.title": { en: "Forgot your password?", fr: "Mot de passe oublié ?" },
+  "recovery.link": { en: "Forgot password?", fr: "Mot de passe oublié ?" },
+  "recovery.resetTitle": { en: "Set a new password", fr: "Définir un nouveau mot de passe" },
+  "recovery.intro": { en: "Enter your email to request a password reset link.", fr: "Saisissez votre adresse e-mail pour recevoir un lien de réinitialisation." },
+  "recovery.resetIntro": { en: "Choose a password with at least 8 characters.", fr: "Choisissez un mot de passe d’au moins 8 caractères." },
+  "recovery.newPassword": { en: "New password", fr: "Nouveau mot de passe" },
+  "recovery.confirmPassword": { en: "Confirm password", fr: "Confirmer le mot de passe" },
+  "recovery.send": { en: "Send reset link", fr: "Envoyer le lien" },
+  "recovery.save": { en: "Save password", fr: "Enregistrer le mot de passe" },
+  "recovery.sent": { en: "If an account exists for this email, you will receive a password reset link. Check your spam folder too.", fr: "Si un compte existe pour cette adresse, vous recevrez un lien de réinitialisation. Vérifiez aussi vos courriers indésirables." },
+  "recovery.saved": { en: "Password updated. Sign in with your new password.", fr: "Mot de passe modifié. Connectez-vous avec votre nouveau mot de passe." },
+  "recovery.invalid": { en: "This reset link is invalid or expired. Request a new link.", fr: "Ce lien est invalide ou a expiré. Demandez un nouveau lien." },
+  "recovery.checking": { en: "Checking your reset link…", fr: "Vérification du lien…" },
+  "recovery.short": { en: "Use at least 8 characters for your password.", fr: "Utilisez au moins 8 caractères pour votre mot de passe." },
+  "recovery.mismatch": { en: "The passwords do not match.", fr: "Les mots de passe ne correspondent pas." },
+  "recovery.sendFailed": { en: "Unable to request a reset link. Please wait a moment and try again.", fr: "Impossible de demander un lien. Patientez un instant puis réessayez." },
+  "recovery.saveFailed": { en: "Unable to save your password. Try a different password or request a new link.", fr: "Impossible d’enregistrer le mot de passe. Essayez un autre mot de passe ou demandez un nouveau lien." },
+  "recovery.back": { en: "Back to sign in", fr: "Retour à la connexion" },
+  "recovery.retry": { en: "Request a new link", fr: "Demander un nouveau lien" },
   "language.label": { en: "Language", fr: "Langue" },
   "workflow.open": { en: "Workflow", fr: "Workflow" },
   "workflow.guide": { en: "Workflow guide", fr: "Guide de workflow" },
@@ -661,6 +680,7 @@ const MESSAGES = {
   "account.invalidEmail": { en: "Update email failed: enter a valid email.", fr: "Mise à jour de l'e-mail impossible : saisissez une adresse valide." },
   "account.emailRequested": { en: "Email update requested. Check your inbox to confirm the new address.", fr: "Mise à jour de l'e-mail demandée. Consultez votre boîte de réception pour confirmer la nouvelle adresse." },
   "account.passwordUpdated": { en: "Password updated.", fr: "Mot de passe mis à jour." },
+  "account.passwordUpdateFailed": { en: "Unable to update your password. Try a different password or try again later.", fr: "Impossible de mettre à jour votre mot de passe. Essayez un autre mot de passe ou réessayez plus tard." },
   "account.selectWorkspace": { en: "Select an active group before exporting the audit log.", fr: "Sélectionnez un groupe actif avant d'exporter le journal d'audit." },
   "account.preparingExport": { en: "Preparing audit export...", fr: "Préparation de l'export d'audit..." },
   "account.actionFailed": {

@@ -122,6 +122,7 @@ export function LockstockAccount() {
   const [accountJobTitle, setAccountJobTitle] = useState("");
   const [accountNewPassword, setAccountNewPassword] = useState("");
   const [accountConfirmPassword, setAccountConfirmPassword] = useState("");
+  const [passwordFeedback, setPasswordFeedback] = useState<{ success: boolean; key: StaticMessageKey } | null>(null);
   const [busy, setBusy] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [accessToken, setAccessToken] = useState("");
@@ -464,8 +465,10 @@ export function LockstockAccount() {
   }
 
   async function handleUpdatePassword() {
+    setPasswordFeedback(null);
     const validationError = validatePasswordChange(accountNewPassword, accountConfirmPassword);
     if (validationError) {
+      setPasswordFeedback({ success: false, key: !accountNewPassword.trim() || accountNewPassword.length < 8 ? "recovery.short" : "recovery.mismatch" });
       addActivity(message(locale, "account.actionFailed", { action: t("account.passwordAction"), reason: validationError }));
       return;
     }
@@ -482,8 +485,10 @@ export function LockstockAccount() {
 
       setAccountNewPassword("");
       setAccountConfirmPassword("");
+      setPasswordFeedback({ success: true, key: "account.passwordUpdated" });
       addActivity(t("account.passwordUpdated"));
     } catch (error) {
+      setPasswordFeedback({ success: false, key: "account.passwordUpdateFailed" });
       addActivity(message(locale, "account.actionFailed", { action: t("account.passwordAction"), reason: (error as Error).message }));
     } finally {
       setBusy(false);
@@ -687,7 +692,8 @@ export function LockstockAccount() {
                   <input
                     type="password"
                     value={accountNewPassword}
-                    onChange={(event) => setAccountNewPassword(event.target.value)}
+                    disabled={busy}
+                    onChange={(event) => { setAccountNewPassword(event.target.value); setPasswordFeedback(null); }}
                   />
                 </label>
                 <label className="field">
@@ -695,7 +701,8 @@ export function LockstockAccount() {
                   <input
                     type="password"
                     value={accountConfirmPassword}
-                    onChange={(event) => setAccountConfirmPassword(event.target.value)}
+                    disabled={busy}
+                    onChange={(event) => { setAccountConfirmPassword(event.target.value); setPasswordFeedback(null); }}
                   />
                 </label>
               </div>
@@ -708,6 +715,12 @@ export function LockstockAccount() {
                   {t("account.updatePassword")}
                 </button>
               </div>
+              {passwordFeedback && (
+                <p role={passwordFeedback.success ? "status" : "alert"}
+                  className={styles.passwordFeedback} data-success={passwordFeedback.success}>
+                  {t(passwordFeedback.key)}
+                </p>
+              )}
             </article>
           </div>
         ) : (

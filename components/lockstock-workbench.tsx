@@ -1890,6 +1890,7 @@ export function LockstockWorkbench() {
           <button type="button" disabled={busy || !email || !password} onClick={handleLogin}>
             {t("workbench.auth.signIn")}
           </button>
+          <Link href="/forgot-password">{t("recovery.link")}</Link>
           <button type="button" disabled={busy || !signedInAs} onClick={handleLogout}>
             {t("workbench.auth.signOut")}
           </button>

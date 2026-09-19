@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const { authMock, localeMock } = vi.hoisted(() => ({
   authMock: {
     getSession: vi.fn(),
+    updateUser: vi.fn(),
     onAuthStateChange: vi.fn()
   },
   localeMock: { value: "en" as "en" | "fr" }
@@ -73,6 +74,38 @@ function mockJsonResponse(body: unknown, ok = true) {
 
 describe("LockstockAccount", () => {
   afterEach(cleanup);
+  it("confirms password changes only after acceptance and clears feedback on edit", async () => {
+    let accept!: (value: { error: null }) => void;
+    authMock.updateUser.mockReturnValue(new Promise(resolve => { accept = resolve; }));
+    render(<LockstockAccount />);
+    fireEvent.change(await screen.findByLabelText("New Password"), { target: { value: "new-password-123" } });
+    fireEvent.change(screen.getByLabelText("Confirm New Password"), { target: { value: "new-password-123" } });
+    const button = screen.getByRole("button", { name: "Update Password" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    expect(screen.queryByRole("status")).toBeNull();
+    accept({ error: null });
+    expect(await screen.findByRole("status")).toHaveTextContent("Password updated.");
+    expect(screen.getByLabelText("New Password")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("New Password"), { target: { value: "another-password" } });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+  it("shows password validation and server failures beside the form", async () => {
+    authMock.updateUser.mockResolvedValue({ error: new Error("provider details") });
+    render(<LockstockAccount />);
+    fireEvent.change(await screen.findByLabelText("New Password"), { target: { value: "new-password-123" } });
+    fireEvent.change(screen.getByLabelText("Confirm New Password"), { target: { value: "different-password" } });
+    const button = screen.getByRole("button", { name: "Update Password" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    expect(screen.getByRole("alert")).toHaveTextContent("passwords do not match");
+    expect(authMock.updateUser).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Confirm New Password"), { target: { value: "new-password-123" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to update");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
   function overrideBilling(entitlements: Record<string, unknown> | null, summary: Record<string, unknown> = {}) {
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

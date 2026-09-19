@@ -127,7 +127,7 @@
 @media (max-width: 768px) {
   .scope :global(.landing-header .landing-wrap) { grid-template-columns: 1fr auto; padding: 0.45rem 0; }
   .scope :global(.landing-nav) { display: none; }
-  .scope :global(.landing-actions) { width: 100%; grid-column: 1 / -1; }
+  .scope :global(.landing-actions) { width: 100%; grid-column: 1 / -1; flex-wrap: wrap; }
   .scope :global(.landing-actions button) { flex: 1; }
   .scope :global(.landing-hero) { padding-top: 2.4rem; }
   .scope :global(.landing-hero-grid) { grid-template-columns: 1fr; }

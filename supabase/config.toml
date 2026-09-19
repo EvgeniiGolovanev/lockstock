@@ -151,6 +151,8 @@ enabled = true
 site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
+  "http://127.0.0.1:3000/reset-password",
+  "http://localhost:3000/reset-password",
     "http://127.0.0.1:3000/account",
     "http://localhost:3000/account",
     "http://127.0.0.1:3000/payment",
@@ -233,6 +235,10 @@ otp_expiry = 3600
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Reset Your Password"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
