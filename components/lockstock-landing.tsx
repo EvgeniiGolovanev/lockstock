@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
+
 import { FormEvent, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -553,9 +555,10 @@ export function LockstockLanding() {
               <span>{t("landing.auth.or")}</span>
             </div>
 
-            <button type="button" className={`ghost-btn ${authStyles.googleButton}`} disabled>
-              {t("landing.auth.google")}
-            </button>
+            <GoogleSignInButton disabled={busy} className={`ghost-btn ${authStyles.googleButton}`} intent={{
+              returnTo: "/inventory",
+              ...(authMode === "signup" ? { fullName, company, onboardingMode, selectedPlan: selectedPlan === "enterprise" ? "business" : selectedPlan } : {})
+            }} />
 
             <p className={authStyles.switch}>
               {authMode === "signup" ? `${t("landing.auth.alreadyHaveAccount")} ` : `${t("landing.auth.noAccount")} `}
