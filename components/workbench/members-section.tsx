@@ -234,7 +234,7 @@ export function WorkbenchMembersSection({
               <SortableHeader tableId="memberships" sortKey="group" label={t("workbench.members.group")} sortState={tableSortStateMemberships} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.members.group"), tableSortStateMemberships, "group")} />
               <SortableHeader tableId="memberships" sortKey="role" label={t("workbench.members.myRole")} sortState={tableSortStateMemberships} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.members.myRole"), tableSortStateMemberships, "role")} />
               <SortableHeader tableId="memberships" sortKey="joined" label={t("workbench.members.joined")} sortState={tableSortStateMemberships} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.members.joined"), tableSortStateMemberships, "joined")} />
-              <th>
+              <th className={styles.membershipActionsHeading}>
                 <span className="table-static-head">{t("workbench.location.actions")}</span>
               </th>
             </tr>
@@ -251,7 +251,7 @@ export function WorkbenchMembersSection({
                   <td>{row.role}</td>
                   <td>{row.joined}</td>
                   <td>
-                    <div className="row-actions table-action-buttons">{row.action}</div>
+                    <div className={styles.membershipActions}>{row.action}</div>
                   </td>
                 </tr>
               ))
@@ -332,7 +332,7 @@ export function WorkbenchMembersSection({
                   <td>{row.role}</td>
                   <td>{row.expires}</td>
                   <td>
-                    {row.invitation.direction === "received" ? (
+                    {row.invitation.direction === "received" && row.invitation.status === "pending" ? (
                       <div className="row-actions table-action-buttons">
                         <button type="button" disabled={busy} onClick={() => onAcceptInvitation(row.id)}>
                           {t("workbench.members.accept")}

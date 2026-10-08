@@ -74,6 +74,22 @@ function mockJsonResponse(body: unknown, ok = true) {
 
 describe("LockstockAccount", () => {
   afterEach(cleanup);
+  it("refreshes membership events when returning to an already open account tab", async () => {
+    const originalFetch = globalThis.fetch;
+    let joined = false;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/audit-log")) return mockJsonResponse({ data: joined ? [{
+        id: "joined-event", actor_user_id: "user-1", action: "created", entity_type: "member",
+        entity_id: "user-1", entity_label: "member", message: "Member created: member", metadata: {}, created_at: "2026-09-28T00:00:00Z"
+      }] : [] });
+      return originalFetch(input, init);
+    }));
+    render(<LockstockAccount />);
+    await screen.findByText("No recorded changes yet.");
+    joined = true;
+    fireEvent(window, new Event("focus"));
+    expect(await screen.findByText("Member created: member")).toBeVisible();
+  });
   it("confirms password changes only after acceptance and clears feedback on edit", async () => {
     let accept!: (value: { error: null }) => void;
     authMock.updateUser.mockReturnValue(new Promise(resolve => { accept = resolve; }));

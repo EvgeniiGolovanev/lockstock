@@ -13,6 +13,7 @@ type AccessibilityDialogProps = {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  showCloseButton?: boolean;
   closeLabel?: string;
   closeAriaLabel?: string;
 };
@@ -25,7 +26,7 @@ function isFocusable(element: HTMLElement | null): element is HTMLElement {
   return !element.hasAttribute("disabled") && element.tabIndex !== -1;
 }
 
-export function AccessibilityDialog({ title, onClose, children, closeLabel = "Close", closeAriaLabel = "Close dialog" }: AccessibilityDialogProps) {
+export function AccessibilityDialog({ title, onClose, children, showCloseButton = true, closeLabel = "Close", closeAriaLabel = "Close dialog" }: AccessibilityDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -93,9 +94,9 @@ export function AccessibilityDialog({ title, onClose, children, closeLabel = "Cl
       <div className="modal-card">
         <div className="title-row">
           <h4 id={titleId}>{title}</h4>
-          <button type="button" className="ghost-btn" aria-label={closeAriaLabel} onClick={onClose} ref={closeButtonRef}>
+          {showCloseButton ? <button type="button" className="ghost-btn" aria-label={closeAriaLabel} onClick={onClose} ref={closeButtonRef}>
             {closeLabel}
-          </button>
+          </button> : null}
         </div>
         {children}
       </div>

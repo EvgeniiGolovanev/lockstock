@@ -1,6 +1,7 @@
 "use client";
 
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { AccessibilityDialog } from "@/components/accessibility-dialog";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -479,6 +480,8 @@ export function LockstockWorkbench() {
   const [organizations, setOrganizations] = useState<OrganizationMembership[]>([]);
   const [organizationMembers, setOrganizationMembers] = useState<OrganizationMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [pendingLeaveGroup, setPendingLeaveGroup] = useState<OrganizationMembership | null>(null);
+  const [leaveGroupError, setLeaveGroupError] = useState("");
   const [stockHealth, setStockHealth] = useState<StockHealth | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [pendingMaterialUsageChange, setPendingMaterialUsageChange] = useState<Material | null>(null);
@@ -1280,6 +1283,8 @@ export function LockstockWorkbench() {
       return;
     }
 
+    // Account-scoped invitations must not depend on workspace data loading.
+    await loadPendingInvitations(tokenOverride);
     const [materialsResult, movementsResult, locationsResult, suppliersResult, activeSuppliersResult, purchaseOrdersResult] = await Promise.all([
       loadMaterials(orgValue, tokenOverride),
       loadMaterialMovements(orgValue, tokenOverride),
@@ -1291,14 +1296,10 @@ export function LockstockWorkbench() {
 
     setLocations(locationsResult.data);
 
-    await loadOrganizationMembers(orgValue, tokenOverride);
-
-    await loadPendingInvitations(tokenOverride);
-
     addActivity(
       `Loaded ${materialsResult.count} materials, ${movementsResult.count} movements, ${locationsResult.data.length} locations, ${suppliersResult.count} suppliers, ${activeSuppliersResult.count} active suppliers, ${purchaseOrdersResult.count} purchase orders.`
     );
-  }, [addActivity, apiRequest, loadActiveSuppliers, loadMaterialMovements, loadMaterials, loadOrganizationMembers, loadPendingInvitations, loadPurchaseOrders, loadSuppliers, orgId]);
+  }, [addActivity, apiRequest, loadActiveSuppliers, loadMaterialMovements, loadMaterials, loadPendingInvitations, loadPurchaseOrders, loadSuppliers, orgId]);
 
   const bootstrapOrganizationContext = useCallback(async (options?: { tokenOverride?: string; announce?: boolean; preferredOrgId?: string }) => {
     const effectiveToken = options?.tokenOverride ?? accessToken;
@@ -1336,6 +1337,9 @@ export function LockstockWorkbench() {
       }
 
       setOrganizations(organizationsResult.data);
+      // The member-management table belongs to the owned group.
+      if (ownedMembership) await loadOrganizationMembers(ownedMembership.organization.id, effectiveToken);
+      else setOrganizationMembers([]);
 
       const preferredOrgId = options?.preferredOrgId ?? orgId;
       const existingSelection = organizationsResult.data.find((item) => item.organization.id === preferredOrgId);
@@ -1361,7 +1365,7 @@ export function LockstockWorkbench() {
     } finally {
       setBusy(false);
     }
-  }, [accessToken, addActivity, apiRequest, getDefaultGroupName, orgId, refreshCoreData, selectedPlan]);
+  }, [accessToken, addActivity, apiRequest, getDefaultGroupName, loadOrganizationMembers, orgId, refreshCoreData, selectedPlan]);
 
   const handleLoadOrganizations = useCallback(async () => {
     await bootstrapOrganizationContext({ announce: true });
@@ -1497,11 +1501,12 @@ export function LockstockWorkbench() {
         }
       );
       addActivity(`Invitation accepted: joined group ${response.data.organization_name} as ${response.data.membership_role}.`);
+      setPendingInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      setActiveOrgId(response.data.org_id);
       const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
         requireOrg: false
       });
       setOrganizations(organizationsResponse.data);
-      setActiveOrgId(response.data.org_id);
       await syncPublicProfile();
       await refreshCoreData(response.data.org_id);
     } catch (error) {
@@ -1519,6 +1524,7 @@ export function LockstockWorkbench() {
         requireOrg: false
       });
       addActivity(`Invitation rejected: group ${response.data.organization_name}.`);
+      setPendingInvitations((current) => current.filter((item) => item.id !== invitation.id));
       await loadPendingInvitations();
     } catch (error) {
       addActivity(`Reject invitation failed: ${(error as Error).message}`);
@@ -1545,6 +1551,40 @@ export function LockstockWorkbench() {
       addActivity("Group member removed.");
     } catch (error) {
       addActivity(`Remove member failed: ${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLeaveGroup() {
+    if (!pendingLeaveGroup || pendingLeaveGroup.role === "owner") return;
+    const leaving = pendingLeaveGroup;
+    setLeaveGroupError("");
+    try {
+      setBusy(true);
+      await apiRequest(`/api/organizations/${leaving.organization.id}/leave`, {
+        method: "POST", orgOverride: leaving.organization.id
+      });
+      const remaining = organizations.filter((item) => item.organization.id !== leaving.organization.id);
+      setOrganizations(remaining);
+      setPendingLeaveGroup(null);
+      addActivity(message(locale, "workbench.members.leftGroup", { name: leaving.organization.name }));
+      const next = remaining.find((item) => item.organization.id === orgId)
+        ?? remaining.find((item) => item.role === "owner") ?? remaining[0];
+      if (orgId === leaving.organization.id) {
+        setActiveOrgId(next?.organization.id ?? "");
+        setMaterials([]);
+        setMaterialMovements([]);
+        setLocations([]);
+        setSuppliers([]);
+        setActiveSupplierRows([]);
+        setPurchaseOrders([]);
+      }
+      if (next) await refreshCoreData(next.organization.id);
+    } catch (error) {
+      const failure = message(locale, "workbench.members.leaveFailed", { reason: (error as Error).message });
+      setLeaveGroupError(failure);
+      addActivity(failure);
     } finally {
       setBusy(false);
     }
@@ -1598,7 +1638,7 @@ export function LockstockWorkbench() {
         role: item.role,
         joined: formatDateLabel(item.organization.created_at),
         actionLabel: isActiveOrganization ? "Current" : "Open Group",
-        action: !isActiveOrganization ? (
+        action: <>{!isActiveOrganization ? (
           <button
             type="button"
             className="ghost-btn"
@@ -1613,7 +1653,13 @@ export function LockstockWorkbench() {
           </button>
         ) : (
           <span className="subtle-line">{t("workbench.members.current")}</span>
-        )
+        )}
+          {item.role !== "owner" ? (
+            <button type="button" className="ghost-btn" disabled={busy || isDemoMode} onClick={() => { setLeaveGroupError(""); setPendingLeaveGroup(item); }}>
+              {t("workbench.members.leaveGroup")}
+            </button>
+          ) : null}
+        </>
       };
     }),
     tableSorts.memberships,
@@ -1935,6 +1981,17 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showWorkflowsSection ? <WorkflowGallery /> : null}
+
+      {pendingLeaveGroup ? (
+        <AccessibilityDialog showCloseButton={false} title={t("workbench.members.leaveGroup")} onClose={() => { if (!busy) setPendingLeaveGroup(null); }}>
+          <p>{message(locale, "workbench.members.leaveConfirm", { name: pendingLeaveGroup.organization.name })}</p>
+          {leaveGroupError ? <p role="alert">{leaveGroupError}</p> : null}
+          <div className="actions">
+            <button type="button" className="ghost-btn" disabled={busy} onClick={() => setPendingLeaveGroup(null)}>{t("workbench.movement.cancel")}</button>
+            <button type="button" disabled={busy} onClick={() => void handleLeaveGroup()}>{t("workbench.members.leaveGroup")}</button>
+          </div>
+        </AccessibilityDialog>
+      ) : null}
 
       {showMembersSection && canUseMembersScreen ? (
         <WorkbenchMembersSection

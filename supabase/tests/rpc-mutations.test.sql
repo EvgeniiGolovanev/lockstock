@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(33);
+select plan(40);
 
 create function pg_temp.try_sql(statement text)
 returns text
@@ -257,6 +257,20 @@ select set_config('request.jwt.claims', '{"sub":"76000000-0000-0000-0000-0000000
 select is(pg_temp.try_sql($$select public.accept_org_invitation('83000000-0000-0000-0000-000000000003')$$), '42501', 'read-only workspace blocks invitation acceptance');
 
 reset role;
+
+select is((select count(*) from public.audit_log where org_id = '75000000-0000-0000-0000-000000000001' and entity_type = 'member' and action = 'created' and actor_user_id = '76000000-0000-0000-0000-000000000010'), 1::bigint, 'acceptance records exactly one membership event attributed to the invitee');
+
+insert into public.org_users (org_id,user_id,role) values ('75000000-0000-0000-0000-000000000001','76000000-0000-0000-0000-000000000099','owner');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"76000000-0000-0000-0000-000000000099","email":"owner@example.test","role":"authenticated"}', true);
+select is(pg_temp.try_sql($$select public.remove_org_member_with_team_memberships('75000000-0000-0000-0000-000000000001','76000000-0000-0000-0000-000000000099')$$), 'P0001', 'owner cannot leave their group');
+select set_config('request.jwt.claims', '{"sub":"76000000-0000-0000-0000-000000000010","email":"accept@example.test","role":"authenticated"}', true);
+select is(pg_temp.try_sql($$select public.remove_org_member_with_team_memberships('75000000-0000-0000-0000-000000000001','76000000-0000-0000-0000-000000000001')$$), '42501', 'invitee cannot remove another member');
+select is(pg_temp.try_sql($$select public.remove_org_member_with_team_memberships('75000000-0000-0000-0000-000000000001','76000000-0000-0000-0000-000000000010')$$), 'ok', 'invitee can leave their group');
+reset role;
+select is((select count(*) from public.org_users where org_id = '75000000-0000-0000-0000-000000000001' and user_id = '76000000-0000-0000-0000-000000000010'), 0::bigint, 'leaving removes own organization membership');
+select is((select count(*) from public.team_members tm join public.teams t on t.id = tm.team_id where t.org_id = '75000000-0000-0000-0000-000000000001' and tm.user_id = '76000000-0000-0000-0000-000000000010'), 0::bigint, 'leaving removes own team memberships');
+select is((select count(*) from public.audit_log where org_id = '75000000-0000-0000-0000-000000000001' and entity_type = 'member' and action = 'deleted' and actor_user_id = '76000000-0000-0000-0000-000000000010'), 1::bigint, 'leaving records one membership event');
 
 select * from finish();
 
