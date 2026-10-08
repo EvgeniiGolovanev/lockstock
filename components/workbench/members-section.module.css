@@ -76,3 +76,54 @@
     grid-template-columns: 1fr;
   }
 }
+
+.membersTable .membershipActionsHeading {
+  text-align: center;
+}
+
+.membershipActionsHeading > :global(.table-static-head) {
+  justify-content: center;
+}
+
+.membershipActions {
+  display: grid;
+  grid-template-columns: 8rem 8rem 8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.membershipActions > button,
+.membershipActions > span {
+  box-sizing: border-box;
+  width: 8rem;
+  margin: 0;
+  text-align: center;
+}
+
+.membershipActions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  white-space: nowrap;
+}
+
+.membershipActions > button:first-of-type {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.membershipActions > button + button {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.membershipActions > span {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.membershipActions > span:has(+ button) {
+  grid-column: 1;
+}

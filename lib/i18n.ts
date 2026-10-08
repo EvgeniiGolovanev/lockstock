@@ -20,6 +20,9 @@ type MessageParams = {
   "workbench.supplier.unblockConfirm": { name: string };
   "workbench.supplier.blockConfirm": { name: string };
   "workbench.members.groupHeading": { name: string };
+  "workbench.members.leaveConfirm": { name: string };
+  "workbench.members.leftGroup": { name: string };
+  "workbench.members.leaveFailed": { reason: string };
   "workbench.members.inviteGroup": { name: string };
   "workbench.po.receivedOn": { date: string };
   "workbench.po.sentOn": { date: string };
@@ -297,6 +300,19 @@ const MESSAGES = {
   "workbench.members.joined": { en: "Joined", fr: "Date d'ajout" },
   "workbench.members.noInvited": { en: "No invited members found for this group.", fr: "Aucun membre invite dans ce groupe." },
   "workbench.members.myMemberships": { en: "My memberships", fr: "Mes appartenances" },
+  "workbench.members.leaveGroup": { en: "Leave group", fr: "Quitter le groupe" },
+  "workbench.members.leaveConfirm": {
+    en: ({ name }: MessageParams["workbench.members.leaveConfirm"]) => `Leave ${name}? You will lose access and need a new invitation to rejoin.`,
+    fr: ({ name }: MessageParams["workbench.members.leaveConfirm"]) => `Quitter ${name} ? Vous perdrez l'acces et aurez besoin d'une nouvelle invitation pour revenir.`
+  },
+  "workbench.members.leftGroup": {
+    en: ({ name }: MessageParams["workbench.members.leftGroup"]) => `Left group ${name}.`,
+    fr: ({ name }: MessageParams["workbench.members.leftGroup"]) => `Vous avez quitte le groupe ${name}.`
+  },
+  "workbench.members.leaveFailed": {
+    en: ({ reason }: MessageParams["workbench.members.leaveFailed"]) => `Unable to leave group: ${reason}`,
+    fr: ({ reason }: MessageParams["workbench.members.leaveFailed"]) => `Impossible de quitter le groupe : ${reason}`
+  },
   "workbench.members.refreshGroups": { en: "Refresh Groups", fr: "Actualiser les groupes" },
   "workbench.members.group": { en: "Group", fr: "Groupe" },
   "workbench.members.myRole": { en: "My role", fr: "Mon role" },

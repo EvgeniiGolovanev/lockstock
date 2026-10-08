@@ -138,6 +138,7 @@ export function LockstockAccount() {
   const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [auditRefresh, setAuditRefresh] = useState(0);
   const [auditStatus, setAuditStatus] = useState("");
   const [auditExportFrom, setAuditExportFrom] = useState(daysAgoDateInputValue(7));
   const [auditExportTo, setAuditExportTo] = useState(todayDateInputValue());
@@ -253,7 +254,20 @@ export function LockstockAccount() {
       return;
     }
 
-    setActiveOrgId(window.localStorage.getItem(STORAGE_KEYS.orgId) ?? "");
+    const refresh = () => {
+      setActiveOrgId(window.localStorage.getItem(STORAGE_KEYS.orgId) ?? "");
+      setAuditRefresh((value) => value + 1);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEYS.orgId || event.key === null) refresh();
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("storage", onStorage);
+    };
   }, [signedInAs]);
 
   useEffect(() => {
@@ -298,6 +312,7 @@ export function LockstockAccount() {
       return;
     }
 
+    let cancelled = false;
     async function loadAuditContext() {
       try {
         setAuditStatus(t("account.loadingAudit"));
@@ -308,6 +323,7 @@ export function LockstockAccount() {
           browserApiRequest<{ data: BillingSummary }>("/api/billing/summary", { orgId: activeOrgId })
         ]);
 
+        if (cancelled) return;
         const errors: string[] = [];
 
         if (organizationsResponse.status === "fulfilled") {
@@ -344,12 +360,13 @@ export function LockstockAccount() {
 
         setAuditStatus(errors[0] ?? "");
       } catch (error) {
-        setAuditStatus((error as Error).message);
+        if (!cancelled) setAuditStatus((error as Error).message);
       }
     }
 
     void loadAuditContext();
-  }, [accessToken, activeOrgId, t]);
+    return () => { cancelled = true; };
+  }, [accessToken, activeOrgId, auditRefresh, t]);
 
   useEffect(() => {
     if (!authResolved || !accessToken || !signedInAs) {

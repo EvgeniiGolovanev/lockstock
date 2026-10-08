@@ -501,6 +501,50 @@ test("inventory page can switch workspaces after login", async ({ page }) => {
   await expect(page.getByText("Active workspace:")).toContainText("South Bay Logistics");
 });
 
+test("membership acceptance clears actions, displays audit event, and supports leaving", async ({ page }) => {
+  const state = baseAppState();
+  const invited = { ...state.organizations[1], role: "member" as const };
+  state.organizations = [state.organizations[0]];
+  let accepted = false;
+  await seedSignedInPage(page);
+  await installAuthRoutes(page);
+  await installAppRoutes(page, state);
+  await page.route("**/api/invitations/pending", route => route.fulfill({ json: { data: accepted ? [] : [{
+    id: "invite", direction: "received", organization_name: invited.organization.name,
+    email: "ava@northstar.build", role: "member", status: "pending", expires_at: "2026-10-05"
+  }] } }));
+  await page.route("**/api/invitations/invite/accept", route => {
+    accepted = true;
+    state.organizations.push(invited);
+    return route.fulfill({ json: { data: { org_id: secondaryOrgId, organization_name: invited.organization.name, membership_role: "member" } } });
+  });
+  await page.route(`**/api/organizations/${secondaryOrgId}/members`, route => route.fulfill({ status: 403, json: { error: "Manager role required" } }));
+  await page.route("**/api/audit-log", route => route.fulfill({ json: { data: accepted && route.request().headers()["x-org-id"] === secondaryOrgId ? [{
+    id: "membership-event", actor_user_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", action: "created", entity_type: "member",
+    entity_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", entity_label: "member", message: "Member created: member", metadata: {}, created_at: "2026-09-28T00:00:00Z"
+  }] : [] } }));
+  await page.route(`**/api/organizations/${secondaryOrgId}/leave`, route => {
+    state.organizations = state.organizations.filter(item => item.organization.id !== secondaryOrgId);
+    return route.fulfill({ json: { data: { removed: true } } });
+  });
+  await page.goto("/members");
+  await page.getByRole("button", { name: "Accept", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Accept", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Reject", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Active workspace:")).toContainText(invited.organization.name);
+  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await expect(page.getByText("Member created: member", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Members", exact: true }).click();
+  await page.getByRole("button", { name: "Leave group", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Leave group", exact: true });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Leave group", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Leave group", exact: true }).click();
+  await dialog.getByRole("button", { name: "Leave group", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Leave group", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Active workspace:")).toContainText("Northstar Materials");
+});
+
 test("stock movement creation works and rejects read-only workspaces", async ({ page }) => {
   const state = baseAppState();
   await seedSignedInPage(page);
