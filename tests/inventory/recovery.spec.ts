@@ -27,7 +27,7 @@ test("local logical backup restores application rows, privileges and tenant isol
     run(["createdb", "-U", "supabase_admin", "--template=template0", database]);
     // Extensions installed in the source's extensions schema are dependencies
     // of the application schema; schema-filtered pg_dump omits CREATE EXTENSION.
-    sql(database, 'create schema if not exists extensions; create extension if not exists pgcrypto with schema extensions; create extension if not exists "uuid-ossp" with schema extensions;');
+    sql(database, 'drop schema public; create schema if not exists extensions; create extension if not exists pgcrypto with schema extensions; create extension if not exists "uuid-ossp" with schema extensions;');
     run(["pg_restore", "-U", "supabase_admin", "--exit-on-error", "--dbname", database, backup]);
     expect(Object.fromEntries(tables.map(table => [table, digest(database, table)]))).toEqual(before);
     const isolated = sql(database, `begin; set local role authenticated; select set_config('request.jwt.claims', '{"sub":"${inventory.userId}","role":"authenticated"}', true); select count(*) from public.materials where org_id='${other.orgId}'; select count(*) from public.materials where org_id='${inventory.orgId}'; rollback;`);

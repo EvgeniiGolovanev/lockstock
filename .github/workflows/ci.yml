@@ -40,14 +40,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run critical E2E suite
-        run: npm run test:e2e -- --update-snapshots
-
-      - name: Capture Linux baselines in the actual runner
-        uses: actions/upload-artifact@v4
-        with:
-          name: lockstock-linux-baselines
-          path: tests/e2e/critical-path.spec.ts-snapshots/*-linux.png
-          retention-days: 1
+        run: npm run test:e2e
 
       - name: Upload Playwright failure artifacts
         if: failure()
