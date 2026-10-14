@@ -21,6 +21,14 @@
   margin-top: 1rem;
 }
 
+.formError {
+  border: 1px solid #b91c1c;
+  background: #fff1f0;
+  color: #991b1b;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 768px) {
   .formRow,
   .formRowSingle {
