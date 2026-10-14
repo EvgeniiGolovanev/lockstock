@@ -26,6 +26,7 @@ for (const width of [1440, 390]) {
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Move Material", exact: true }).click();
     await expect(dialog.getByRole("alert")).toHaveCount(0);
+    await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(material.id);
     await dialog.getByRole("combobox", { name: "Reason", exact: true }).selectOption("transfer");
     await dialog.getByRole("combobox", { name: "Transfer out", exact: true }).selectOption(a.id);
     await dialog.getByRole("combobox", { name: "Transfer to", exact: true }).selectOption(b.id);
