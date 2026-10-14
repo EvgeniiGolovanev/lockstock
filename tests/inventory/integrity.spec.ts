@@ -9,8 +9,8 @@ for (const width of [1440, 390]) {
     await page.goto("/stock-movements");
     await page.getByRole("button", { name: "Move Material", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Move Material" });
-    await dialog.getByLabel("Material", { exact: true }).selectOption(material.id);
-    await dialog.getByLabel("Location", { exact: true }).selectOption(a.id);
+    await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(material.id);
+    await dialog.getByRole("combobox", { name: "Location", exact: true }).selectOption(a.id);
     await dialog.getByLabel("Quantity Delta", { exact: true }).fill("-101");
     await dialog.getByLabel("Comments", { exact: true }).fill("Keep this note for retry");
     const before = await inventory.snapshot();
@@ -26,9 +26,9 @@ for (const width of [1440, 390]) {
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Move Material", exact: true }).click();
     await expect(dialog.getByRole("alert")).toHaveCount(0);
-    await dialog.getByLabel("Reason", { exact: true }).selectOption("transfer");
-    await dialog.getByLabel("Transfer out", { exact: true }).selectOption(a.id);
-    await dialog.getByLabel("Transfer to", { exact: true }).selectOption(b.id);
+    await dialog.getByRole("combobox", { name: "Reason", exact: true }).selectOption("transfer");
+    await dialog.getByRole("combobox", { name: "Transfer out", exact: true }).selectOption(a.id);
+    await dialog.getByRole("combobox", { name: "Transfer to", exact: true }).selectOption(b.id);
     await dialog.getByLabel("Quantity", { exact: true }).fill("1");
     // Block a location after this browser loaded the available choices.
     const blocked = await inventory.request.patch(`/api/locations/${b.id}`, { headers: inventory.headers(), data: { is_active: false } });
