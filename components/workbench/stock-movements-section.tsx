@@ -148,9 +148,11 @@ export function WorkbenchStockMovementsSection({
   const [movementToLocationId, setMovementToLocationId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState(1);
   const [movementComment, setMovementComment] = useState("");
+  const [movementError, setMovementError] = useState("");
 
   useEffect(() => {
     if (!showMovementForm) {
+      setMovementError("");
       setMovementMaterialId("");
       setMovementReason("adjustment");
       setMovementLocationId("");
@@ -178,31 +180,27 @@ export function WorkbenchStockMovementsSection({
 
   async function handleCreateMovement() {
     const trimmedComment = movementComment.trim();
+    setMovementError("");
 
     try {
       onBusyChange(true);
 
       if (!movementMaterialId) {
-        onActivity("Create movement failed: material is required.");
-        return false;
+        throw new Error("material is required.");
       }
 
       if (movementReason === "transfer") {
         if (!movementFromLocationId || !movementToLocationId) {
-          onActivity("Create movement failed: source and destination locations are required.");
-          return false;
+          throw new Error("source and destination locations are required.");
         }
         if (movementFromLocationId === movementToLocationId) {
-          onActivity("Create movement failed: transfer source and destination must differ.");
-          return false;
+          throw new Error("transfer source and destination must differ.");
         }
         if (Number(movementQuantity) <= 0) {
-          onActivity("Create movement failed: transfer quantity must be positive.");
-          return false;
+          throw new Error("transfer quantity must be positive.");
         }
       } else if (!movementLocationId || Number(movementQuantity) === 0) {
-        onActivity("Create movement failed: location and non-zero quantity are required.");
-        return false;
+        throw new Error("location and non-zero quantity are required.");
       }
 
       await apiRequest("/api/stock/movements", {
@@ -231,7 +229,9 @@ export function WorkbenchStockMovementsSection({
       await onRefreshCoreData();
       return true;
     } catch (error) {
-      onActivity(`Create movement failed: ${(error as Error).message}`);
+      const errorMessage = error instanceof Error ? error.message : "Unexpected server error.";
+      setMovementError(errorMessage);
+      onActivity(`Create movement failed: ${errorMessage}`);
       return false;
     } finally {
       onBusyChange(false);
@@ -303,7 +303,7 @@ export function WorkbenchStockMovementsSection({
       </div>
 
       {showMovementForm && canCreateStockMovement ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.movement.open")}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.movement.open")} aria-describedby={movementError ? "stock-movement-error" : undefined}>
           <div className="modal-card">
             <div className="title-row">
               <div>
@@ -403,6 +403,7 @@ export function WorkbenchStockMovementsSection({
                 </div>
               </div>
             </div>
+            {movementError ? <p id="stock-movement-error" role="alert" className={styles.formError}>{movementError}</p> : null}
             <div className="actions">
               <button type="button" disabled={busy} onClick={() => void handleCreateMovement()}>
                 {movementReason === "consumption" ? t("workbench.movement.recordConsumption") : t("workbench.movement.addToStock")}

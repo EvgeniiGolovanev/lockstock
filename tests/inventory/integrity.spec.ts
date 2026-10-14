@@ -1,5 +1,56 @@
 import { test, expect, materialInput, type InventoryFixture } from "./fixtures";
 
+for (const width of [1440, 390]) {
+  test(`stock form displays real errors and allows retry at ${width}px`, async ({ inventory, page }) => {
+    const { materials: [material], locations: [a, b] } = await inventory.catalog();
+    await inventory.post("/stock/movements", { material_id: material.id, location_id: a.id, reason: "adjustment", quantity_delta: 100 });
+    await page.setViewportSize({ width, height: 900 });
+    await inventory.login(page);
+    await page.goto("/stock-movements");
+    await page.getByRole("button", { name: "Move Material", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Move Material" });
+    await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(material.id);
+    await dialog.getByRole("combobox", { name: "Location", exact: true }).selectOption(a.id);
+    await dialog.getByLabel("Quantity Delta", { exact: true }).fill("-101");
+    await dialog.getByRole("textbox", { name: "Comments", exact: true }).fill("Keep this note for retry");
+    const before = await inventory.snapshot();
+    let response = page.waitForResponse(r => r.url().endsWith("/api/stock/movements") && r.request().method() === "POST");
+    await dialog.getByRole("button", { name: "Add to Stock", exact: true }).click();
+    expect((await response).status()).toBe(409);
+    await expect(dialog.getByRole("alert")).toHaveText("Not enough quantity at the specified location.");
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await expect(dialog.getByLabel("Quantity Delta", { exact: true })).toHaveValue("-101");
+    await expect(dialog.getByRole("textbox", { name: "Comments", exact: true })).toHaveValue("Keep this note for retry");
+    expect(await inventory.snapshot()).toEqual(before);
+
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("button", { name: "Move Material", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toHaveCount(0);
+    await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(material.id);
+    await dialog.getByRole("combobox", { name: "Reason", exact: true }).selectOption("transfer");
+    await dialog.getByRole("combobox", { name: "Transfer out", exact: true }).selectOption(a.id);
+    await dialog.getByRole("combobox", { name: "Transfer to", exact: true }).selectOption(b.id);
+    await dialog.getByLabel("Quantity", { exact: true }).fill("1");
+    // Block a location after this browser loaded the available choices.
+    const blocked = await inventory.request.patch(`/api/locations/${b.id}`, { headers: inventory.headers(), data: { is_active: false } });
+    expect(blocked.status()).toBe(200);
+    const blockedBefore = await inventory.snapshot();
+    response = page.waitForResponse(r => r.url().endsWith("/api/stock/movements") && r.request().method() === "POST");
+    await dialog.getByRole("button", { name: "Add to Stock", exact: true }).click();
+    expect((await response).status()).toBe(422);
+    await expect(dialog.getByRole("alert")).toHaveText("Location is unavailable or blocked for usage.");
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    expect(await inventory.snapshot()).toEqual(blockedBefore);
+    const unblocked = await inventory.request.patch(`/api/locations/${b.id}`, { headers: inventory.headers(), data: { is_active: true } });
+    expect(unblocked.status()).toBe(200);
+    response = page.waitForResponse(r => r.url().endsWith("/api/stock/movements") && r.request().method() === "POST");
+    await dialog.getByRole("button", { name: "Add to Stock", exact: true }).click();
+    expect((await response).status()).toBe(201);
+    await expect(dialog.getByRole("alert")).toHaveCount(0);
+    await inventory.balances([[material.id, a.id, 99], [material.id, b.id, 1]]);
+  });
+}
+
 async function rejectedWithoutWrites(inventory: InventoryFixture, path: string, data: unknown, statuses: number[], headers: Record<string, string> = inventory.headers()) {
   const before = await inventory.snapshot();
   const response = await inventory.request.post(`/api${path}`, { headers, data });
