@@ -4,7 +4,13 @@ async function rejectedWithoutWrites(inventory: InventoryFixture, path: string, 
   const before = await inventory.snapshot();
   const response = await inventory.request.post(`/api${path}`, { headers, data });
   expect(statuses, await response.text()).toContain(response.status());
-  expect((await response.json()).error).toBeTruthy();
+  const body = await response.json();
+  expect(body.error).toBeTruthy();
+  expect(body.error).not.toBe("Unexpected server error.");
+  if ([409, 422].includes(response.status())) {
+    expect(response.headers()["x-request-id"]).toBe(body.requestId);
+    expect(body.code).toBe(response.status() === 409 ? "conflict" : "validation_failed");
+  }
   expect(await inventory.snapshot()).toEqual(before);
 }
 
@@ -20,14 +26,13 @@ test("invalid movements and insufficient stock leave balances and ledger unchang
     { material_id: m.id, from_location_id: a.id, to_location_id: b.id, reason: "transfer", quantity: 0 },
     { material_id: m.id, from_location_id: a.id, to_location_id: b.id, reason: "transfer", quantity: -1 }
   ]) await rejectedWithoutWrites(inventory, "/stock/movements", data, [400]);
-  // Database business-rule failures are currently mapped to HTTP 500 by the
-  // application. Assert their lack of side effects; don't claim a 4xx contract.
+  // Known database business-rule failures have a safe 4xx contract.
   await rejectedWithoutWrites(inventory, "/stock/movements", {
     material_id: m.id, from_location_id: a.id, to_location_id: b.id, reason: "transfer", quantity: 101
-  }, [500]);
+  }, [409]);
   await rejectedWithoutWrites(inventory, "/stock/movements", {
     material_id: m.id, location_id: a.id, reason: "adjustment", quantity_delta: -101
-  }, [500]);
+  }, [409]);
   await inventory.balances([[m.id, a.id, 100]]);
 });
 
@@ -54,7 +59,7 @@ test("multi-line receipts roll back an earlier valid line when a later line over
   }
   await rejectedWithoutWrites(inventory, `/purchase-orders/${po.id}/receive`, {
     receipts: [receipts[0], { ...receipts[1], quantity_received: 2001 }]
-  }, [500]);
+  }, [409]);
   await inventory.post(`/purchase-orders/${po.id}/receive`, { receipts }, 200);
   await inventory.balances([[m1.id, a.id, 40], [m2.id, b.id, 2000]]);
   expect((await inventory.po(po.id)).status).toBe("partial");
@@ -64,7 +69,7 @@ test("multi-line receipts roll back an earlier valid line when a later line over
   await inventory.post(`/purchase-orders/${po.id}/receive`, { receipts: [{ ...receipts[0], quantity_received: 160 }] }, 200);
   expect((await inventory.po(po.id)).status).toBe("received");
   await inventory.balances([[m1.id, a.id, 200], [m2.id, b.id, 2000]]);
-  await rejectedWithoutWrites(inventory, `/purchase-orders/${po.id}/receive`, { receipts }, [500]);
+  await rejectedWithoutWrites(inventory, `/purchase-orders/${po.id}/receive`, { receipts }, [409]);
 });
 
 test("cancelled POs and a line belonging to another PO cannot be received", async ({ inventory }) => {
@@ -74,7 +79,7 @@ test("cancelled POs and a line belonging to another PO cannot be received", asyn
   await inventory.status(po, "sent");
   await rejectedWithoutWrites(inventory, `/purchase-orders/${po.id}/receive`, {
     receipts: [{ po_line_id: otherPo.lines[0].id, location_id: a.id, quantity_received: 40 }]
-  }, [500]);
+  }, [422]);
   await inventory.status(po, "cancelled");
   await rejectedWithoutWrites(inventory, `/purchase-orders/${po.id}/receive`, {
     receipts: [{ po_line_id: po.lines[0].id, location_id: a.id, quantity_received: 40 }]
@@ -89,7 +94,7 @@ test("simultaneous consumption/transfer cannot overspend the same balance", asyn
     inventory.request.post("/api/stock/movements", { headers: inventory.headers(), data: { material_id: m.id, from_location_id: a.id, to_location_id: b.id, reason: "transfer", quantity: 60 } })
   ]);
   expect(results.filter((response) => response.status() === 201)).toHaveLength(1);
-  expect(results.filter((response) => [400, 500].includes(response.status()))).toHaveLength(1);
+  expect(results.filter((response) => [400, 409].includes(response.status()))).toHaveLength(1);
   const transferWon = results[1].status() === 201;
   await inventory.balances(transferWon ? [[m.id, a.id, 40], [m.id, b.id, 60]] : [[m.id, a.id, 40]]);
   expect(await inventory.rows("stock_movements")).toHaveLength(transferWon ? 3 : 2);
@@ -101,7 +106,7 @@ test("simultaneous full receipts add stock only once", async ({ inventory }) => 
   await inventory.status(po, "sent");
   const data = { receipts: [{ po_line_id: po.lines[0].id, location_id: a.id, quantity_received: 200 }] };
   const results = await Promise.all([1, 2].map(() => inventory.request.post(`/api/purchase-orders/${po.id}/receive`, { headers: inventory.headers(), data })));
-  expect(results.map((response) => response.status()).sort()).toEqual([200, 500]);
+  expect(results.map((response) => response.status()).sort()).toEqual([200, 409]);
   await inventory.balances([[m.id, a.id, 200]]);
   expect(await inventory.rows("stock_movements")).toHaveLength(1);
   expect(await inventory.po(po.id)).toMatchObject({ status: "received", lines: [expect.objectContaining({ quantity_received: 200 })] });

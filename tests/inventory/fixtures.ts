@@ -31,6 +31,22 @@ export class InventoryFixture {
     return { authorization: `Bearer ${token}`, "x-org-id": orgId };
   }
 
+  async actor() {
+    const auth = createClient(process.env.INVENTORY_SUPABASE_URL!, process.env.INVENTORY_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+    const email = `member-${randomUUID()}@example.test`;
+    const password = `Test-${randomUUID()}!`;
+    const { data: user, error } = await this.db.auth.admin.createUser({ email, password, email_confirm: true });
+    expect(error).toBeNull();
+    const { data: session, error: loginError } = await auth.auth.signInWithPassword({ email, password });
+    expect(loginError).toBeNull();
+    const token = session.session!.access_token;
+    const response = await this.request.post("/api/organizations", {
+      headers: { authorization: `Bearer ${token}` }, data: { name: `Member ${randomUUID()}`, plan: "business" }
+    });
+    expect(response.status(), await response.text()).toBe(201);
+    return new InventoryFixture(this.request, this.db, (await response.json()).data.id, email, password, token, user.user!.id);
+  }
+
   async post<T>(path: string, data: unknown, status = 201): Promise<T> {
     const response = await this.request.post(`/api${path}`, { headers: this.headers(), data });
     expect(response.status(), await response.text()).toBe(status);

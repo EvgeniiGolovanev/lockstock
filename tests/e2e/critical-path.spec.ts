@@ -396,7 +396,7 @@ function collectA11yViolations(node: A11yNode | null, path: string[] = [], viola
 test("landing sign-in redirects into the inventory shell", async ({ page }) => {
   await installAppRoutes(page, baseAppState());
   await installAuthRoutes(page);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Sign In" }).click();
   const authDialog = page.getByRole("dialog", { name: "Welcome back" });
   await expect(authDialog).toBeVisible();

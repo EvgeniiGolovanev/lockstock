@@ -16,7 +16,7 @@ const { isPortConflictError, rewriteSupabaseConfig, startWithPortRetry } = requi
   isPortConflictError: (error: unknown) => boolean;
   rewriteSupabaseConfig: (
     originalConfig: string,
-    expected: { projectId: string; databasePort: number; apiPort?: number }
+    expected: { projectId: string; databasePort: number; apiPort?: number; mailPort?: number }
   ) => string;
   startWithPortRetry: (options: RetryOptions) => Promise<{ attempts: number; databasePort: number }>;
 };
@@ -36,6 +36,18 @@ port = 55323
 
 describe("disposable database verifier", () => {
   describe("rewriteSupabaseConfig", () => {
+    it("gives the disposable email inbox its own port", () => {
+      const rewritten = rewriteSupabaseConfig(`${BASE_CONFIG}\n[inbucket]\nport = 55324\n`, {
+        projectId: "lockstock-db-verification-123", databasePort: 61234, mailPort: 61236
+      });
+      expect(rewritten).toMatch(/\[inbucket\]\s+port = 61236/);
+    });
+
+    it.each([0, 65536, 1.5])("rejects invalid email inbox port %s", mailPort => {
+      expect(() => rewriteSupabaseConfig(`${BASE_CONFIG}\n[inbucket]\nport = 55324\n`, {
+        projectId: "lockstock-db-verification-123", databasePort: 61234, mailPort
+      })).toThrow(/inbucket/);
+    });
     it("replaces and independently verifies the project ID and database port", () => {
       const rewritten = rewriteSupabaseConfig(BASE_CONFIG, {
         projectId: "lockstock-db-verification-123",

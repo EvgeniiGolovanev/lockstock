@@ -1,7 +1,9 @@
 # Inventory acceptance tests
 
-Run `npm run test:inventory` to verify the inventory workflow against a real
-Next.js server and an isolated Supabase database. No API responses are mocked.
+Run `npm run test:inventory` to verify the inventory workflow against a built
+Next.js production server and an isolated Supabase database. No API responses
+are mocked. The command also checks membership, catalog changes, CSV imports,
+Auth email, monitoring, rate limits, and a local logical restore drill.
 The command also runs the existing database assertions, authorization checks,
 and database concurrency checks before the inventory suite.
 
@@ -28,6 +30,12 @@ temporary stack, its data, and the source copy in `finally`, including when a te
 fails. On Windows, the temporary directory is next to the repository so Webpack
 and the dependency junction stay on the same drive. Your normal development
 database and application remain separate.
+
+The runner enables a disposable Mailpit inbox and email confirmation only in
+the copied Supabase configuration. It builds the application with the
+disposable API URL and public key. It clears external email and Stripe
+credentials, and routes alerts to a separate local receiver. The synthetic
+error route used for monitoring exists only in the temporary source copy.
 
 The browser report and failure traces are in `test-results/inventory-report`
 and `test-results/inventory`. CI runs this command in the database job and uploads
@@ -84,10 +92,13 @@ acceptance test that the isolated form tests did not detect.
 - Failed-command snapshots of balances, movements, PO headers and lines, audit
   records, and catalog data.
 
-Database business-rule errors currently return HTTP 500 from the application's
-generic database error handler. Tests distinguish these from validation (400)
-and authorization (401/403) errors and verify that rejected commands leave no
-partial writes. They do not claim that the error mapping is an ideal API contract.
+Known stock and receipt RPC business-rule failures return safe `409` conflict
+or `422` validation responses. Missing purchase orders return `404`. Existing
+route validation and preflight checks retain their `400` responses.
+Unrecognized database errors remain generic `500` responses. The mapper checks
+both SQLSTATE and an explicit message allowlist; it never returns database
+details, hints, or PO line IDs. Rejected-command tests verify that no partial
+writes remain.
 
 Concurrent calls are submitted together; their assertions check persisted
 invariants regardless of which request wins. They do not force every possible
@@ -110,3 +121,5 @@ Catalog editing and deactivation, search/filtering, CSV import/export, reports,
 authentication variants, membership management, and billing have separate tests
 under `tests/api`, `tests/ui`, `tests/auth`, `tests/import`, and `tests/billing`.
 External email delivery and live payment processing are outside this local suite.
+See [Technical acceptance](technical-acceptance.md) for the additional scenarios
+and the opt-in external email check.

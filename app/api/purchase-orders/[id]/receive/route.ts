@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
+import { mapInventoryError } from "@/lib/api/inventory-errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { receivePurchaseOrderSchema } from "@/lib/validators/purchase-order";
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
 
     if (error) {
-      throw error;
+      throw mapInventoryError(error);
     }
 
     return NextResponse.json({ data });
