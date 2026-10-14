@@ -12,7 +12,7 @@ for (const width of [1440, 390]) {
     await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(material.id);
     await dialog.getByRole("combobox", { name: "Location", exact: true }).selectOption(a.id);
     await dialog.getByLabel("Quantity Delta", { exact: true }).fill("-101");
-    await dialog.getByLabel("Comments", { exact: true }).fill("Keep this note for retry");
+    await dialog.getByRole("textbox", { name: "Comments", exact: true }).fill("Keep this note for retry");
     const before = await inventory.snapshot();
     let response = page.waitForResponse(r => r.url().endsWith("/api/stock/movements") && r.request().method() === "POST");
     await dialog.getByRole("button", { name: "Add to Stock", exact: true }).click();
@@ -20,7 +20,7 @@ for (const width of [1440, 390]) {
     await expect(dialog.getByRole("alert")).toHaveText("Not enough quantity at the specified location.");
     await expect(dialog.getByRole("alert")).toBeVisible();
     await expect(dialog.getByLabel("Quantity Delta", { exact: true })).toHaveValue("-101");
-    await expect(dialog.getByLabel("Comments", { exact: true })).toHaveValue("Keep this note for retry");
+    await expect(dialog.getByRole("textbox", { name: "Comments", exact: true })).toHaveValue("Keep this note for retry");
     expect(await inventory.snapshot()).toEqual(before);
 
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
