@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api/errors";
+import { mapInventoryError } from "@/lib/api/inventory-errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createStockMovementSchema } from "@/lib/validators/stock";
 
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (error) {
-        throw error;
+        throw mapInventoryError(error);
       }
 
       return NextResponse.json({ data: { movement_ids: data } }, { status: 201 });
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      throw error;
+      throw mapInventoryError(error);
     }
 
     return NextResponse.json({ data: { movement_id: data } }, { status: 201 });

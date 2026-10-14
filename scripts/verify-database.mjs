@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -19,12 +19,13 @@ const disposableParent = process.argv.includes("--inventory") && process.platfor
 const disposableRoot = mkdtempSync(path.join(disposableParent, "lockstock-db-verification-"));
 const disposableSupabaseDirectory = path.join(disposableRoot, "supabase");
 const projectId = `lockstock-db-verification-${process.pid}`;
+const withAcceptance = process.argv.includes("--inventory");
+const applicationPort = withAcceptance ? await getFreePort() : undefined;
 const migrationUnderTest = "202608131200_enforce_database_authorization_entitlements.sql";
 const excludedServices = [
   "realtime",
   "storage-api",
   "imgproxy",
-  "mailpit",
   "postgres-meta",
   "studio",
   "edge-runtime",
@@ -32,6 +33,7 @@ const excludedServices = [
   "vector",
   "supavisor"
 ];
+if (!withAcceptance) excludedServices.push("mailpit");
 
 function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -110,18 +112,27 @@ try {
   renameSync(disposableMigrationPath, stagedMigrationPath);
 
   const configPath = path.join(disposableSupabaseDirectory, "config.toml");
-  const originalConfig = readFileSync(configPath, "utf8");
+  let originalConfig = readFileSync(configPath, "utf8");
+  if (withAcceptance) {
+    const origin = `http://127.0.0.1:${applicationPort}`;
+    originalConfig = originalConfig
+      .replace(/^site_url\s*=.*$/m, `site_url = "${origin}"`)
+      .replace(/^additional_redirect_urls\s*=\s*\[[\s\S]*?\]/m, `additional_redirect_urls = ["${origin}/reset-password", "${origin}/payment"]`)
+      .replace(/^enable_confirmations\s*=.*$/m, "enable_confirmations = true");
+  }
   let apiPort;
+  let mailPort;
   const startResult = await startWithPortRetry({
     allocatePort: async () => {
       const databasePort = await getFreePort();
       apiPort = await getFreePort();
+      if (withAcceptance) mailPort = await getFreePort();
       return databasePort;
     },
     cleanupFailedStart: () =>
       runSupabase(["stop", "--project-id", projectId, "--no-backup", "--workdir", disposableRoot]),
     configure: (databasePort) => {
-      const disposableConfig = rewriteSupabaseConfig(originalConfig, { apiPort, databasePort, projectId });
+      const disposableConfig = rewriteSupabaseConfig(originalConfig, { apiPort, databasePort, projectId, mailPort });
       writeFileSync(configPath, disposableConfig, "utf8");
       console.log(`Starting disposable Supabase project ${projectId} on database port ${databasePort}.`);
     },
@@ -190,12 +201,30 @@ try {
     // Copy application sources without local environment files or build output.
     // Next may rewrite next-env.d.ts/tsconfig; keep those changes isolated too.
     const applicationRoot = path.join(disposableRoot, "application");
-    for (const entry of ["app", "components", "lib", "public", "types", "styles", "next.config.mjs", "next-env.d.ts", "package.json", "tsconfig.json", "middleware.ts", "proxy.ts", "postcss.config.mjs"]) {
+    for (const entry of ["app", "components", "lib", "public", "types", "styles", "next.config.mjs", "next-env.d.ts", "package.json", "tsconfig.json", "middleware.ts", "proxy.ts", "postcss.config.mjs", "instrumentation.ts"]) {
       const source = path.join(repositoryRoot, entry);
       if (existsSync(source)) cpSync(source, path.join(applicationRoot, entry), { recursive: true });
     }
+    // This route exists only in the throwaway source copy, never in a deployment.
+    const failureRoute = path.join(applicationRoot, "app", "api", "acceptance-error");
+    mkdirSync(failureRoute, { recursive: true });
+    writeFileSync(path.join(failureRoute, "route.ts"), 'export function GET() { throw new Error("synthetic-private-payload"); }\n');
     symlinkSync(path.join(repositoryRoot, "node_modules"), path.join(applicationRoot, "node_modules"), process.platform === "win32" ? "junction" : "dir");
     const status = JSON.parse(statusJson);
+    const applicationEnvironment = {
+      ...process.env,
+      NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+      RESEND_API_KEY: "", EMAIL_FROM: "", STRIPE_SECRET_KEY: "", OBSERVABILITY_ENDPOINT: "",
+      NEXT_TELEMETRY_DISABLED: "1"
+    };
+    console.log("Building the disposable production application for real acceptance tests.");
+    const build = spawnSync(process.execPath, [path.join(applicationRoot, "node_modules", "next", "dist", "bin", "next"), "build", "--webpack"], {
+      cwd: applicationRoot, env: applicationEnvironment, stdio: "inherit", windowsHide: true
+    });
+    if (build.error) throw build.error;
+    if (build.status !== 0) throw new Error(`Disposable application build failed with exit code ${build.status}.`);
     console.log("Running inventory acceptance tests against the disposable application and database.");
     const inventoryVerification = spawnSync(process.execPath, [
       path.join(repositoryRoot, "node_modules", "@playwright", "test", "cli.js"),
@@ -207,11 +236,13 @@ try {
       env: {
         ...process.env,
         INVENTORY_APP_ROOT: applicationRoot,
-        INVENTORY_APP_PORT: String(await getFreePort()),
+        INVENTORY_APP_PORT: String(applicationPort),
+        INVENTORY_ALERT_PORT: String(await getFreePort()),
         INVENTORY_DISPOSABLE_PROJECT: projectId,
         INVENTORY_SUPABASE_URL: status.API_URL,
         INVENTORY_ANON_KEY: status.ANON_KEY,
-        INVENTORY_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY
+        INVENTORY_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+        INVENTORY_MAILPIT_URL: status.MAILPIT_URL
       }
     });
     if (inventoryVerification.error) throw inventoryVerification.error;

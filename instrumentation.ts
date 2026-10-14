@@ -20,7 +20,7 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
   });
 
   try {
-    await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -35,6 +35,7 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
       }),
       signal: AbortSignal.timeout(2_000)
     });
+    if (!response.ok) throw new Error(`Observability endpoint returned HTTP ${response.status}.`);
   } catch (reportingError) {
     console.error("Observability error reporting failed", {
       message: reportingError instanceof Error ? reportingError.message : String(reportingError)

@@ -38,7 +38,7 @@ function replaceSectionPort(config, sectionName, port) {
   return config.slice(0, location.start) + `port = ${port}` + config.slice(location.end);
 }
 
-function rewriteSupabaseConfig(originalConfig, { projectId, databasePort, apiPort }) {
+function rewriteSupabaseConfig(originalConfig, { projectId, databasePort, apiPort, mailPort }) {
   if (typeof projectId !== "string" || projectId.length === 0) {
     throw new Error("Expected a non-empty disposable Supabase project_id.");
   }
@@ -47,6 +47,9 @@ function rewriteSupabaseConfig(originalConfig, { projectId, databasePort, apiPor
   }
   if (apiPort !== undefined && (!Number.isInteger(apiPort) || apiPort < 1 || apiPort > 65535)) {
     throw new Error("Expected [api].port to be an integer between 1 and 65535.");
+  }
+  if (mailPort !== undefined && (!Number.isInteger(mailPort) || mailPort < 1 || mailPort > 65535)) {
+    throw new Error("Expected [inbucket].port to be an integer between 1 and 65535.");
   }
 
   const originalProjectId = readProjectId(originalConfig);
@@ -68,6 +71,7 @@ function rewriteSupabaseConfig(originalConfig, { projectId, databasePort, apiPor
   if (apiPort !== undefined) {
     rewrittenConfig = replaceSectionPort(rewrittenConfig, "api", apiPort);
   }
+  if (mailPort !== undefined) rewrittenConfig = replaceSectionPort(rewrittenConfig, "inbucket", mailPort);
 
   if (readProjectId(rewrittenConfig) !== projectId) {
     throw new Error(`Failed to replace project_id with the expected value: ${projectId}.`);
@@ -79,6 +83,9 @@ function rewriteSupabaseConfig(originalConfig, { projectId, databasePort, apiPor
   }
   if (apiPort !== undefined && findSectionPort(rewrittenConfig, "api")?.value !== apiPort) {
     throw new Error(`Failed to replace [api].port with the expected value: ${apiPort}.`);
+  }
+  if (mailPort !== undefined && findSectionPort(rewrittenConfig, "inbucket")?.value !== mailPort) {
+    throw new Error(`Failed to replace [inbucket].port with the expected value: ${mailPort}.`);
   }
 
   return rewrittenConfig;
