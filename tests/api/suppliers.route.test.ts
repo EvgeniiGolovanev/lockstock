@@ -57,7 +57,7 @@ describe("GET /api/suppliers pagination", () => {
     expect(from).toHaveBeenCalledWith("suppliers");
     expect(select).toHaveBeenCalledWith("*", { count: "exact" });
     expect(eq).toHaveBeenCalledWith("org_id", "org-1");
-    expect(or).toHaveBeenCalledWith("name.ilike.%acme%,phone.ilike.%acme%,address.ilike.%acme%,vendor_number::text.ilike.%acme%");
+    expect(or).toHaveBeenCalledWith('name.ilike."%acme%",phone.ilike."%acme%",address.ilike."%acme%"');
     expect(eq).toHaveBeenCalledWith("is_active", true);
     expect(range).not.toHaveBeenCalledWith(0, 19);
     expect(order).toHaveBeenCalledWith("vendor_number", { ascending: true });
