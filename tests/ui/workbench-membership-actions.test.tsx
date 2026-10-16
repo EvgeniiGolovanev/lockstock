@@ -24,7 +24,10 @@ beforeEach(() => {
   window.localStorage.setItem("lockstock.orgId", "own");
   accepted = false; left = false; refreshFails = false;
   mocks.request.mockImplementation(async (path: string) => {
-    if (path === "/api/organizations") return { data: accepted && !left ? [own, joined] : [own] };
+    if (path === "/api/organizations") {
+      if (accepted && refreshFails) throw new Error("Groups unavailable");
+      return { data: accepted && !left ? [own, joined] : [own] };
+    }
     if (path === "/api/invitations/invite/accept") { accepted = true; return { data: { org_id: "joined", organization_name: "Invited workspace", membership_role: "member" } }; }
     if (path === "/api/invitations/invite/reject") { left = true; return { data: { organization_name: "Invited workspace" } }; }
     if (path === "/api/organizations/joined/leave") { left = true; return { data: { removed: true } }; }
@@ -44,6 +47,12 @@ it("removes accepted invitation controls even when unrelated workspace refresh f
   fireEvent.click(accept);
   await waitFor(() => expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument());
   expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+  await screen.findByText(/The operation completed/);
+  for (const button of screen.getAllByRole("button", { name: "Open Group" })) expect(button).toBeDisabled();
+  refreshFails = false;
+  fireEvent.click(screen.getByRole("button", { name: "Refresh data" }));
+  await waitFor(() => expect(screen.queryByText(/The operation completed/)).not.toBeInTheDocument());
+  expect(mocks.request.mock.calls.filter(([path]) => path === "/api/invitations/invite/accept")).toHaveLength(1);
 });
 
 it("refreshes memberships for a member without requesting the restricted member directory", async () => {

@@ -13,6 +13,7 @@ import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
 import { WorkbenchCatalogForms } from "@/components/workbench/catalog-forms";
 import { WorkbenchLocationsSection } from "@/components/workbench/locations-section";
 import { WorkbenchMaterialsSection } from "@/components/workbench/materials-section";
+import { MemberActionFeedback, useMemberActions, type MemberAction } from "./workbench/member-actions";
 import { WorkbenchMembersSection } from "@/components/workbench/members-section";
 import { WorkbenchPurchaseOrderForms } from "@/components/workbench/purchase-order-forms";
 import { WorkbenchPurchaseOrdersSection } from "@/components/workbench/purchase-orders-section";
@@ -482,7 +483,6 @@ export function LockstockWorkbench() {
   const [organizationMembers, setOrganizationMembers] = useState<OrganizationMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [pendingLeaveGroup, setPendingLeaveGroup] = useState<OrganizationMembership | null>(null);
-  const [leaveGroupError, setLeaveGroupError] = useState("");
   const [stockHealth, setStockHealth] = useState<StockHealth | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [pendingMaterialUsageChange, setPendingMaterialUsageChange] = useState<Material | null>(null);
@@ -490,6 +490,7 @@ export function LockstockWorkbench() {
   const [pendingSupplierUsageChange, setPendingSupplierUsageChange] = useState<Supplier | null>(null);
   const [pendingCancelPo, setPendingCancelPo] = useState<PurchaseOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const memberActions = useMemberActions({ scope: signedInAs, locale, onBusyChange: setBusy });
   const [authResolved, setAuthResolved] = useState(false);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
@@ -1043,16 +1044,6 @@ export function LockstockWorkbench() {
     setOrganizationMembers(response.data);
   }, [apiRequest, orgId]);
 
-  const loadOwnedGroupMembers = useCallback(async (targetGroup?: OrganizationMembership | null, tokenOverride?: string) => {
-    const group = targetGroup ?? ownedGroup;
-    if (!group) {
-      setOrganizationMembers([]);
-      return;
-    }
-
-    await loadOrganizationMembers(group.organization.id, tokenOverride);
-  }, [loadOrganizationMembers, ownedGroup]);
-
   const loadPendingInvitations = useCallback(async (tokenOverride?: string) => {
     const response = await apiRequest<{ data: PendingInvitation[] }>("/api/invitations/pending", {
       requireOrg: false,
@@ -1411,184 +1402,107 @@ export function LockstockWorkbench() {
     setRenameOrgName(membership.organization.name);
   }
 
+  async function refreshMemberGroups(isCurrent: () => boolean) {
+    const response = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", { requireOrg: false });
+    if (isCurrent()) setOrganizations(response.data);
+  }
+
+  async function refreshMemberDirectory(group: OrganizationMembership | null, isCurrent: () => boolean) {
+    if (!group) return;
+    const response = await apiRequest<{ data: OrganizationMember[] }>(`/api/organizations/${group.organization.id}/members`, { orgOverride: group.organization.id });
+    if (isCurrent()) setOrganizationMembers(response.data);
+  }
+
+  async function refreshMemberInvitations(isCurrent: () => boolean) {
+    const response = await apiRequest<{ data: PendingInvitation[] }>("/api/invitations/pending", { requireOrg: false });
+    if (isCurrent()) setPendingInvitations(response.data);
+  }
+
   async function handleRenameGroup() {
-    if (!renamingOrgId) {
-      return;
-    }
-
-    try {
-      setBusy(true);
-      const nextName = renameOrgName.trim();
-      const response = await apiRequest<{ data: { id: string; name: string; created_at: string } }>(
-        `/api/organizations/${renamingOrgId}`,
-        {
-          method: "PATCH",
-          orgOverride: renamingOrgId,
-          body: { name: nextName }
-        }
-      );
-
-      setOrganizations((prev) =>
-        prev.map((membership) =>
-          membership.organization.id === response.data.id
-            ? { ...membership, organization: { ...membership.organization, name: response.data.name } }
-            : membership
-        )
-      );
-      setRenamingOrgId("");
-      setRenameOrgName("");
+    if (!renamingOrgId) return;
+    await memberActions.run("rename", () => apiRequest<{ data: { id: string; name: string } }>(
+      `/api/organizations/${renamingOrgId}`, { method: "PATCH", orgOverride: renamingOrgId, body: { name: renameOrgName.trim() } }
+    ), async (_response, current) => { await refreshMemberGroups(current); }, response => {
+      setOrganizations(prev => prev.map(item => item.organization.id === response.data.id ? { ...item, organization: { ...item.organization, name: response.data.name } } : item));
+      setRenamingOrgId(""); setRenameOrgName("");
       addActivity(`Group renamed: ${response.data.name}.`);
-    } catch (error) {
-      addActivity(`Rename group failed: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function handleInviteMemberByEmail() {
     const targetGroup = ownedGroup;
-    if (!targetGroup) {
-      addActivity("Invite failed: default group is not available.");
-      return;
-    }
-    if (!memberInviteRole) {
-      addActivity("Invite failed: select a role.");
-      return;
-    }
-
-    try {
-      setBusy(true);
-      const email = memberInviteEmail.trim().toLowerCase();
-      const inviteOrgId = targetGroup.organization.id;
-      const response = await apiRequest<{
-        data: {
-          email: string;
-          role: OrganizationMember["role"];
-          expires_in_days: number;
-          email_delivery: "sent" | "skipped" | "failed";
-          email_delivery_message: string | null;
-        };
-      }>(`/api/organizations/${inviteOrgId}/members`, {
-        method: "POST",
-        orgOverride: inviteOrgId,
-        body: { email, role: memberInviteRole }
-      });
+    await memberActions.run("invite", async () => {
+      if (!targetGroup) throw new Error(t("workbench.members.noOwnedGroup"));
+      if (!memberInviteRole) throw new Error(t("workbench.members.selectRole"));
+      return apiRequest<{ data: { email: string; role: string; email_delivery: "sent" | "skipped" | "failed" } }>(
+        `/api/organizations/${targetGroup.organization.id}/members`, {
+          method: "POST", orgOverride: targetGroup.organization.id,
+          body: { email: memberInviteEmail.trim().toLowerCase(), role: memberInviteRole }
+        }
+      );
+    }, async (_response, current) => {
+      await refreshMemberDirectory(targetGroup, current);
+      await refreshMemberInvitations(current);
+    }, response => {
       setMemberInviteEmail("");
-      await loadOwnedGroupMembers(targetGroup);
-      await loadPendingInvitations();
-      const deliveryMessage =
-        response.data.email_delivery === "sent"
-          ? "Invitation email sent."
-          : response.data.email_delivery === "skipped"
-            ? response.data.email_delivery_message ?? "Email delivery skipped."
-            : response.data.email_delivery_message ?? "Email delivery failed.";
-      addActivity(`Invitation created for ${targetGroup.organization.name}: ${response.data.email} (${response.data.role})`);
-      addActivity(deliveryMessage);
-    } catch (error) {
-      addActivity(`Invite failed: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+      memberActions.delivery(response.data.email_delivery);
+      addActivity(`Invitation created: ${response.data.email} (${response.data.role}).`);
+    });
   }
 
   async function handleAcceptInvitation(invitation: PendingInvitation) {
-    try {
-      setBusy(true);
-      const response = await apiRequest<{ data: { org_id: string; organization_name: string; membership_role: string } }>(
-        `/api/invitations/${invitation.id}/accept`,
-        {
-          method: "POST",
-          requireOrg: false
-        }
-      );
-      addActivity(`Invitation accepted: joined group ${response.data.organization_name} as ${response.data.membership_role}.`);
-      setPendingInvitations((current) => current.filter((item) => item.id !== invitation.id));
+    await memberActions.run("accept", () => apiRequest<{ data: { org_id: string; organization_name: string; membership_role: string } }>(
+      `/api/invitations/${invitation.id}/accept`, { method: "POST", requireOrg: false }
+    ), async (_response, current) => {
+      await refreshMemberGroups(current);
+      await refreshMemberInvitations(current);
+    }, response => {
+      setPendingInvitations(current => current.filter(item => item.id !== invitation.id));
       setActiveOrgId(response.data.org_id);
-      const organizationsResponse = await apiRequest<{ data: OrganizationMembership[] }>("/api/organizations", {
-        requireOrg: false
-      });
-      setOrganizations(organizationsResponse.data);
-      await syncPublicProfile();
-      await refreshCoreData(response.data.org_id);
-    } catch (error) {
-      addActivity(`Accept invitation failed: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+      addActivity(`Invitation accepted: joined group ${response.data.organization_name} as ${response.data.membership_role}.`);
+    });
   }
 
   async function handleRejectInvitation(invitation: PendingInvitation) {
-    try {
-      setBusy(true);
-      const response = await apiRequest<{ data: { organization_name: string } }>(`/api/invitations/${invitation.id}/reject`, {
-        method: "POST",
-        requireOrg: false
-      });
+    await memberActions.run("reject", () => apiRequest<{ data: { organization_name: string } }>(
+      `/api/invitations/${invitation.id}/reject`, { method: "POST", requireOrg: false }
+    ), async (_response, current) => { await refreshMemberInvitations(current); }, response => {
+      setPendingInvitations(current => current.filter(item => item.id !== invitation.id));
       addActivity(`Invitation rejected: group ${response.data.organization_name}.`);
-      setPendingInvitations((current) => current.filter((item) => item.id !== invitation.id));
-      await loadPendingInvitations();
-    } catch (error) {
-      addActivity(`Reject invitation failed: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function handleRemoveOrganizationMember(userId: string) {
     const targetGroup = ownedGroup;
-    if (!targetGroup) {
-      addActivity("Remove member failed: owned group is not available.");
-      return;
-    }
-
-    try {
-      setBusy(true);
-      const targetOrgId = targetGroup.organization.id;
-      await apiRequest(`/api/organizations/${targetOrgId}/members/${userId}`, {
-        method: "DELETE",
-        orgOverride: targetOrgId
-      });
-      await loadOwnedGroupMembers(targetGroup);
+    await memberActions.run("remove", async () => {
+      if (!targetGroup) throw new Error(t("workbench.members.noOwnedGroup"));
+      await apiRequest(`/api/organizations/${targetGroup.organization.id}/members/${userId}`, { method: "DELETE", orgOverride: targetGroup.organization.id });
+    }, async (_response, current) => { await refreshMemberDirectory(targetGroup, current); }, () => {
+      setOrganizationMembers(current => current.filter(item => item.user_id !== userId));
       addActivity("Group member removed.");
-    } catch (error) {
-      addActivity(`Remove member failed: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function handleLeaveGroup() {
     if (!pendingLeaveGroup || pendingLeaveGroup.role === "owner") return;
     const leaving = pendingLeaveGroup;
-    setLeaveGroupError("");
-    try {
-      setBusy(true);
-      await apiRequest(`/api/organizations/${leaving.organization.id}/leave`, {
-        method: "POST", orgOverride: leaving.organization.id
-      });
-      const remaining = organizations.filter((item) => item.organization.id !== leaving.organization.id);
-      setOrganizations(remaining);
-      setPendingLeaveGroup(null);
+    const remaining = organizations.filter(item => item.organization.id !== leaving.organization.id);
+    const next = remaining.find(item => item.organization.id === orgId)
+      ?? remaining.find(item => item.role === "owner") ?? remaining[0];
+    await memberActions.run("leave", async () => {
+      await apiRequest(`/api/organizations/${leaving.organization.id}/leave`, { method: "POST", orgOverride: leaving.organization.id });
+    }, async (_response, current) => {
+      await refreshMemberGroups(current);
+      await refreshMemberInvitations(current);
+    }, () => {
+      setOrganizations(remaining); setPendingLeaveGroup(null);
       addActivity(message(locale, "workbench.members.leftGroup", { name: leaving.organization.name }));
-      const next = remaining.find((item) => item.organization.id === orgId)
-        ?? remaining.find((item) => item.role === "owner") ?? remaining[0];
       if (orgId === leaving.organization.id) {
         setActiveOrgId(next?.organization.id ?? "");
-        setMaterials([]);
-        setMaterialMovements([]);
-        setLocations([]);
-        setSuppliers([]);
-        setActiveSupplierRows([]);
-        setPurchaseOrders([]);
+        setMaterials([]); setMaterialMovements([]); setLocations([]);
+        setSuppliers([]); setActiveSupplierRows([]); setPurchaseOrders([]);
       }
-      if (next) await refreshCoreData(next.organization.id);
-    } catch (error) {
-      const failure = message(locale, "workbench.members.leaveFailed", { reason: (error as Error).message });
-      setLeaveGroupError(failure);
-      addActivity(failure);
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function handleRefreshHealth() {
@@ -1609,6 +1523,9 @@ export function LockstockWorkbench() {
   }
 
   const ownedGroupName = ownedGroup?.organization.name ?? "my group";
+  const memberFeedback = (actions: MemberAction[]) => actions.includes(memberActions.action)
+    ? <MemberActionFeedback feedback={memberActions} busy={busy} locale={locale} /> : null;
+
   const ownedGroupMemberRows =
     ownedGroup && organizationMembers.length > 0
       ? organizationMembers.filter((member) => member.role !== "owner").map((member) => ({
@@ -1619,7 +1536,7 @@ export function LockstockWorkbench() {
           joined: formatDateLabel(member.created_at),
           actionLabel: "Remove",
           action: (
-            <button type="button" className="ghost-btn" disabled={busy} onClick={() => handleRemoveOrganizationMember(member.user_id)}>
+            <button type="button" className="ghost-btn" disabled={busy || memberActions.blocked} onClick={() => handleRemoveOrganizationMember(member.user_id)}>
               Remove
             </button>
           )
@@ -1643,11 +1560,12 @@ export function LockstockWorkbench() {
           <button
             type="button"
             className="ghost-btn"
-            disabled={busy}
+            disabled={busy || memberActions.blocked}
             onClick={() => {
+              if (memberActions.blocked) return;
               setActiveOrgId(item.organization.id);
               addActivity(`Switched group to ${item.organization.name}.`);
-              void refreshCoreData(item.organization.id);
+              void memberActions.read("groups", refreshMemberGroups);
             }}
           >
             Open Group
@@ -1656,7 +1574,7 @@ export function LockstockWorkbench() {
           <span className="subtle-line">{t("workbench.members.current")}</span>
         )}
           {item.role !== "owner" ? (
-            <button type="button" className="ghost-btn" disabled={busy || isDemoMode} onClick={() => { setLeaveGroupError(""); setPendingLeaveGroup(item); }}>
+            <button type="button" className="ghost-btn" disabled={busy || memberActions.blocked || isDemoMode} onClick={() => { memberActions.clear(); setPendingLeaveGroup(item); }}>
               {t("workbench.members.leaveGroup")}
             </button>
           ) : null}
@@ -1944,7 +1862,7 @@ export function LockstockWorkbench() {
           <button type="button" disabled={busy || !signedInAs} onClick={handleLogout}>
             {t("workbench.auth.signOut")}
           </button>
-          <button type="button" disabled={busy || !accessToken} onClick={handleLoadOrganizations}>
+          <button type="button" disabled={busy || memberActions.blocked || !accessToken} onClick={handleLoadOrganizations}>
             {t("workbench.auth.syncWorkspace")}
           </button>
         </div>
@@ -1954,7 +1872,9 @@ export function LockstockWorkbench() {
             <span>{t("workbench.auth.groupPicker")}</span>
             <select
               value={orgId}
+              disabled={busy || memberActions.blocked}
               onChange={(event) => {
+                if (memberActions.blocked) return;
                 const nextOrgId = event.target.value;
                 setActiveOrgId(nextOrgId);
                 const nextMembership = organizations.find((item) => item.organization.id === nextOrgId);
@@ -1986,17 +1906,21 @@ export function LockstockWorkbench() {
       {pendingLeaveGroup ? (
         <AccessibilityDialog showCloseButton={false} title={t("workbench.members.leaveGroup")} onClose={() => { if (!busy) setPendingLeaveGroup(null); }}>
           <p>{message(locale, "workbench.members.leaveConfirm", { name: pendingLeaveGroup.organization.name })}</p>
-          {leaveGroupError ? <p role="alert">{leaveGroupError}</p> : null}
+          {memberFeedback(["leave"])}
           <div className="actions">
             <button type="button" className="ghost-btn" disabled={busy} onClick={() => setPendingLeaveGroup(null)}>{t("workbench.movement.cancel")}</button>
-            <button type="button" disabled={busy} onClick={() => void handleLeaveGroup()}>{t("workbench.members.leaveGroup")}</button>
+            <button type="button" disabled={busy || memberActions.blocked} onClick={() => void handleLeaveGroup()}>{t("workbench.members.leaveGroup")}</button>
           </div>
         </AccessibilityDialog>
       ) : null}
 
       {showMembersSection && canUseMembersScreen ? (
         <WorkbenchMembersSection
-          busy={busy}
+          groupFeedback={memberFeedback(["rename"])}
+          membersFeedback={memberFeedback(["remove", "members"])}
+          membershipsFeedback={!pendingLeaveGroup ? memberFeedback(["leave", "groups"]) : null}
+          invitationsFeedback={memberFeedback(["invite", "accept", "reject", "invitations"])}
+          busy={busy || memberActions.blocked}
           canUseMembersScreen={canUseMembersScreen}
           ownedGroupName={ownedGroupName}
           ownedGroup={ownedGroup}
@@ -2014,22 +1938,24 @@ export function LockstockWorkbench() {
           tableSortStateMemberships={tableSorts.memberships}
           tableSortStateInvitations={tableSorts.invitations}
           onRenameGroupClick={() => {
+            memberActions.clear();
             if (ownedGroup) {
               startRenameGroup(ownedGroup);
             }
           }}
-          onRefreshMembersClick={() => loadOwnedGroupMembers()}
+          onRefreshMembersClick={() => void memberActions.read("members", current => refreshMemberDirectory(ownedGroup, current))}
           onRenameOrgNameChange={setRenameOrgName}
           onSaveGroupName={handleRenameGroup}
           onCancelRenameGroup={() => {
+            memberActions.clear();
             setRenamingOrgId("");
             setRenameOrgName("");
           }}
           onMemberInviteEmailChange={setMemberInviteEmail}
           onMemberInviteRoleChange={(value) => setMemberInviteRole(value as OrganizationMember["role"] | "")}
           onSendInvitation={handleInviteMemberByEmail}
-          onRefreshInvitations={() => loadPendingInvitations()}
-          onRefreshGroups={handleLoadOrganizations}
+          onRefreshInvitations={() => void memberActions.read("invitations", refreshMemberInvitations)}
+          onRefreshGroups={() => void memberActions.read("groups", refreshMemberGroups)}
           onAcceptInvitation={(id) => {
             const invitation = pendingInvitations.find((item) => item.id === id);
             if (invitation) {
