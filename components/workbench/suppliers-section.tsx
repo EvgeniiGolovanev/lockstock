@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import { PHONE_COUNTRY_CODES, buildPhoneNumber, formatVendorNumber, splitPhoneNumber } from "@/lib/ui/vendor-fields";
+import { CatalogFeedback, useCatalogFeedback } from "./catalog-feedback";
 import styles from "./suppliers-section.module.css";
 
 export type WorkbenchSupplier = {
@@ -122,6 +123,9 @@ export function WorkbenchSuppliersSection({
   const [supplierLeadTime, setSupplierLeadTime] = useState(5);
   const [supplierAddress, setSupplierAddress] = useState("");
 
+  const scope = showSupplierForm ? `supplier:${editingSupplier?.id ?? "new"}` : pendingSupplierUsageChange ? `supplier-usage:${pendingSupplierUsageChange.id}` : "closed";
+  const feedback = useCatalogFeedback({ scope, locale, onBusyChange, onRefreshCoreData, onActivity });
+
   useEffect(() => {
     if (!showSupplierForm) {
       setSupplierVendorNumber(null);
@@ -145,65 +149,20 @@ export function WorkbenchSuppliersSection({
   }, [editingSupplier, showSupplierForm]);
 
   async function handleSaveSupplier() {
-    try {
-      onBusyChange(true);
-      const payload = {
-        name: supplierName,
-        phone: buildPhoneNumber(supplierPhoneCountryCode, supplierPhoneNumber),
-        address: supplierAddress.trim() || undefined,
-        lead_time_days: Number(supplierLeadTime)
-      };
-
-      if (editingSupplier) {
-        await apiRequest(`/api/suppliers/${editingSupplier.id}`, {
-          method: "PATCH",
-          body: payload
-        });
-        onActivity("Supplier updated.");
-      } else {
-        await apiRequest("/api/suppliers", {
-          method: "POST",
-          body: payload
-        });
-        onActivity("Supplier created.");
-      }
-
-      onCloseSupplierForm();
-      await onRefreshCoreData();
-    } catch (error) {
-      onActivity(
-        editingSupplier
-          ? `Update supplier failed: ${(error as Error).message}`
-          : `Create supplier failed: ${(error as Error).message}`
-      );
-    } finally {
-      onBusyChange(false);
-    }
+    await feedback.run(async () => {
+      const body = { name: supplierName, phone: buildPhoneNumber(supplierPhoneCountryCode, supplierPhoneNumber), address: supplierAddress.trim() || undefined, lead_time_days: Number(supplierLeadTime) };
+      await apiRequest(editingSupplier ? `/api/suppliers/${editingSupplier.id}` : "/api/suppliers", { method: editingSupplier ? "PATCH" : "POST", body });
+      onActivity(editingSupplier ? "Supplier updated." : "Supplier created.");
+    }, onCloseSupplierForm);
   }
 
   async function handleConfirmSupplierUsageChange() {
-    if (!pendingSupplierUsageChange) {
-      return;
-    }
-
+    if (!pendingSupplierUsageChange) return;
     const nextIsActive = pendingSupplierUsageChange.is_active === false;
-
-    try {
-      onBusyChange(true);
-      await apiRequest(`/api/suppliers/${pendingSupplierUsageChange.id}`, {
-        method: "PATCH",
-        body: {
-          is_active: nextIsActive
-        }
-      });
+    await feedback.run(async () => {
+      await apiRequest(`/api/suppliers/${pendingSupplierUsageChange.id}`, { method: "PATCH", body: { is_active: nextIsActive } });
       onActivity(`${pendingSupplierUsageChange.name} ${nextIsActive ? "unblocked for usage" : "blocked for usage"}.`);
-      onClosePendingSupplierUsageChange();
-      await onRefreshCoreData();
-    } catch (error) {
-      onActivity(`Update supplier usage failed: ${(error as Error).message}`);
-    } finally {
-      onBusyChange(false);
-    }
+    }, onClosePendingSupplierUsageChange);
   }
 
   return (
@@ -324,7 +283,7 @@ export function WorkbenchSuppliersSection({
       </section>
 
       {showSupplierForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingSupplier ? t("workbench.supplier.editDialog") : t("workbench.supplier.addDialog")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={editingSupplier ? t("workbench.supplier.editDialog") : t("workbench.supplier.addDialog")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{editingSupplier ? t("workbench.supplier.edit") : t("workbench.supplier.add")}</h4>
@@ -367,8 +326,9 @@ export function WorkbenchSuppliersSection({
                 <textarea maxLength={256} rows={3} value={supplierAddress} onChange={(event) => setSupplierAddress(event.target.value)} />
               </label>
             </div>
+            <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseSupplierForm} />
             <div className="actions">
-              <button type="button" disabled={busy || !isOrgScopedReady || !supplierName.trim()} onClick={() => void handleSaveSupplier()}>
+              <button type="button" disabled={busy || !isOrgScopedReady || !supplierName.trim() || feedback.committed} onClick={() => void handleSaveSupplier()}>
                 {editingSupplier ? t("workbench.supplier.update") : t("workbench.supplier.create")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseSupplierForm}>
@@ -380,7 +340,7 @@ export function WorkbenchSuppliersSection({
       ) : null}
 
       {pendingSupplierUsageChange ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.supplier.confirmUsage")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={t("workbench.supplier.confirmUsage")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{pendingSupplierUsageChange.is_active === false ? t("workbench.supplier.unblockVendor") : t("workbench.supplier.blockVendor")}</h4>
@@ -393,8 +353,9 @@ export function WorkbenchSuppliersSection({
                 ? message(locale, "workbench.supplier.unblockConfirm", { name: pendingSupplierUsageChange.name })
                 : message(locale, "workbench.supplier.blockConfirm", { name: pendingSupplierUsageChange.name })}
             </p>
+            <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onClosePendingSupplierUsageChange} />
             <div className="actions">
-              <button type="button" disabled={busy} onClick={() => void handleConfirmSupplierUsageChange()}>
+              <button type="button" disabled={busy || feedback.committed} onClick={() => void handleConfirmSupplierUsageChange()}>
                 {t("workbench.supplier.confirm")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingSupplierUsageChange}>
