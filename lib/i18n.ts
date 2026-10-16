@@ -464,6 +464,9 @@ const MESSAGES = {
     en: ({ count, item, total }: MessageParams["workbench.po.draftSummary"]) => `${count} ${item} - ${total}`,
     fr: ({ count, item, total }: MessageParams["workbench.po.draftSummary"]) => `${count} ${item} - ${total}`
   },
+  "workbench.po.unexpectedError": { en: "Unexpected server error.", fr: "Erreur serveur inattendue." },
+  "workbench.po.refreshData": { en: "Refresh data", fr: "Actualiser les données" },
+  "workbench.po.refreshFailed": { en: "The operation completed, but the latest data could not be loaded. Refresh data before starting another operation.", fr: "L'opération est terminée, mais les dernières données n'ont pas pu être chargées. Actualisez les données avant de commencer une autre opération." },
   "workbench.po.activityCreateValidation": { en: "Create purchase order failed: supplier and at least one line are required.", fr: "Création impossible : un fournisseur et au moins une ligne sont requis." },
   "workbench.po.activityCreated": { en: "Purchase order created.", fr: "Commande créée." },
   "workbench.po.activityCreateFailed": {

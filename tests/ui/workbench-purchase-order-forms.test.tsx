@@ -18,6 +18,7 @@ describe("WorkbenchPurchaseOrderForms", () => {
 
     render(
       <WorkbenchPurchaseOrderForms
+        onRefreshRequiredChange={vi.fn()}
         busy={false}
         isOrgScopedReady={true}
         canManageCatalog={true}
@@ -87,6 +88,7 @@ describe("WorkbenchPurchaseOrderForms", () => {
 
     render(
       <WorkbenchPurchaseOrderForms
+        onRefreshRequiredChange={vi.fn()}
         busy={false}
         isOrgScopedReady={true}
         canManageCatalog={true}

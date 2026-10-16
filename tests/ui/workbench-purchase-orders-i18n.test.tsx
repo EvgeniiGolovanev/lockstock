@@ -11,6 +11,7 @@ describe("WorkbenchPurchaseOrdersSection French messages", () => {
   it("renders translated filters, actions, and dialog labels before DOM insertion", () => {
     render(
       <WorkbenchPurchaseOrdersSection
+        refreshRequired={false} formOpen={false} onRefreshRequiredChange={vi.fn()}
         busy={false}
         canManageCatalog={true}
         canReceivePurchaseOrders={true}
