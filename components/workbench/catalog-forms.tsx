@@ -7,6 +7,7 @@ import { MATERIAL_CATEGORIES, getMaterialSubcategories, type MaterialCategory } 
 import { MATERIAL_DUPLICATE_SKU_ERROR } from "@/lib/material-errors";
 import { MATERIAL_UNITS, formatMaterialUnitLabel } from "@/lib/material-units";
 import { materialDuplicateSkuMessage, validateMaterialDraftRequiredFields, type MaterialDraftRequiredField } from "@/lib/ui/material-form";
+import { CatalogFeedback, useCatalogFeedback } from "./catalog-feedback";
 import styles from "./catalog-forms.module.css";
 
 import type { WorkbenchLocation } from "./locations-section";
@@ -85,6 +86,8 @@ export function WorkbenchCatalogForms({
   const [editMaterialMinStock, setEditMaterialMinStock] = useState("");
   const [editMaterialDescription, setEditMaterialDescription] = useState("");
   const [editMaterialRequiredErrors, setEditMaterialRequiredErrors] = useState<MaterialDraftRequiredField[]>([]);
+  const scope = showLocationForm ? `location:${editingLocation?.id ?? "new"}` : pendingLocationUsageChange ? `location-usage:${pendingLocationUsageChange.id}` : showMaterialCreateForm ? "material-new" : editingMaterial ? `material:${editingMaterial.id}` : pendingMaterialUsageChange ? `material-usage:${pendingMaterialUsageChange.id}` : "closed";
+  const feedback = useCatalogFeedback({ scope, locale, onBusyChange, onRefreshCoreData, onActivity });
   const availableMaterialSubcategories = getMaterialSubcategories(materialCategory);
   const availableEditMaterialSubcategories = getMaterialSubcategories(editMaterialCategory);
 
@@ -177,188 +180,80 @@ export function WorkbenchCatalogForms({
   }, [availableEditMaterialSubcategories, editMaterialSubcategory, editingMaterial]);
 
   async function handleSaveLocation() {
-    try {
-      onBusyChange(true);
-      const payload = {
-        name: locationName,
-        code: locationCode,
-        address: locationAddress
-      };
-
-      if (editingLocation) {
-        await apiRequest(`/api/locations/${editingLocation.id}`, {
-          method: "PATCH",
-          body: payload
-        });
-        onActivity("Location updated.");
-      } else {
-        await apiRequest("/api/locations", {
-          method: "POST",
-          body: payload
-        });
-        onActivity("Location created.");
-      }
-
-      onCloseLocationForm();
-      await onRefreshCoreData();
-    } catch (error) {
-      onActivity(
-        editingLocation
-          ? `Update location failed: ${(error as Error).message}`
-          : `Create location failed: ${(error as Error).message}`
-      );
-    } finally {
-      onBusyChange(false);
-    }
+    await feedback.run(async () => {
+      const body = { name: locationName, code: locationCode, address: locationAddress };
+      await apiRequest(editingLocation ? `/api/locations/${editingLocation.id}` : "/api/locations", { method: editingLocation ? "PATCH" : "POST", body });
+      onActivity(editingLocation ? "Location updated." : "Location created.");
+    }, onCloseLocationForm);
   }
 
   async function handleConfirmLocationUsageChange() {
-    if (!pendingLocationUsageChange) {
-      return;
-    }
-
+    if (!pendingLocationUsageChange) return;
     const nextIsActive = pendingLocationUsageChange.is_active === false;
-
-    try {
-      onBusyChange(true);
-      await apiRequest(`/api/locations/${pendingLocationUsageChange.id}`, {
-        method: "PATCH",
-        body: {
-          is_active: nextIsActive
-        }
-      });
+    await feedback.run(async () => {
+      await apiRequest(`/api/locations/${pendingLocationUsageChange.id}`, { method: "PATCH", body: { is_active: nextIsActive } });
       onActivity(`${pendingLocationUsageChange.name} ${nextIsActive ? "unblocked for usage" : "blocked for usage"}.`);
-      onClosePendingLocationUsageChange();
-      await onRefreshCoreData();
-    } catch (error) {
-      onActivity(`Update location usage failed: ${(error as Error).message}`);
-    } finally {
-      onBusyChange(false);
-    }
+    }, onClosePendingLocationUsageChange);
   }
 
   async function handleCreateMaterial() {
-    const missingFields = validateMaterialDraftRequiredFields({
-      sku: materialSku,
-      name: materialName,
-      minStock: materialMinStock
-    });
-
+    if (feedback.committed) return;
+    feedback.setError(null);
+    const missingFields = validateMaterialDraftRequiredFields({ sku: materialSku, name: materialName, minStock: materialMinStock });
+    setMaterialRequiredErrors(missingFields);
+    setMaterialSkuDuplicate(false);
     if (missingFields.length > 0) {
-      setMaterialRequiredErrors(missingFields);
-      setMaterialSkuDuplicate(false);
-      onActivity("Create material failed: SKU, name, and minimum stock are required.");
+      feedback.setError(message(locale, "catalog.material.createValidation"));
       return;
     }
-
-    try {
-      onBusyChange(true);
-      setMaterialRequiredErrors([]);
-      setMaterialSkuDuplicate(false);
-      await apiRequest("/api/materials", {
-        method: "POST",
-        body: {
-          sku: materialSku.trim(),
-          name: materialName.trim(),
-          description: materialDescription.trim() || undefined,
-          uom: materialUom,
-          category: materialCategory,
-          subcategory: materialSubcategory,
-          min_stock: Number(materialMinStock)
-        }
-      });
+    await feedback.run(async () => {
+      await apiRequest("/api/materials", { method: "POST", body: {
+        sku: materialSku.trim(), name: materialName.trim(), description: materialDescription.trim() || undefined,
+        uom: materialUom, category: materialCategory, subcategory: materialSubcategory, min_stock: Number(materialMinStock)
+      } });
       onActivity("Material created.");
-      setMaterialSku("MAT-001");
-      setMaterialName("Cement");
-      setMaterialCategory(MATERIAL_CATEGORIES[0]);
-      setMaterialSubcategory(availableMaterialSubcategories[0] ?? "");
-      setMaterialUom("BAG");
-      setMaterialMinStock("10");
-      setMaterialDescription("");
-      onCloseMaterialCreateForm();
-      await onRefreshCoreData();
-    } catch (error) {
-      if ((error as Error).message === MATERIAL_DUPLICATE_SKU_ERROR) {
+    }, onCloseMaterialCreateForm, error => {
+      if (error instanceof Error && error.message === MATERIAL_DUPLICATE_SKU_ERROR) {
         setMaterialRequiredErrors(["sku"]);
         setMaterialSkuDuplicate(true);
+        feedback.setError(materialDuplicateSkuMessage(locale));
       }
-      onActivity(`Create material failed: ${(error as Error).message}`);
-    } finally {
-      onBusyChange(false);
-    }
+    });
   }
 
   async function handleUpdateMaterial() {
-    if (!editingMaterial) {
-      return;
-    }
-
+    if (!editingMaterial || feedback.committed) return;
+    feedback.setError(null);
     const missingFields: Array<"name" | "minStock"> = [];
-    if (!editMaterialName.trim()) {
-      missingFields.push("name");
-    }
-    if (editMaterialMinStock.trim() === "") {
-      missingFields.push("minStock");
-    }
-
+    if (!editMaterialName.trim()) missingFields.push("name");
+    if (editMaterialMinStock.trim() === "") missingFields.push("minStock");
+    setEditMaterialRequiredErrors(missingFields);
     if (missingFields.length > 0) {
-      setEditMaterialRequiredErrors(missingFields);
-      onActivity("Update material failed: name and minimum stock are required.");
+      feedback.setError(message(locale, "catalog.material.updateValidation"));
       return;
     }
-
-    try {
-      onBusyChange(true);
-      setEditMaterialRequiredErrors([]);
-      await apiRequest(`/api/materials/${editingMaterial.id}`, {
-        method: "PATCH",
-        body: {
-          name: editMaterialName.trim(),
-          category: editMaterialCategory,
-          subcategory: editMaterialSubcategory,
-          min_stock: Number(editMaterialMinStock),
-          description: editMaterialDescription.trim() || null
-        }
-      });
+    await feedback.run(async () => {
+      await apiRequest(`/api/materials/${editingMaterial.id}`, { method: "PATCH", body: {
+        name: editMaterialName.trim(), category: editMaterialCategory, subcategory: editMaterialSubcategory,
+        min_stock: Number(editMaterialMinStock), description: editMaterialDescription.trim() || null
+      } });
       onActivity("Material updated.");
-      onCloseEditMaterialForm();
-      await onRefreshCoreData();
-    } catch (error) {
-      onActivity(`Update material failed: ${(error as Error).message}`);
-    } finally {
-      onBusyChange(false);
-    }
+    }, onCloseEditMaterialForm);
   }
 
   async function handleConfirmMaterialUsageChange() {
-    if (!pendingMaterialUsageChange) {
-      return;
-    }
-
+    if (!pendingMaterialUsageChange) return;
     const nextIsActive = pendingMaterialUsageChange.is_active === false;
-
-    try {
-      onBusyChange(true);
-      await apiRequest(`/api/materials/${pendingMaterialUsageChange.id}`, {
-        method: "PATCH",
-        body: {
-          is_active: nextIsActive
-        }
-      });
+    await feedback.run(async () => {
+      await apiRequest(`/api/materials/${pendingMaterialUsageChange.id}`, { method: "PATCH", body: { is_active: nextIsActive } });
       onActivity(`${pendingMaterialUsageChange.sku} ${nextIsActive ? "unblocked for usage" : "blocked for usage"}.`);
-      onClosePendingMaterialUsageChange();
-      await onRefreshCoreData();
-    } catch (error) {
-      onActivity(`Update material usage failed: ${(error as Error).message}`);
-    } finally {
-      onBusyChange(false);
-    }
+    }, onClosePendingMaterialUsageChange);
   }
 
   return (
     <>
       {showLocationForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editingLocation ? t("workbench.catalog.editLocationDialog") : t("workbench.catalog.addLocationDialog")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={editingLocation ? t("workbench.catalog.editLocationDialog") : t("workbench.catalog.addLocationDialog")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{editingLocation ? t("workbench.catalog.editLocation") : t("workbench.catalog.addLocation")}</h4>
@@ -377,8 +272,9 @@ export function WorkbenchCatalogForms({
               <span>{t("workbench.location.address")}</span>
               <textarea value={locationAddress} maxLength={265} rows={3} onChange={(event) => setLocationAddress(event.target.value)} />
             </label>
+            <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseLocationForm} />
             <div className="actions">
-              <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => void handleSaveLocation()}>
+              <button type="button" disabled={busy || !isOrgScopedReady || feedback.committed} onClick={() => void handleSaveLocation()}>
                 {editingLocation ? t("workbench.catalog.saveLocation") : t("workbench.catalog.createLocation")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseLocationForm}>
@@ -390,7 +286,7 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {pendingLocationUsageChange ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.confirmLocationUsage")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={t("workbench.catalog.confirmLocationUsage")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{pendingLocationUsageChange.is_active === false ? t("workbench.catalog.unblockLocation") : t("workbench.catalog.blockLocation")}</h4>
@@ -403,8 +299,9 @@ export function WorkbenchCatalogForms({
                 ? message(locale, "catalog.location.usage.unblockConfirm", { name: pendingLocationUsageChange.name })
                 : message(locale, "catalog.location.usage.blockConfirm", { name: pendingLocationUsageChange.name })}
             </p>
+            <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onClosePendingLocationUsageChange} />
             <div className="actions">
-              <button type="button" disabled={busy} onClick={() => void handleConfirmLocationUsageChange()}>
+              <button type="button" disabled={busy || feedback.committed} onClick={() => void handleConfirmLocationUsageChange()}>
                 {t("workbench.supplier.confirm")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingLocationUsageChange}>
@@ -416,7 +313,7 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {showMaterialCreateForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.createMaterialDialog")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={t("workbench.catalog.createMaterialDialog")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{t("workbench.catalog.createMaterialDialog")}</h4>
@@ -488,8 +385,9 @@ export function WorkbenchCatalogForms({
                   <textarea value={materialDescription} maxLength={256} rows={3} onChange={(event) => setMaterialDescription(event.target.value)} />
                 </label>
               </div>
+              <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseMaterialCreateForm} />
               <div className="actions">
-                <button type="button" disabled={busy || !isOrgScopedReady} onClick={() => void handleCreateMaterial()}>
+                <button type="button" disabled={busy || !isOrgScopedReady || feedback.committed} onClick={() => void handleCreateMaterial()}>
                   {t("workbench.material.create")}
                 </button>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseMaterialCreateForm}>
@@ -502,7 +400,7 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {editingMaterial ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.editMaterialDialog")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={t("workbench.catalog.editMaterialDialog")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{t("workbench.catalog.editMaterialDialog")}</h4>
@@ -565,8 +463,9 @@ export function WorkbenchCatalogForms({
                   <textarea value={editMaterialDescription} maxLength={256} rows={3} onChange={(event) => setEditMaterialDescription(event.target.value)} />
                 </label>
               </div>
+              <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseEditMaterialForm} />
               <div className="actions">
-                <button type="button" disabled={busy} onClick={() => void handleUpdateMaterial()}>
+                <button type="button" disabled={busy || feedback.committed} onClick={() => void handleUpdateMaterial()}>
                   {t("workbench.catalog.saveChanges")}
                 </button>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseEditMaterialForm}>
@@ -579,7 +478,7 @@ export function WorkbenchCatalogForms({
       ) : null}
 
       {pendingMaterialUsageChange ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.catalog.confirmMaterialUsage")}>
+        <div className="modal-backdrop" role="dialog" aria-describedby={feedback.error ? feedback.errorId : undefined} aria-modal="true" aria-label={t("workbench.catalog.confirmMaterialUsage")}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{pendingMaterialUsageChange.is_active === false ? t("workbench.catalog.unblockMaterial") : t("workbench.catalog.blockMaterial")}</h4>
@@ -592,8 +491,9 @@ export function WorkbenchCatalogForms({
                 ? message(locale, "catalog.material.usage.unblockConfirm", { sku: pendingMaterialUsageChange.sku, name: pendingMaterialUsageChange.name })
                 : message(locale, "catalog.material.usage.blockConfirm", { sku: pendingMaterialUsageChange.sku, name: pendingMaterialUsageChange.name })}
             </p>
+            <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onClosePendingMaterialUsageChange} />
             <div className="actions">
-              <button type="button" disabled={busy} onClick={() => void handleConfirmMaterialUsageChange()}>
+              <button type="button" disabled={busy || feedback.committed} onClick={() => void handleConfirmMaterialUsageChange()}>
                 {t("workbench.supplier.confirm")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={onClosePendingMaterialUsageChange}>

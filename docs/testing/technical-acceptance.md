@@ -17,6 +17,7 @@ stack after the checks, including on failure.
 | Membership | Invite, accept, replay, wrong recipient, expiry, supersede, reject, change role, remove, self-leave, owner protection, and tenant isolation |
 | Browser membership | Send and accept an invitation through the UI, refresh actions, reload persisted membership, and leave through confirmation |
 | Catalog and CSV | Persisted edits, blocked destinations, quoted fields, duplicate SKUs, updates, and no writes from an invalid batch |
+| Catalog feedback | Visible material/location/supplier failures after role revocation, preserved drafts, persisted retries, and refresh-only recovery after committed writes at desktop/mobile widths |
 | Auth email | Actual local confirmation/recovery emails, confirmation-required login, reset redirect, URL credential removal, changed password, and consumed-link rejection |
 | Monitoring | An unhandled Next.js route error reaches a real local HTTP receiver without query parameters, cookies, or raw error text |
 | Rate limiting | Concurrent clients share one durable contact budget; anon/authenticated callers cannot execute the service RPC; actual contact responses include 429 and Retry-After; loss of RPC access fails closed with 503 |

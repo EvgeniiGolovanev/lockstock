@@ -4,9 +4,9 @@ This register covers work you can perform without choosing a legal entity or
 approving public paid onboarding. Update the evidence for each tested release;
 the presence of a runbook does not establish that a provider is configured.
 
-## Purchase order feedback candidate
+## Purchase order feedback release
 
-The current candidate makes creation, receipt, send, and cancellation failures
+PR #81 makes creation, receipt, send, and cancellation failures
 visible. Failed mutations preserve the draft or confirmation dialog. After a
 successful mutation, a failed follow-up read produces a completion warning and
 a read-only **Refresh data** action. Closing a committed form retains a page
@@ -24,19 +24,38 @@ mobile widths. They interrupt only follow-up purchase-order reads to reproduce
 a committed write followed by a failed refresh. They check rejected operations
 for partial writes and ensure that retrying a refresh does not replay a write.
 
-Local verification on October 16, 2026 passes: 482 component/API tests, 194
-database assertions, and both targeted real-browser scenarios. Types, lint,
-production build, repository hygiene, and the production dependency audit also
-pass. The temporary database is destroyed after the browser run. These results
-describe the candidate, not a production deployment.
+PR #81 merged on October 16, 2026 as `7ee92ef`. Both PR and main CI passed.
+The production deployment and real-browser checks on `lockstockapp.com`
+passed at 1440px and 390px. Temporary test accounts and workspaces were removed.
 
-## Next implementation priority
+## Catalog feedback candidate
 
-Catalog forms still contain failure paths that only call `onActivity` in
-`components/workbench/catalog-forms.tsx`. Extend visible feedback and real
-failure/retry checks to location and material creation, editing, and usage
-changes. Audit supplier actions for the same pattern. These tasks need no
-additional provider account or legal decision.
+Material, location, and supplier forms now display accessible errors when
+creation, editing, or a usage change fails. Rejected writes preserve the draft
+or confirmation dialog. Successful writes wait for a refresh before closing.
+If that read fails, the dialog reports completion, disables further writes,
+and offers **Refresh data**. Dismissing and reopening a dialog keeps that guard
+until a read succeeds.
+
+Run the targeted real-database browser checks with Docker available:
+
+```powershell
+node scripts/verify-database.mjs --inventory --grep "catalog feedback preserves"
+```
+
+These scenarios revoke the user's workspace role after the dialog opens,
+verify real 403 responses and unchanged stored rows, restore the role, and
+retry successfully. Only follow-up GET requests are interrupted to reproduce
+refresh failures. The checks cover creation, editing, blocking, and unblocking
+at desktop and mobile widths. This candidate doesn't change database schema,
+dependencies, or production configuration.
+
+Local verification on October 16, 2026 passes: 506 component/API tests,
+194 database assertions, and both real-browser scenarios. Types, lint,
+production build, repository hygiene, and the production dependency audit pass.
+The changed components have over 99% line and 88% branch coverage. The runner
+destroys the temporary database after the checks. These results describe the
+candidate, not a production deployment.
 
 ## External technical acceptance
 
@@ -59,6 +78,7 @@ loopback monitoring, and logical restore checks are documented in
 
 ## Next steps
 
-Complete catalog feedback next. Run external acceptance when the listed access
-is available, then add dated evidence to the release record. Legal text, tax
+Review and release the catalog feedback candidate after its checks pass.
+Run external acceptance when the listed access is available, then add dated
+evidence to the release record. Legal text, tax
 registration, and live paid-launch approval remain separate decisions.

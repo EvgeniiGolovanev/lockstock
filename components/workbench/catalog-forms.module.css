@@ -1,3 +1,11 @@
 .materialEditForm {
   margin-top: 0.8rem;
 }
+
+.formError {
+  border: 1px solid #b42318;
+  background: #fff1f0;
+  color: #b42318;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+}
