@@ -1,5 +1,7 @@
 "use client";
 
+import { useListReady } from "./list-read-boundary";
+
 import Link from "next/link";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -109,6 +111,7 @@ export function WorkbenchSnapshotSection({
   onExportCsv,
   onSort
 }: SnapshotSectionProps) {
+  const listReady = useListReady();
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
   const sortAriaLabel = (label: string, sortKey: string) => {
@@ -229,15 +232,15 @@ export function WorkbenchSnapshotSection({
               </Link>
             ) : null}
             {canExportCsv ? (
-              <button type="button" className="ghost-btn export-csv-btn" disabled={inventoryTableRows.length === 0} onClick={onExportCsv}>
+              <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || inventoryTableRows.length === 0} onClick={onExportCsv}>
                 {t("workbench.location.exportCsv")}
               </button>
             ) : null}
           </div>
         </div>
-        {inventoryTableRows.length === 0 ? (
+        {inventoryTableRows.length === 0 ? (listReady ? (
           <p>{t("workbench.snapshot.none")}</p>
-        ) : (
+        ) : null) : (
           <div className="table-wrap">
             <table className="compact-table">
               <thead>

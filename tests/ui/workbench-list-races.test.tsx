@@ -84,3 +84,39 @@ it("ignores a delayed failure after switching workspace instead of clearing the 
   expect(screen.getByText(/Active workspace:/)).toHaveTextContent("Workspace b");
   expect(screen.getAllByText("b-New").length).toBeGreaterThan(0);
 });
+
+it("shows loading and read errors, retains rows as stale, and retries the current search without writes", async () => {
+  let fail = true;
+  const test = setup("/materials", "/api/materials?", material, url => {
+    if (url.includes("q=Failed") && fail) return Promise.reject(new Error("Internal database details must not appear"));
+  });
+  await screen.findAllByText("a-Initial");
+  fireEvent.change(screen.getByPlaceholderText("Search by name or SKU..."), { target: { value: "Old" } });
+  await waitFor(() => expect(test.pending()).toBe(true));
+  expect(screen.getByRole("status")).toHaveTextContent("Loading data");
+  expect(screen.queryByText("No materials match these filters.")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByPlaceholderText("Search by name or SKU..."), { target: { value: "Failed" } });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not load data");
+  expect(screen.getByRole("alert")).toHaveTextContent("Displayed data has not been refreshed");
+  expect(screen.queryByText(/Internal database details/)).not.toBeInTheDocument();
+  expect(screen.getAllByText("a-Initial").length).toBeGreaterThan(0);
+  const baseline = mocks.request.mock.calls.length;
+  fail = false;
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await screen.findAllByText("a-Failed");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(mocks.request.mock.calls.slice(baseline).map(([url, options]) => [url, options.method ?? "GET"])).toEqual([
+    [expect.stringContaining("q=Failed"), "GET"]
+  ]);
+  await act(async () => test.reject());
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("describes an empty supplier search as no matches rather than no suppliers", async () => {
+  setup("/vendors", "/api/suppliers?", name => ({ id: name, name, is_active: true }), url => url.includes("q=Missing") ? { data: [], meta: { total: 0, total_pages: 1 } } : undefined);
+  await screen.findAllByText("a-Initial");
+  fireEvent.change(screen.getByPlaceholderText("Filter by vendor name, ID, phone, or address"), { target: { value: "Missing" } });
+  await act(async () => {});
+  expect(screen.getByText("No suppliers match these filters.")).toBeVisible();
+  expect(screen.queryByText("No suppliers created yet.")).not.toBeInTheDocument();
+});

@@ -1,3 +1,4 @@
+import { useListReady } from "./list-read-boundary";
 import { useEffect, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
@@ -113,6 +114,7 @@ export function WorkbenchSuppliersSection({
   onSupplierStatusFilterChange,
   onSupplierPageChange,
 }: WorkbenchSuppliersSectionProps) {
+  const listReady = useListReady();
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
   const statusLabel = (status: string) => t(status === "Active" ? "workbench.location.active" : "workbench.location.blocked");
@@ -203,7 +205,7 @@ export function WorkbenchSuppliersSection({
               </button>
             ) : null}
             {canExportCsv ? (
-              <button type="button" className="ghost-btn export-csv-btn" disabled={supplierTableRows.length === 0} onClick={onExportCsv}>
+              <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || supplierTableRows.length === 0} onClick={onExportCsv}>
                 {t("workbench.location.exportCsv")}
               </button>
             ) : null}
@@ -227,9 +229,9 @@ export function WorkbenchSuppliersSection({
               </tr>
             </thead>
             <tbody>
-              {supplierTableRows.length === 0 ? (
+              {supplierTableRows.length === 0 && listReady ? (
                 <tr>
-                  <td colSpan={10}>{hasSuppliers ? t("workbench.supplier.noMatch") : t("workbench.supplier.none")}</td>
+                  <td colSpan={10}>{(hasSuppliers || supplierSearchQuery.trim() || supplierStatusFilter !== "all") ? t("workbench.supplier.noMatch") : t("workbench.supplier.none")}</td>
                 </tr>
               ) : (
                 supplierTableRows.map((supplier) => {

@@ -1,3 +1,4 @@
+import { useListReady } from "./list-read-boundary";
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import styles from "./materials-section.module.css";
@@ -142,6 +143,7 @@ export function WorkbenchMaterialsSection({
   onMaterialPageChange,
   onSort
 }: WorkbenchMaterialsSectionProps) {
+  const listReady = useListReady();
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
   const statusLabel = (status: string) => t(status === "Active" ? "workbench.material.active" : "workbench.material.blocked");
@@ -212,16 +214,16 @@ export function WorkbenchMaterialsSection({
               </button>
             ) : null}
             {canExportCsv ? (
-              <button type="button" className="ghost-btn export-csv-btn" disabled={materialTableRows.length === 0} onClick={onExportCsv}>
+              <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || materialTableRows.length === 0} onClick={onExportCsv}>
                 Export CSV
               </button>
             ) : null}
           </div>
         </div>
 
-        {materialTableRows.length === 0 ? (
+        {materialTableRows.length === 0 ? (listReady ? (
           <p>{t("workbench.material.noMatch")}</p>
-        ) : (
+        ) : null) : (
           <div className="table-wrap">
             <table className={`compact-table ${styles.materialsTable}`}>
               <thead>

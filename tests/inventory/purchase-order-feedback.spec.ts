@@ -65,7 +65,17 @@ for (const width of [1440, 390]) {
     expect((await response).status()).toBe(200);
     await expect(completionAlert).toBeVisible();
     expect((await inventory.po(po.id)).status).toBe("sent");
+    const committed = await inventory.snapshot();
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Could not load data" })).toBeVisible();
+    await expect(completionAlert).toBeVisible();
     failReads = false;
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(row.getByText("SENT", { exact: true })).toBeVisible();
+    await expect(completionAlert).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create PO", exact: true })).toBeDisabled();
+    expect(await inventory.snapshot()).toEqual(committed);
+    expect(writes.status).toBe(1);
     await page.getByRole("button", { name: "Refresh data", exact: true }).click();
     await expect(row.getByText("SENT", { exact: true })).toBeVisible();
     expect(writes.status).toBe(1);
