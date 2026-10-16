@@ -15,6 +15,7 @@ stack after the checks, including on failure.
 | Inventory | Persisted stock, partial/full receipts, invalid operations, rollback, competing writes, and safe 4xx errors |
 | Stock recovery | Actual adjustment/consumption/transfer writes, persisted balances and ledger, failed follow-up reads, guard after dismiss/reopen, and GET-only retry at desktop/mobile widths |
 | List responses | Real delayed GET responses after newer search/filter/page results, switching between two workspaces and back, unchanged stored rows, and no domain writes at desktop/mobile widths |
+| List loading and retry | Initial/read failures, delayed responses, connection aborts, distinct empty results, stale-row warnings, preserved search/page/status, GET-only retries, and workspace isolation at desktop/mobile widths |
 | Purchase order feedback | Visible creation/receipt/status failures, preserved drafts, and read-only refresh retries after committed writes, including dismissing the form |
 | Membership | Invite, accept, replay, wrong recipient, expiry, supersede, reject, change role, remove, self-leave, owner protection, and tenant isolation |
 | Browser membership | Send and accept an invitation through the UI, refresh actions, reload persisted membership, and leave through confirmation |

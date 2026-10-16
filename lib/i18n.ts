@@ -52,6 +52,10 @@ type MessageParams = {
 };
 
 const MESSAGES = {
+  "workbench.list.loading": { en: "Loading data…", fr: "Chargement des données…" },
+  "workbench.list.failed": { en: "Could not load data. Please try again.", fr: "Impossible de charger les données. Veuillez réessayer." },
+  "workbench.list.stale": { en: "Displayed data has not been refreshed.", fr: "Les données affichées n’ont pas été actualisées." },
+  "workbench.list.retry": { en: "Retry", fr: "Réessayer" },
   "google.failed": { en: "Google sign-in could not be completed. Please try signing in again.", fr: "La connexion Google a échoué. Veuillez réessayer de vous connecter." },
   "google.cancelled": { en: "Google sign-in was cancelled or denied. You can try again.", fr: "La connexion Google a été annulée ou refusée. Vous pouvez réessayer." },
   "google.checking": { en: "Completing sign-in…", fr: "Connexion en cours…" },

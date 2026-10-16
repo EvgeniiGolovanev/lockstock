@@ -1,5 +1,7 @@
 "use client";
 
+import { useListReady } from "./list-read-boundary";
+
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import { useLanguage } from "@/components/language-provider";
@@ -191,6 +193,7 @@ export function WorkbenchPurchaseOrdersSection({
   onExportCsv,
   onSort
 }: WorkbenchPurchaseOrdersSectionProps) {
+  const listReady = useListReady();
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
   const [statusError, setStatusError] = useState("");
@@ -393,7 +396,7 @@ export function WorkbenchPurchaseOrdersSection({
               </button>
             ) : null}
             {canExportCsv ? (
-              <button type="button" className="ghost-btn export-csv-btn" disabled={purchaseOrderTableRows.length === 0} onClick={onExportCsv}>
+              <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || purchaseOrderTableRows.length === 0} onClick={onExportCsv}>
                 {t("workbench.location.exportCsv")}
               </button>
             ) : null}
@@ -405,11 +408,11 @@ export function WorkbenchPurchaseOrdersSection({
             {mutationsBlocked ? <button type="button" disabled={busy} onClick={() => void refreshCommittedStatus(committedStatus)}>{t("workbench.po.refreshData")}</button> : null}
           </div>
         ) : null}
-        {purchaseOrderTableRows.length === 0 ? (
+        {purchaseOrderTableRows.length === 0 ? (listReady ? (
           <div className={styles.empty}>
             <p>{t("workbench.po.empty")}</p>
           </div>
-        ) : (
+        ) : null) : (
           <div className="table-wrap">
             <table className={`compact-table ${styles.table}`}>
               <thead>

@@ -127,7 +127,7 @@ leave the persisted balances and ledger unchanged. PR #84 merged as `82e1cae`;
 PR/main CI and production checks at both widths passed on October 16, 2026.
 Temporary hosted users, sessions, workspaces, and their data were removed.
 
-## List response protection candidate
+## List response protection release
 
 Materials, stock movements, locations, suppliers, active supplier choices,
 purchase orders, member loading, and invitations now reject superseded
@@ -167,7 +167,47 @@ production dependency audit. The new request and supplier-search modules have
 Nine existing real-browser regressions also pass: the full stock/receipt
 cycle and catalog, membership, purchase-order, and stock recovery at both
 widths. The isolated database stacks are destroyed after the runs.
-This candidate has not been released to production.
+PR #85 merged as `70be920` on October 16, 2026. PR and main CI passed,
+and the production deployment and real-browser checks on `lockstockapp.com`
+passed at 1440px and 390px. Temporary hosted fixtures were removed.
+
+## List loading and retry candidate
+
+Materials, inventory, locations, suppliers, purchase orders, and movement
+history distinguish a pending read, a failed read, and a successful empty
+result. Failed or pending reads retain prior rows from the same workspace
+with a warning that they have not been refreshed. Empty messages appear only
+after successful reads. CSV export waits for a successful current read.
+
+**Retry** reads only the affected list and preserves its query, page, and
+filters. It does not bootstrap a workspace, repeat a mutation, or release a
+committed-operation recovery guard. Responses and errors from older queries,
+accounts, and workspaces cannot change the current loading or error state.
+English and French messages use status and alert regions.
+
+Run the targeted real-database browser checks:
+
+```powershell
+node scripts/verify-database.mjs --inventory --grep "list feedback retries only reads|purchase order feedback preserves"
+```
+
+The scenarios exercise actual API reads at desktop and mobile widths, delay
+successful responses, return 503 errors, and abort network connections.
+They check initial failures, another failed retry, retained search/page/status
+parameters, successful recovery, true empty results, and a delayed failure
+from the previous workspace. Read-only browsing must leave both workspaces'
+stored rows unchanged. A generic list retry after a committed order status
+change must retain the separate mutation guard and issue no additional write.
+
+Local verification on October 16, 2026 passes: 564 component/API tests,
+194 database assertions, and 22 mocked E2E regressions, plus types, lint,
+production build, repository hygiene, and the production dependency audit.
+The new request-state hook and feedback boundary have 100% statement, branch,
+function, and line coverage in the focused tests. Ten real-browser scenarios
+pass: new list feedback, stale-response protection, catalog feedback, order
+feedback, and stock recovery, each at 1440px and 390px. The final runner exits
+successfully and destroys its disposable database. This candidate has not
+been deployed to production.
 
 ## External technical acceptance
 
@@ -190,7 +230,7 @@ loopback monitoring, and logical restore checks are documented in
 
 ## Next steps
 
-Review and release the list response protection candidate after its checks pass.
+Review and release the list loading and retry candidate after its checks pass.
 Run external acceptance when the listed access is available, then add dated
 evidence to the release record. Legal text, tax
 registration, and live paid-launch approval remain separate decisions.

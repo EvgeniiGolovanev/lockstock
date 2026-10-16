@@ -1,3 +1,4 @@
+import { useListReady } from "./list-read-boundary";
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
 import styles from "./locations-section.module.css";
@@ -121,6 +122,7 @@ export function WorkbenchLocationsSection({
   onLocationPageChange,
   onSort
 }: WorkbenchLocationsSectionProps) {
+  const listReady = useListReady();
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
   const statusLabel = (status: string) => t(LOCATION_STATUS_KEYS[status] ?? "workbench.location.status");
@@ -168,7 +170,7 @@ export function WorkbenchLocationsSection({
               </button>
             ) : null}
             {canExportCsv ? (
-              <button type="button" className="ghost-btn export-csv-btn" disabled={locationTableRows.length === 0} onClick={onExportCsv}>
+              <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || locationTableRows.length === 0} onClick={onExportCsv}>
                 {t("workbench.location.exportCsv")}
               </button>
             ) : null}
@@ -191,7 +193,7 @@ export function WorkbenchLocationsSection({
               </tr>
             </thead>
             <tbody>
-              {locationTableRows.length === 0 ? (
+              {locationTableRows.length === 0 && listReady ? (
                 <tr>
                   <td colSpan={7}>{hasLocations ? t("workbench.location.noMatch") : t("workbench.location.noLocations")}</td>
                 </tr>

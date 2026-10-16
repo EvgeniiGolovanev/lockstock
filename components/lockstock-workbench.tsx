@@ -33,6 +33,8 @@ import {
 } from "@/lib/ui/formatters";
 import { sortRowsByKey, tableRowsToCsv, totalPagesForRows, type CsvCell, type SortDirection, type SortState } from "@/lib/ui/table-tools";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
+import { useListRequest } from "@/lib/ui/use-list-request";
+import { ListReadBoundary } from "@/components/workbench/list-read-boundary";
 import { isSupersededRequest, useLatestRequest } from "@/lib/ui/use-latest-request";
 import { workflowsForPathname } from "@/lib/ui/workflows";
 import { formatVendorNumber } from "@/lib/ui/vendor-fields";
@@ -681,12 +683,12 @@ export function LockstockWorkbench() {
   }
 
   const listContext = JSON.stringify([signedInAs, orgId, normalizedBaseUrl, isDemoMode]);
-  const materialReads = useLatestRequest(JSON.stringify([listContext, materialPage, materialFilterQuery, materialCategoryFilter, materialSubcategoryFilter, showMaterialSection, showSnapshotSection]));
-  const movementReads = useLatestRequest(JSON.stringify([listContext, movementPage]));
-  const supplierReads = useLatestRequest(JSON.stringify([listContext, supplierPage, supplierSearch, supplierStatusFilter]));
+  const { request: materialReads, state: materialLoad } = useListRequest(listContext, JSON.stringify([materialPage, materialFilterQuery, materialCategoryFilter, materialSubcategoryFilter, showMaterialSection, showSnapshotSection]));
+  const { request: movementReads, state: movementLoad } = useListRequest(listContext, JSON.stringify([movementPage]));
+  const { request: supplierReads, state: supplierLoad } = useListRequest(listContext, JSON.stringify([supplierPage, supplierSearch, supplierStatusFilter]));
   const activeSupplierReads = useLatestRequest(listContext);
-  const poReads = useLatestRequest(JSON.stringify([listContext, poPage, poFilterQuery, poFilterStatus, poFilterSupplierId]));
-  const locationReads = useLatestRequest(listContext);
+  const { request: poReads, state: poLoad } = useListRequest(listContext, JSON.stringify([poPage, poFilterQuery, poFilterStatus, poFilterSupplierId]));
+  const { request: locationReads, state: locationLoad } = useListRequest(listContext);
   const memberReads = useLatestRequest(listContext);
   const invitationReads = useLatestRequest(JSON.stringify([signedInAs, normalizedBaseUrl]));
   const bootstrapReads = useLatestRequest(listContext);
@@ -2046,94 +2048,98 @@ export function LockstockWorkbench() {
       ) : null}
       {showLocationSection ? (
         <>
-          <WorkbenchLocationsSection
-            busy={busy}
-            canExportCsv={canExportCsv}
-            canManageCatalog={canManageCatalog}
-            hasLocations={locations.length > 0}
-            locationPage={locationPage}
-            locationTotalPages={locationTotalPages}
-            locationTableRows={locationTableRows}
-            locationSearchQuery={locationFilterQuery}
-            locationStatusFilter={locationStatusFilter}
-            locationSortState={tableSorts.locations}
-            onCreateLocation={openCreateLocationForm}
-            onEditLocation={openEditLocationForm}
-            onToggleLocationUsage={setPendingLocationUsageChange}
-            onExportCsv={() =>
-              exportTableCsv(
-                "locations.csv",
-                ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"].map((header) => csvHeader(locale, header as never)),
-                locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
-              )
-            }
-            onLocationSearchChange={(nextValue) => {
-              setLocationFilterQuery(nextValue);
-              setLocationPage(1);
-            }}
-            onLocationStatusFilterChange={(nextValue) => {
-              setLocationStatusFilter(nextValue);
-              setLocationPage(1);
-            }}
-            onLocationPageChange={setLocationPage}
-            onSort={handleTableSort}
-          />
+          <ListReadBoundary state={locationLoad} enabled={!isDemoMode && isOrgScopedReady} onRetry={() => { void loadLocations(orgId).catch(() => {}); }}>
+            <WorkbenchLocationsSection
+              busy={busy}
+              canExportCsv={canExportCsv}
+              canManageCatalog={canManageCatalog}
+              hasLocations={locations.length > 0}
+              locationPage={locationPage}
+              locationTotalPages={locationTotalPages}
+              locationTableRows={locationTableRows}
+              locationSearchQuery={locationFilterQuery}
+              locationStatusFilter={locationStatusFilter}
+              locationSortState={tableSorts.locations}
+              onCreateLocation={openCreateLocationForm}
+              onEditLocation={openEditLocationForm}
+              onToggleLocationUsage={setPendingLocationUsageChange}
+              onExportCsv={() =>
+                exportTableCsv(
+                  "locations.csv",
+                  ["Code", "Name", "Address", "Status", "Low stock", "Out of stock"].map((header) => csvHeader(locale, header as never)),
+                  locationTableRows.map((row) => [row.code, row.name, row.address, row.status, row.lowStock, row.outOfStock])
+                )
+              }
+              onLocationSearchChange={(nextValue) => {
+                setLocationFilterQuery(nextValue);
+                setLocationPage(1);
+              }}
+              onLocationStatusFilterChange={(nextValue) => {
+                setLocationStatusFilter(nextValue);
+                setLocationPage(1);
+              }}
+              onLocationPageChange={setLocationPage}
+              onSort={handleTableSort}
+            />
+          </ListReadBoundary>
 
         </>
       ) : null}
 
       {showMaterialSection ? (
         <>
-          <WorkbenchMaterialsSection
-            busy={busy}
-            canExportCsv={canExportCsv}
-            canManageCatalog={canManageCatalog}
-            isOrgScopedReady={isOrgScopedReady}
-            materialPage={materialPage}
-            materialTotalPages={materialTotalPages}
-            materialTableRows={materialTableRows}
-            materialSearchQuery={materialFilterQuery}
-            materialCategoryFilter={materialCategoryFilter}
-            materialSubcategoryFilter={materialSubcategoryFilter}
-            materialCategoryOptions={MATERIAL_CATEGORIES}
-            materialFilterSubcategories={materialFilterSubcategories}
-            materialSortState={tableSorts.materials}
-            onCreateMaterial={() => setShowMaterialCreateForm(true)}
-            onEditMaterial={openEditMaterialForm}
-            onToggleMaterialUsage={setPendingMaterialUsageChange}
-            onExportCsv={() =>
-              exportTableCsv(
-                "materials.csv",
-                ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"].map((header) => csvHeader(locale, header as never)),
-                materialTableRows.map((row) => [
-                  row.sku,
-                  row.name,
-                  row.category,
-                  row.subcategory,
-                  row.description,
-                  row.uom,
-                  row.minStock,
-                  row.status,
-                  row.createdAt
-                ])
-              )
-            }
-            onMaterialSearchChange={(nextValue) => {
-              setMaterialFilterQuery(nextValue);
-              setMaterialPage(1);
-            }}
-            onMaterialCategoryFilterChange={(nextValue) => {
-              setMaterialCategoryFilter(nextValue);
-              setMaterialSubcategoryFilter("all");
-              setMaterialPage(1);
-            }}
-            onMaterialSubcategoryFilterChange={(nextValue) => {
-              setMaterialSubcategoryFilter(nextValue);
-              setMaterialPage(1);
-            }}
-            onMaterialPageChange={setMaterialPage}
-            onSort={handleTableSort}
-          />
+          <ListReadBoundary state={materialLoad} enabled={!isDemoMode && isOrgScopedReady} onRetry={() => { void loadMaterials().catch(() => {}); }}>
+            <WorkbenchMaterialsSection
+              busy={busy}
+              canExportCsv={canExportCsv}
+              canManageCatalog={canManageCatalog}
+              isOrgScopedReady={isOrgScopedReady}
+              materialPage={materialPage}
+              materialTotalPages={materialTotalPages}
+              materialTableRows={materialTableRows}
+              materialSearchQuery={materialFilterQuery}
+              materialCategoryFilter={materialCategoryFilter}
+              materialSubcategoryFilter={materialSubcategoryFilter}
+              materialCategoryOptions={MATERIAL_CATEGORIES}
+              materialFilterSubcategories={materialFilterSubcategories}
+              materialSortState={tableSorts.materials}
+              onCreateMaterial={() => setShowMaterialCreateForm(true)}
+              onEditMaterial={openEditMaterialForm}
+              onToggleMaterialUsage={setPendingMaterialUsageChange}
+              onExportCsv={() =>
+                exportTableCsv(
+                  "materials.csv",
+                  ["SKU", "Name", "Category", "Subcategory", "Description", "UoM", "Minimum stock", "Status", "Date and time of creation"].map((header) => csvHeader(locale, header as never)),
+                  materialTableRows.map((row) => [
+                    row.sku,
+                    row.name,
+                    row.category,
+                    row.subcategory,
+                    row.description,
+                    row.uom,
+                    row.minStock,
+                    row.status,
+                    row.createdAt
+                  ])
+                )
+              }
+              onMaterialSearchChange={(nextValue) => {
+                setMaterialFilterQuery(nextValue);
+                setMaterialPage(1);
+              }}
+              onMaterialCategoryFilterChange={(nextValue) => {
+                setMaterialCategoryFilter(nextValue);
+                setMaterialSubcategoryFilter("all");
+                setMaterialPage(1);
+              }}
+              onMaterialSubcategoryFilterChange={(nextValue) => {
+                setMaterialSubcategoryFilter(nextValue);
+                setMaterialPage(1);
+              }}
+              onMaterialPageChange={setMaterialPage}
+              onSort={handleTableSort}
+            />
+          </ListReadBoundary>
         </>
       ) : null}
 
@@ -2162,181 +2168,187 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showStockMovementsSection ? (
-        <WorkbenchStockMovementsSection
-          contextKey={`${signedInAs}:${orgId}`}
-          busy={busy}
-          canCreateStockMovement={canCreateStockMovement}
-          canExportCsv={canExportCsv}
-          apiRequest={apiRequest}
-          onActivity={addActivity}
-          onBusyChange={setBusy}
-          onRefreshCoreData={refreshStockMovementData}
-          movementPage={movementPage}
-          movementTotalPages={movementTotalPages}
-          movementFilterQuery={movementFilterQuery}
-          movementLocationFilter={movementLocationFilter}
-          movementReasonFilter={movementReasonFilter}
-          movementLocations={movementLocations}
-          movementReasons={movementReasons}
-          movementTableRows={movementTableRows}
-          movementSortState={tableSorts.movements}
-          showMovementForm={showMovementForm}
-          activeMaterials={activeMaterials}
-          activeLocations={activeLocations}
-          onShowMovementFormChange={setShowMovementForm}
-          onMovementFilterQueryChange={(value) => {
-            setMovementFilterQuery(value);
-            setMovementPage(1);
-          }}
-          onMovementLocationFilterChange={(value) => {
-            setMovementLocationFilter(value);
-            setMovementPage(1);
-          }}
-          onMovementReasonFilterChange={(value) => {
-            setMovementReasonFilter(value);
-            setMovementPage(1);
-          }}
-          onMovementPageChange={setMovementPage}
-          onExportCsv={() =>
-            exportTableCsv(
-              "material-movements.csv",
-              ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"].map((header) => csvHeader(locale, header as never)),
-              movementTableRows.map((row) => [
-                row.createdAt,
-                row.materialLabel,
-                row.locationLabel,
-                row.quantity,
-                row.uom,
-                row.category,
-                row.reason,
-                row.comments
-              ])
-            )
-          }
-          onSort={handleTableSort}
-        />
-      ) : null}
-      {showSupplierSection ? (
-        <WorkbenchSuppliersSection
-          busy={busy}
-          canExportCsv={canExportCsv}
-          canManageCatalog={canManageCatalog}
-          hasSuppliers={supplierTotal > 0}
-          isOrgScopedReady={isOrgScopedReady}
-          apiRequest={apiRequest}
-          onActivity={addActivity}
-          onBusyChange={setBusy}
-          onRefreshCoreData={refreshCoreData}
-          supplierPage={supplierPage}
-          supplierTotalPages={supplierTotalPages}
-          supplierTableRows={supplierTableRows}
-          supplierSearchQuery={supplierSearch}
-          supplierStatusFilter={supplierStatusFilter}
-          showSupplierForm={showSupplierForm}
-          editingSupplier={editingSupplier}
-          pendingSupplierUsageChange={pendingSupplierUsageChange}
-          onCreateSupplier={openCreateSupplierForm}
-          onEditSupplier={openEditSupplierForm}
-          onToggleSupplierUsage={setPendingSupplierUsageChange}
-          onCloseSupplierForm={closeSupplierForm}
-          onClosePendingSupplierUsageChange={() => setPendingSupplierUsageChange(null)}
-          onExportCsv={() =>
-            exportTableCsv(
-              "vendors.csv",
-              ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
-              supplierTableRows.map((row) => [
-                row.vendorId,
-                row.name,
-                row.phone,
-                row.address,
-                row.leadTimeDays,
-                row.status,
-                row.openOrders,
-                row.receivedOrders,
-                row.totalOrders
-              ])
-            )
-          }
-          onSupplierSearchChange={(nextValue: string) => {
-            setSupplierSearch(nextValue);
-            setSupplierPage(1);
-          }}
-          onSupplierStatusFilterChange={(nextValue: string) => {
-            setSupplierStatusFilter(nextValue);
-            setSupplierPage(1);
-          }}
-          onSupplierPageChange={(updater) => {
-            const nextPage = typeof updater === "function" ? updater(supplierPage) : updater;
-            setSupplierPage(nextPage);
-          }}
-        />
-      ) : null}
-      {showPurchaseOrderSection ? (
-        <>
-          <WorkbenchPurchaseOrdersSection
-            refreshRequired={poRefreshRequired}
-            formOpen={showPoCreateForm || showPoReceiveForm}
-            onRefreshRequiredChange={setPoRefreshRequired}
+        <ListReadBoundary state={movementLoad} enabled={!isDemoMode && isOrgScopedReady} onRetry={() => { void loadMaterialMovements().catch(() => {}); }}>
+          <WorkbenchStockMovementsSection
+            contextKey={`${signedInAs}:${orgId}`}
             busy={busy}
-            canManageCatalog={canManageCatalog}
-            canReceivePurchaseOrders={canReceivePurchaseOrders}
+            canCreateStockMovement={canCreateStockMovement}
             canExportCsv={canExportCsv}
             apiRequest={apiRequest}
             onActivity={addActivity}
             onBusyChange={setBusy}
-            onRefreshCoreData={refreshCoreData}
-            poTotal={poTotal}
-            poPage={poPage}
-            poTotalPages={poTotalPages}
-            poOverview={poOverview}
-            poFilterQuery={poFilterQuery}
-            poFilterStatus={poFilterStatus}
-            poFilterSupplierId={poFilterSupplierId}
-            suppliers={suppliers}
-            purchaseOrderTableRows={purchaseOrderTableRows}
-            selectedPoDetails={selectedPoDetails}
-            pendingCancelPo={pendingCancelPo}
-            materials={materials}
-            tableSortState={tableSorts["purchase-orders"]}
-            onOpenCreatePurchaseOrderForm={() => setShowPoCreateForm(true)}
-            onOpenReceivePurchaseOrderForm={() => setShowPoReceiveForm(true)}
-            onPrepareReceivePurchaseOrder={(poId, lineId) => {
-              setReceivePoId(poId);
-              setReceivePoLineId(lineId);
-              setShowPoReceiveForm(true);
+            onRefreshCoreData={refreshStockMovementData}
+            movementPage={movementPage}
+            movementTotalPages={movementTotalPages}
+            movementFilterQuery={movementFilterQuery}
+            movementLocationFilter={movementLocationFilter}
+            movementReasonFilter={movementReasonFilter}
+            movementLocations={movementLocations}
+            movementReasons={movementReasons}
+            movementTableRows={movementTableRows}
+            movementSortState={tableSorts.movements}
+            showMovementForm={showMovementForm}
+            activeMaterials={activeMaterials}
+            activeLocations={activeLocations}
+            onShowMovementFormChange={setShowMovementForm}
+            onMovementFilterQueryChange={(value) => {
+              setMovementFilterQuery(value);
+              setMovementPage(1);
             }}
-            onSelectedPoDetailsIdChange={setSelectedPoDetailsId}
-            onPendingCancelPoChange={setPendingCancelPo}
-            onPoFilterQueryChange={(value) => {
-              setPoFilterQuery(value);
-              setPoPage(1);
+            onMovementLocationFilterChange={(value) => {
+              setMovementLocationFilter(value);
+              setMovementPage(1);
             }}
-            onPoFilterStatusChange={(value) => {
-              setPoFilterStatus(value);
-              setPoPage(1);
+            onMovementReasonFilterChange={(value) => {
+              setMovementReasonFilter(value);
+              setMovementPage(1);
             }}
-            onPoFilterSupplierIdChange={(value) => {
-              setPoFilterSupplierId(value);
-              setPoPage(1);
-            }}
-            onPoPageChange={setPoPage}
+            onMovementPageChange={setMovementPage}
             onExportCsv={() =>
               exportTableCsv(
-                "purchase-orders.csv",
-                ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"].map((header) => csvHeader(locale, header as never)),
-                purchaseOrderTableRows.map((row) => [
-                  row.po.po_number,
-                  row.summary.supplierLabel,
-                  row.po.status,
-                  row.summary.lineCount,
-                  row.summary.progressPercentage,
-                  row.summary.totalAmount,
-                  row.po.expected_at
+                "material-movements.csv",
+                ["Date & Time", "Material", "Location", "Quantity", "UoM", "Category", "Reason", "Comments"].map((header) => csvHeader(locale, header as never)),
+                movementTableRows.map((row) => [
+                  row.createdAt,
+                  row.materialLabel,
+                  row.locationLabel,
+                  row.quantity,
+                  row.uom,
+                  row.category,
+                  row.reason,
+                  row.comments
                 ])
               )
             }
             onSort={handleTableSort}
           />
+        </ListReadBoundary>
+      ) : null}
+      {showSupplierSection ? (
+        <ListReadBoundary state={supplierLoad} enabled={!isDemoMode && isOrgScopedReady} onRetry={() => { void loadSuppliers().catch(() => {}); }}>
+          <WorkbenchSuppliersSection
+            busy={busy}
+            canExportCsv={canExportCsv}
+            canManageCatalog={canManageCatalog}
+            hasSuppliers={supplierTotal > 0}
+            isOrgScopedReady={isOrgScopedReady}
+            apiRequest={apiRequest}
+            onActivity={addActivity}
+            onBusyChange={setBusy}
+            onRefreshCoreData={refreshCoreData}
+            supplierPage={supplierPage}
+            supplierTotalPages={supplierTotalPages}
+            supplierTableRows={supplierTableRows}
+            supplierSearchQuery={supplierSearch}
+            supplierStatusFilter={supplierStatusFilter}
+            showSupplierForm={showSupplierForm}
+            editingSupplier={editingSupplier}
+            pendingSupplierUsageChange={pendingSupplierUsageChange}
+            onCreateSupplier={openCreateSupplierForm}
+            onEditSupplier={openEditSupplierForm}
+            onToggleSupplierUsage={setPendingSupplierUsageChange}
+            onCloseSupplierForm={closeSupplierForm}
+            onClosePendingSupplierUsageChange={() => setPendingSupplierUsageChange(null)}
+            onExportCsv={() =>
+              exportTableCsv(
+                "vendors.csv",
+                ["Vendor ID", "Vendor Name", "Phone", "Address", "Lead Time (days)", "Status", "Open POs", "Received POs", "Total POs"].map((header) => csvHeader(locale, header as never)),
+                supplierTableRows.map((row) => [
+                  row.vendorId,
+                  row.name,
+                  row.phone,
+                  row.address,
+                  row.leadTimeDays,
+                  row.status,
+                  row.openOrders,
+                  row.receivedOrders,
+                  row.totalOrders
+                ])
+              )
+            }
+            onSupplierSearchChange={(nextValue: string) => {
+              setSupplierSearch(nextValue);
+              setSupplierPage(1);
+            }}
+            onSupplierStatusFilterChange={(nextValue: string) => {
+              setSupplierStatusFilter(nextValue);
+              setSupplierPage(1);
+            }}
+            onSupplierPageChange={(updater) => {
+              const nextPage = typeof updater === "function" ? updater(supplierPage) : updater;
+              setSupplierPage(nextPage);
+            }}
+          />
+        </ListReadBoundary>
+      ) : null}
+      {showPurchaseOrderSection ? (
+        <>
+          <ListReadBoundary state={poLoad} enabled={!isDemoMode && isOrgScopedReady} onRetry={() => { void loadPurchaseOrders().catch(() => {}); }}>
+            <WorkbenchPurchaseOrdersSection
+              refreshRequired={poRefreshRequired}
+              formOpen={showPoCreateForm || showPoReceiveForm}
+              onRefreshRequiredChange={setPoRefreshRequired}
+              busy={busy}
+              canManageCatalog={canManageCatalog}
+              canReceivePurchaseOrders={canReceivePurchaseOrders}
+              canExportCsv={canExportCsv}
+              apiRequest={apiRequest}
+              onActivity={addActivity}
+              onBusyChange={setBusy}
+              onRefreshCoreData={refreshCoreData}
+              poTotal={poTotal}
+              poPage={poPage}
+              poTotalPages={poTotalPages}
+              poOverview={poOverview}
+              poFilterQuery={poFilterQuery}
+              poFilterStatus={poFilterStatus}
+              poFilterSupplierId={poFilterSupplierId}
+              suppliers={suppliers}
+              purchaseOrderTableRows={purchaseOrderTableRows}
+              selectedPoDetails={selectedPoDetails}
+              pendingCancelPo={pendingCancelPo}
+              materials={materials}
+              tableSortState={tableSorts["purchase-orders"]}
+              onOpenCreatePurchaseOrderForm={() => setShowPoCreateForm(true)}
+              onOpenReceivePurchaseOrderForm={() => setShowPoReceiveForm(true)}
+              onPrepareReceivePurchaseOrder={(poId, lineId) => {
+                setReceivePoId(poId);
+                setReceivePoLineId(lineId);
+                setShowPoReceiveForm(true);
+              }}
+              onSelectedPoDetailsIdChange={setSelectedPoDetailsId}
+              onPendingCancelPoChange={setPendingCancelPo}
+              onPoFilterQueryChange={(value) => {
+                setPoFilterQuery(value);
+                setPoPage(1);
+              }}
+              onPoFilterStatusChange={(value) => {
+                setPoFilterStatus(value);
+                setPoPage(1);
+              }}
+              onPoFilterSupplierIdChange={(value) => {
+                setPoFilterSupplierId(value);
+                setPoPage(1);
+              }}
+              onPoPageChange={setPoPage}
+              onExportCsv={() =>
+                exportTableCsv(
+                  "purchase-orders.csv",
+                  ["PO Number", "Supplier", "Status", "Lines", "Progress", "Total", "Expected"].map((header) => csvHeader(locale, header as never)),
+                  purchaseOrderTableRows.map((row) => [
+                    row.po.po_number,
+                    row.summary.supplierLabel,
+                    row.po.status,
+                    row.summary.lineCount,
+                    row.summary.progressPercentage,
+                    row.summary.totalAmount,
+                    row.po.expected_at
+                  ])
+                )
+              }
+              onSort={handleTableSort}
+            />
+          </ListReadBoundary>
           <WorkbenchPurchaseOrderForms
             onRefreshRequiredChange={setPoRefreshRequired}
             busy={busy}
@@ -2361,57 +2373,59 @@ export function LockstockWorkbench() {
         </>
       ) : null}
       {showSnapshotSection ? (
-        <WorkbenchSnapshotSection
-          busy={busy}
-          canManageCatalog={canManageCatalog}
-          canCreateStockMovement={canCreateStockMovement}
-          canExportCsv={canExportCsv}
-          metrics={metrics}
-          lowStockCount={lowStockCount}
-          stockHealth={stockHealth}
-          inventoryValueBadge={inventoryValueBadge}
-          inventoryValueLabel={inventoryValueLabel}
-          materialFilterQuery={materialFilterQuery}
-          inventoryStatus={inventoryStatus}
-          inventoryLocation={inventoryLocation}
-          inventoryLocations={inventoryLocations}
-          inventoryTableRows={inventoryTableRows}
-          materialPage={materialPage}
-          materialTotalPages={materialTotalPages}
-          inventorySortState={tableSorts.inventory}
-          onMaterialFilterQueryChange={(value) => {
-            setMaterialFilterQuery(value);
-            setMaterialPage(1);
-          }}
-          onInventoryStatusChange={(value) => {
-            setInventoryStatus(value);
-            setMaterialPage(1);
-          }}
-          onInventoryLocationChange={(value) => {
-            setInventoryLocation(value);
-            setMaterialPage(1);
-          }}
-          onMaterialPageChange={setMaterialPage}
-          onExportCsv={() =>
-            exportTableCsv(
-              "inventory.csv",
-              ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"].map((header) => csvHeader(locale, header as never)),
-              inventoryTableRows.map((row) => [
-                row.sku,
-                row.name,
-                row.category,
-                row.subcategory,
-                row.quantity,
-                row.uom,
-                row.pricePerUnitExport,
-                row.totalExport,
-                row.location,
-                row.statusLabel
-              ])
-            )
-          }
-          onSort={handleTableSort}
-        />
+        <ListReadBoundary state={materialLoad} enabled={!isDemoMode && isOrgScopedReady} onRetry={() => { void loadMaterials().catch(() => {}); }}>
+          <WorkbenchSnapshotSection
+            busy={busy}
+            canManageCatalog={canManageCatalog}
+            canCreateStockMovement={canCreateStockMovement}
+            canExportCsv={canExportCsv}
+            metrics={metrics}
+            lowStockCount={lowStockCount}
+            stockHealth={stockHealth}
+            inventoryValueBadge={inventoryValueBadge}
+            inventoryValueLabel={inventoryValueLabel}
+            materialFilterQuery={materialFilterQuery}
+            inventoryStatus={inventoryStatus}
+            inventoryLocation={inventoryLocation}
+            inventoryLocations={inventoryLocations}
+            inventoryTableRows={inventoryTableRows}
+            materialPage={materialPage}
+            materialTotalPages={materialTotalPages}
+            inventorySortState={tableSorts.inventory}
+            onMaterialFilterQueryChange={(value) => {
+              setMaterialFilterQuery(value);
+              setMaterialPage(1);
+            }}
+            onInventoryStatusChange={(value) => {
+              setInventoryStatus(value);
+              setMaterialPage(1);
+            }}
+            onInventoryLocationChange={(value) => {
+              setInventoryLocation(value);
+              setMaterialPage(1);
+            }}
+            onMaterialPageChange={setMaterialPage}
+            onExportCsv={() =>
+              exportTableCsv(
+                "inventory.csv",
+                ["SKU", "Item Name", "Category", "Subcategory", "Quantity", "UoM", "Price per unit", "Total", "Location", "Status"].map((header) => csvHeader(locale, header as never)),
+                inventoryTableRows.map((row) => [
+                  row.sku,
+                  row.name,
+                  row.category,
+                  row.subcategory,
+                  row.quantity,
+                  row.uom,
+                  row.pricePerUnitExport,
+                  row.totalExport,
+                  row.location,
+                  row.statusLabel
+                ])
+              )
+            }
+            onSort={handleTableSort}
+          />
+        </ListReadBoundary>
       ) : null}
     </>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useListReady } from "./list-read-boundary";
+
 import { useEffect, useRef, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
@@ -129,6 +131,7 @@ export function WorkbenchStockMovementsSection({
   onExportCsv,
   onSort
 }: StockMovementsSectionProps) {
+  const listReady = useListReady();
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
   const sortAriaLabel = (label: string, sortKey: string) => {
@@ -348,7 +351,7 @@ export function WorkbenchStockMovementsSection({
             </button>
           ) : null}
           {canExportCsv ? (
-            <button type="button" className="ghost-btn export-csv-btn" disabled={movementTableRows.length === 0} onClick={onExportCsv}>
+            <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || movementTableRows.length === 0} onClick={onExportCsv}>
               Export CSV
             </button>
           ) : null}
@@ -476,9 +479,9 @@ export function WorkbenchStockMovementsSection({
         </div>
       ) : null}
 
-      {movementTableRows.length === 0 ? (
+      {movementTableRows.length === 0 ? (listReady ? (
         <p>{t("workbench.movement.none")}</p>
-      ) : (
+      ) : null) : (
         <div className="table-wrap">
           <table className="compact-table">
             <thead>
