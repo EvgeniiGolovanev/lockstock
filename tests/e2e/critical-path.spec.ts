@@ -564,7 +564,6 @@ test("stock movement creation works and rejects read-only workspaces", async ({ 
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(page.locator("tbody tr").first()).toContainText("3");
   expect(state.stockMovementPosts).toBe(1);
-  await moveDialog.getByRole("button", { name: "Cancel" }).click();
   await expect(moveDialog).toBeHidden();
 
   state.readOnlyStockFailure = "Workspace is read-only.";

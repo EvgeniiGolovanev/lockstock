@@ -1114,7 +1114,7 @@ export function LockstockWorkbench() {
     }
   }
 
-  const loadMaterials = useCallback(async (targetOrgId?: string, tokenOverride?: string) => {
+  const loadMaterials = useCallback(async (targetOrgId?: string, tokenOverride?: string, isCurrent: () => boolean = () => true) => {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
       return { count: 0 };
@@ -1139,12 +1139,14 @@ export function LockstockWorkbench() {
       tokenOverride
     });
 
-    setMaterials(response.data);
-    setMaterialTotal(response.meta?.total ?? response.data.length);
+    if (isCurrent()) {
+      setMaterials(response.data);
+      setMaterialTotal(response.meta?.total ?? response.data.length);
+    }
     return { count: response.data.length };
   }, [apiRequest, materialCategoryFilter, materialFilterQuery, materialPage, materialSubcategoryFilter, orgId, showMaterialSection, showSnapshotSection]);
 
-  const loadMaterialMovements = useCallback(async (targetOrgId?: string, tokenOverride?: string) => {
+  const loadMaterialMovements = useCallback(async (targetOrgId?: string, tokenOverride?: string, isCurrent: () => boolean = () => true) => {
     const orgValue = targetOrgId ?? orgId;
     if (!orgValue) {
       return { count: 0 };
@@ -1163,8 +1165,10 @@ export function LockstockWorkbench() {
       }
     );
 
-    setMaterialMovements(response.data);
-    setMovementTotal(response.meta?.total ?? response.data.length);
+    if (isCurrent()) {
+      setMaterialMovements(response.data);
+      setMovementTotal(response.meta?.total ?? response.data.length);
+    }
     return { count: response.data.length };
   }, [apiRequest, movementPage, orgId]);
 
@@ -1292,6 +1296,22 @@ export function LockstockWorkbench() {
       `Loaded ${materialsResult.count} materials, ${movementsResult.count} movements, ${locationsResult.data.length} locations, ${suppliersResult.count} suppliers, ${activeSuppliersResult.count} active suppliers, ${purchaseOrdersResult.count} purchase orders.`
     );
   }, [addActivity, apiRequest, loadActiveSuppliers, loadMaterialMovements, loadMaterials, loadPendingInvitations, loadPurchaseOrders, loadSuppliers, orgId]);
+
+  async function refreshStockMovementData(isCurrent: () => boolean = () => true) {
+    let loading = true;
+    const current = () => loading && isCurrent();
+    try {
+      const [, , locationsResult] = await Promise.all([
+        loadMaterials(orgId, undefined, current),
+        loadMaterialMovements(orgId, undefined, current),
+        apiRequest<{ data: Location[] }>("/api/locations", { orgOverride: orgId })
+      ]);
+      if (current()) setLocations(locationsResult.data);
+    } finally {
+      // Promise.all may reject while sibling requests are still in flight.
+      loading = false;
+    }
+  }
 
   const bootstrapOrganizationContext = useCallback(async (options?: { tokenOverride?: string; announce?: boolean; preferredOrgId?: string }) => {
     const effectiveToken = options?.tokenOverride ?? accessToken;
@@ -2090,13 +2110,14 @@ export function LockstockWorkbench() {
 
       {showStockMovementsSection ? (
         <WorkbenchStockMovementsSection
+          contextKey={`${signedInAs}:${orgId}`}
           busy={busy}
           canCreateStockMovement={canCreateStockMovement}
           canExportCsv={canExportCsv}
           apiRequest={apiRequest}
           onActivity={addActivity}
           onBusyChange={setBusy}
-          onRefreshCoreData={refreshCoreData}
+          onRefreshCoreData={refreshStockMovementData}
           movementPage={movementPage}
           movementTotalPages={movementTotalPages}
           movementFilterQuery={movementFilterQuery}

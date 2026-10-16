@@ -276,6 +276,8 @@ const MESSAGES = {
   "workbench.catalog.addLocationDialog": { en: "Add location", fr: "Ajouter un emplacement" },
   "workbench.catalog.editLocation": { en: "Edit Location", fr: "Modifier l'emplacement" },
   "workbench.catalog.addLocation": { en: "Add New Location", fr: "Ajouter un nouvel emplacement" },
+  "workbench.movement.refreshData": { en: "Refresh data", fr: "Actualiser les donnees" },
+  "workbench.movement.refreshFailed": { en: "The operation completed, but the latest data could not be loaded. Refresh data before starting another operation.", fr: "L'operation est terminee, mais les dernieres donnees n'ont pas pu etre chargees. Actualisez les donnees avant une autre operation." },
   "workbench.members.completed": { en: "Operation completed.", fr: "Operation terminee." },
   "workbench.members.readFailed": { en: "The latest data could not be loaded. Refresh data before starting another operation.", fr: "Les dernieres donnees n'ont pas pu etre chargees. Actualisez les donnees avant une autre operation." },
   "workbench.members.deliverySent": { en: "Invitation created. Email sent.", fr: "Invitation creee. E-mail envoye." },

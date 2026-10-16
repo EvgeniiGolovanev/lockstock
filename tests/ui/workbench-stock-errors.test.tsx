@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +28,57 @@ function setup(overrides: Partial<ComponentProps<typeof WorkbenchStockMovementsS
 }
 
 describe("stock movement form errors", () => {
+  it("ignores double submission and releases busy when an in-flight write loses its context", async () => {
+    let resolve!: (value: unknown) => void;
+    const apiRequest = vi.fn();
+    apiRequest.mockImplementation(() => new Promise(done => { resolve = done; }));
+    const { props, rerender } = setup({ apiRequest, contextKey: "first" });
+    fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+    rerender(<WorkbenchStockMovementsSection {...props} contextKey="other" />);
+    expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
+    await act(async () => { resolve({}); });
+    await waitFor(() => expect(props.onRefreshCoreData).not.toHaveBeenCalled());
+    expect(props.onActivity).not.toHaveBeenCalledWith("Movement created.");
+  });
+
+  it("invalidates delayed reads before they can restore data from the previous context", async () => {
+    let resolve!: () => void;
+    let current: (() => boolean) | undefined;
+    const refresh = vi.fn((guard?: () => boolean) => { current = guard; return new Promise<void>(done => { resolve = done; }); });
+    const { props, rerender } = setup({ onRefreshCoreData: refresh, contextKey: "first" });
+    fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(current?.()).toBe(true);
+    rerender(<WorkbenchStockMovementsSection {...props} contextKey="other" />);
+    expect(current?.()).toBe(false);
+    await act(async () => { resolve(); });
+    await waitFor(() => expect(props.onBusyChange).toHaveBeenLastCalledWith(false));
+    expect(props.onShowMovementFormChange).not.toHaveBeenCalled();
+  });
+  it.each(["adjustment", "consumption", "transfer"])("%s: a committed write survives dismissal and retries only reads", async reason => {
+    const refresh = vi.fn().mockRejectedValueOnce(new Error("private read detail")).mockRejectedValueOnce(new Error("still unavailable")).mockResolvedValue(undefined);
+    const { props, rerender } = setup({ onRefreshCoreData: refresh });
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: reason } });
+    fireEvent.change(screen.getByLabelText(reason === "adjustment" ? "Quantity Delta" : "Quantity"), { target: { value: "4" } });
+    const submit = reason === "consumption" ? "Record Consumption" : "Add to Stock";
+    fireEvent.click(screen.getByRole("button", { name: submit }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The operation completed");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("private read detail");
+    expect(screen.getByRole("button", { name: submit })).toBeDisabled();
+    rerender(<WorkbenchStockMovementsSection {...props} showMovementForm={false} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("The operation completed");
+    rerender(<WorkbenchStockMovementsSection {...props} showMovementForm={true} />);
+    expect(screen.getByRole("button", { name: "Add to Stock" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh data" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Add to Stock" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh data" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(3));
+    expect(props.apiRequest).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(props.onShowMovementFormChange).toHaveBeenCalledWith(false));
+  });
   it("shows an API failure inside the dialog, preserves inputs, and clears it on a successful retry", async () => {
     const apiRequest = vi.fn().mockRejectedValueOnce(new Error("Not enough quantity at the specified location.")).mockResolvedValueOnce({});
     const { props } = setup({ apiRequest });

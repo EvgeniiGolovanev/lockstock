@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
@@ -62,6 +62,7 @@ type LocationLookup = {
 };
 
 type StockMovementsSectionProps = {
+  contextKey?: string;
   busy: boolean;
   canCreateStockMovement: boolean;
   canExportCsv: boolean;
@@ -77,7 +78,7 @@ type StockMovementsSectionProps = {
   ) => Promise<T>;
   onActivity: (message: string) => void;
   onBusyChange: (busy: boolean) => void;
-  onRefreshCoreData: () => Promise<void>;
+  onRefreshCoreData: (isCurrent?: () => boolean) => Promise<void>;
   movementPage: number;
   movementTotalPages: number;
   movementFilterQuery: string;
@@ -100,6 +101,7 @@ type StockMovementsSectionProps = {
 };
 
 export function WorkbenchStockMovementsSection({
+  contextKey = "default",
   busy,
   canCreateStockMovement,
   canExportCsv,
@@ -149,10 +151,26 @@ export function WorkbenchStockMovementsSection({
   const [movementQuantity, setMovementQuantity] = useState(1);
   const [movementComment, setMovementComment] = useState("");
   const [movementError, setMovementError] = useState("");
+  const [committed, setCommitted] = useState(false);
+  const committedRef = useRef(false);
+  const submitting = useRef(false);
+  const generation = useRef(0);
+
+  useEffect(() => {
+    generation.current++;
+    committedRef.current = false;
+    setCommitted(false);
+    setMovementError("");
+    return () => {
+      generation.current++;
+      if (submitting.current) onBusyChange(false);
+      submitting.current = false;
+    };
+  }, [contextKey, onBusyChange]);
 
   useEffect(() => {
     if (!showMovementForm) {
-      setMovementError("");
+      if (!committedRef.current) setMovementError("");
       setMovementMaterialId("");
       setMovementReason("adjustment");
       setMovementLocationId("");
@@ -178,7 +196,38 @@ export function WorkbenchStockMovementsSection({
     }
   }, [activeLocations, activeMaterials, movementFromLocationId, movementLocationId, movementMaterialId, movementToLocationId, showMovementForm]);
 
+  async function refreshCommittedMovement() {
+    const startedFor = generation.current;
+    const current = () => generation.current === startedFor;
+    try {
+      await onRefreshCoreData(current);
+      if (!current()) return;
+      committedRef.current = false;
+      setCommitted(false);
+      setMovementError("");
+      onShowMovementFormChange(false);
+    } catch {
+      if (!current()) return;
+      setMovementError(t("workbench.movement.refreshFailed"));
+      onActivity("Movement completed, but refreshing data failed.");
+    }
+  }
+
+  async function retryMovementRefresh() {
+    if (!committedRef.current || submitting.current) return;
+    const startedFor = generation.current;
+    submitting.current = true;
+    onBusyChange(true);
+    try { await refreshCommittedMovement(); }
+    finally {
+      if (generation.current === startedFor) { submitting.current = false; onBusyChange(false); }
+    }
+  }
+
   async function handleCreateMovement() {
+    if (committedRef.current || submitting.current) return;
+    const startedFor = generation.current;
+    submitting.current = true;
     const trimmedComment = movementComment.trim();
     setMovementError("");
 
@@ -224,17 +273,21 @@ export function WorkbenchStockMovementsSection({
               }
       });
 
+      if (generation.current !== startedFor) return;
+      committedRef.current = true;
+      setCommitted(true);
       onActivity("Movement created.");
       setMovementComment("");
-      await onRefreshCoreData();
+      await refreshCommittedMovement();
       return true;
     } catch (error) {
+      if (generation.current !== startedFor) return;
       const errorMessage = error instanceof Error ? error.message : "Unexpected server error.";
       setMovementError(errorMessage);
       onActivity(`Create movement failed: ${errorMessage}`);
       return false;
     } finally {
-      onBusyChange(false);
+      if (generation.current === startedFor) { submitting.current = false; onBusyChange(false); }
     }
   }
 
@@ -302,6 +355,12 @@ export function WorkbenchStockMovementsSection({
         </div>
       </div>
 
+      {committed && (!showMovementForm || !canCreateStockMovement) ? (
+        <div>
+          <p role="alert" className={styles.formError}>{movementError || t("workbench.movement.refreshFailed")}</p>
+          <button type="button" disabled={busy} onClick={() => void retryMovementRefresh()}>{t("workbench.movement.refreshData")}</button>
+        </div>
+      ) : null}
       {showMovementForm && canCreateStockMovement ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.movement.open")} aria-describedby={movementError ? "stock-movement-error" : undefined}>
           <div className="modal-card">
@@ -405,7 +464,8 @@ export function WorkbenchStockMovementsSection({
             </div>
             {movementError ? <p id="stock-movement-error" role="alert" className={styles.formError}>{movementError}</p> : null}
             <div className="actions">
-              <button type="button" disabled={busy} onClick={() => void handleCreateMovement()}>
+              {committed ? <button type="button" disabled={busy} onClick={() => void retryMovementRefresh()}>{t("workbench.movement.refreshData")}</button> : null}
+              <button type="button" disabled={busy || committed} onClick={() => void handleCreateMovement()}>
                 {movementReason === "consumption" ? t("workbench.movement.recordConsumption") : t("workbench.movement.addToStock")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onShowMovementFormChange(false)}>

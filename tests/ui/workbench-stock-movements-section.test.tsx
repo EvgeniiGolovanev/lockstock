@@ -11,6 +11,7 @@ describe("WorkbenchStockMovementsSection", () => {
   it("renders the movement filters, table, and form", async () => {
     const apiRequest = vi.fn().mockResolvedValue({ data: { id: "mov-2" } });
     const onShowMovementFormChange = vi.fn();
+    const search = vi.fn(), locationFilter = vi.fn(), reasonFilter = vi.fn();
 
     render(
       <WorkbenchStockMovementsSection
@@ -46,9 +47,9 @@ describe("WorkbenchStockMovementsSection", () => {
         activeMaterials={[{ id: "mat-1", sku: "MAT-001", name: "Cement" }]}
         activeLocations={[{ id: "loc-1", code: "WH1", name: "Main Warehouse" }]}
         onShowMovementFormChange={onShowMovementFormChange}
-        onMovementFilterQueryChange={vi.fn()}
-        onMovementLocationFilterChange={vi.fn()}
-        onMovementReasonFilterChange={vi.fn()}
+        onMovementFilterQueryChange={search}
+        onMovementLocationFilterChange={locationFilter}
+        onMovementReasonFilterChange={reasonFilter}
         onMovementPageChange={vi.fn()}
         onExportCsv={vi.fn()}
         onSort={vi.fn()}
@@ -61,6 +62,17 @@ describe("WorkbenchStockMovementsSection", () => {
     expect(screen.getByRole("dialog", { name: "Move Material" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add to Stock" })).toBeEnabled();
     expect(screen.getByText("Page 1/3")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/Search/), { target: { value: "Cement" } });
+    expect(search).toHaveBeenCalledWith("Cement");
+    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "Main Warehouse" } });
+    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "adjustment" } });
+    expect(locationFilter).toHaveBeenCalledWith("Main Warehouse");
+    expect(reasonFilter).toHaveBeenCalledWith("adjustment");
+    fireEvent.click(screen.getByRole("button", { name: "Move Material" }));
+    expect(onShowMovementFormChange).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onShowMovementFormChange).toHaveBeenCalledWith(false);
+    for (const button of screen.getAllByRole("button", { name: /Sort by/ })) fireEvent.click(button);
 
     fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
 
