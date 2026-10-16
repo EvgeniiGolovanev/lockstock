@@ -65,6 +65,10 @@ type InvitationSectionRow = {
 };
 
 type MembersSectionProps = {
+  groupFeedback?: ReactNode;
+  membersFeedback?: ReactNode;
+  membershipsFeedback?: ReactNode;
+  invitationsFeedback?: ReactNode;
   busy: boolean;
   canUseMembersScreen: boolean;
   ownedGroupName: string;
@@ -98,6 +102,10 @@ type MembersSectionProps = {
 };
 
 export function WorkbenchMembersSection({
+  groupFeedback,
+  membersFeedback,
+  membershipsFeedback,
+  invitationsFeedback,
   busy,
   canUseMembersScreen,
   ownedGroupName,
@@ -173,6 +181,8 @@ export function WorkbenchMembersSection({
         </div>
       ) : null}
 
+      {groupFeedback}
+      {membersFeedback}
       {!ownedGroup ? <p className="subtle-line">{t("workbench.members.noOwnedGroup")}</p> : null}
 
       <div className="table-wrap">
@@ -260,6 +270,7 @@ export function WorkbenchMembersSection({
         </table>
       </div>
 
+      {membershipsFeedback}
       {ownedGroupsLength === 0 ? (
         <p className="subtle-line">{t("workbench.members.defaultPreparing")}</p>
       ) : null}
@@ -302,6 +313,7 @@ export function WorkbenchMembersSection({
         </>
       ) : null}
 
+      {invitationsFeedback}
       <h3 className={styles.tableTitle}>{t("workbench.members.sentReceived")}</h3>
 
       <div className="table-wrap">

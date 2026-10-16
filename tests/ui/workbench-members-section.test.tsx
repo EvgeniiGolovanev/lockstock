@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/language-provider", () => ({
@@ -107,5 +107,17 @@ describe("WorkbenchMembersSection", () => {
     expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Role Authorizations" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Rename group" }), { target: { value: "Renamed group" } });
+    expect(onRenameOrgNameChange).toHaveBeenCalledWith("Renamed group");
+    fireEvent.change(screen.getByRole("textbox", { name: "Invite by email" }), { target: { value: "another@example.test" } });
+    expect(onMemberInviteEmailChange).toHaveBeenCalledWith("another@example.test");
+    fireEvent.change(screen.getByRole("combobox", { name: "Assigned role" }), { target: { value: "viewer" } });
+    expect(onMemberInviteRoleChange).toHaveBeenCalledWith("viewer");
+    for (const name of ["Rename Group", "Refresh Members", "Save Group Name", "Cancel", "Send Invitation", "Refresh Invitations", "Refresh Groups", "Accept", "Reject"]) {
+      fireEvent.click(screen.getByRole("button", { name }));
+    }
+    expect(onAcceptInvitation).toHaveBeenCalledWith("inv-1");
+    expect(onRejectInvitation).toHaveBeenCalledWith("inv-1");
+    for (const button of screen.getAllByRole("button", { name: /Sort by/ })) fireEvent.click(button);
   });
 });
