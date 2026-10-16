@@ -62,6 +62,7 @@ type PurchaseOrderFormsProps = {
   onActivity: (message: string) => void;
   onBusyChange: (busy: boolean) => void;
   onRefreshCoreData: () => Promise<void>;
+  onRefreshRequiredChange: (required: boolean) => void;
   showPoCreateForm: boolean;
   showPoReceiveForm: boolean;
   activeSuppliers: Array<{ id: string; name: string }>;
@@ -83,6 +84,7 @@ export function WorkbenchPurchaseOrderForms({
   onActivity,
   onBusyChange,
   onRefreshCoreData,
+  onRefreshRequiredChange,
   showPoCreateForm,
   showPoReceiveForm,
   activeSuppliers,
@@ -108,9 +110,16 @@ export function WorkbenchPurchaseOrderForms({
   const [receivePoLineId, setReceivePoLineId] = useState("");
   const [receiveLocationId, setReceiveLocationId] = useState("");
   const [receiveQuantity, setReceiveQuantity] = useState(1);
+  const [createError, setCreateError] = useState("");
+  const [receiveError, setReceiveError] = useState("");
+  const [createCommitted, setCreateCommitted] = useState(false);
+  const [receiveCommitted, setReceiveCommitted] = useState(false);
+  const errorText = (error: unknown) => error instanceof Error && error.message ? error.message : t("workbench.po.unexpectedError");
 
   useEffect(() => {
     if (!showPoCreateForm) {
+      setCreateError("");
+      setCreateCommitted(false);
       setPoSupplierId("");
       setPoCurrency("EUR");
       setPoExpectedAt("");
@@ -124,6 +133,8 @@ export function WorkbenchPurchaseOrderForms({
 
   useEffect(() => {
     if (!showPoReceiveForm) {
+      setReceiveError("");
+      setReceiveCommitted(false);
       setReceivePoId("");
       setReceivePoLineId("");
       setReceiveLocationId("");
@@ -183,6 +194,8 @@ export function WorkbenchPurchaseOrderForms({
   }
 
   function closeCreateForm() {
+    setCreateError("");
+    setCreateCommitted(false);
     setPoSupplierId("");
     setPoCurrency("EUR");
     setPoExpectedAt("");
@@ -195,6 +208,8 @@ export function WorkbenchPurchaseOrderForms({
   }
 
   function closeReceiveForm() {
+    setReceiveError("");
+    setReceiveCommitted(false);
     setReceivePoId("");
     setReceivePoLineId("");
     setReceiveLocationId("");
@@ -202,7 +217,24 @@ export function WorkbenchPurchaseOrderForms({
     onClosePoReceiveForm();
   }
 
+  async function refreshCommittedForm(close: () => void, setError: (value: string) => void) {
+    onBusyChange(true);
+    setError("");
+    try {
+      await onRefreshCoreData();
+      onRefreshRequiredChange(false);
+      close();
+    } catch {
+      setError(t("workbench.po.refreshFailed"));
+      onActivity(t("workbench.po.refreshFailed"));
+    } finally {
+      onBusyChange(false);
+    }
+  }
+
   async function handleCreatePurchaseOrder() {
+    if (createCommitted) return false;
+    setCreateError("");
     try {
       onBusyChange(true);
       const lines =
@@ -223,6 +255,7 @@ export function WorkbenchPurchaseOrderForms({
             : [];
 
       if (!poSupplierId || lines.length === 0) {
+        setCreateError(t("workbench.po.activityCreateValidation"));
         onActivity(t("workbench.po.activityCreateValidation"));
         return false;
       }
@@ -238,11 +271,13 @@ export function WorkbenchPurchaseOrderForms({
         }
       });
       onActivity(t("workbench.po.activityCreated"));
-      closeCreateForm();
-      await onRefreshCoreData();
+      setCreateCommitted(true);
+      onRefreshRequiredChange(true);
+      await refreshCommittedForm(closeCreateForm, setCreateError);
       return true;
     } catch (error) {
-      onActivity(message(locale, "workbench.po.activityCreateFailed", { reason: (error as Error).message }));
+      setCreateError(errorText(error));
+      onActivity(message(locale, "workbench.po.activityCreateFailed", { reason: errorText(error) }));
       return false;
     } finally {
       onBusyChange(false);
@@ -250,6 +285,8 @@ export function WorkbenchPurchaseOrderForms({
   }
 
   async function handleReceivePurchaseOrder() {
+    if (receiveCommitted) return false;
+    setReceiveError("");
     try {
       onBusyChange(true);
       await apiRequest(`/api/purchase-orders/${receivePoId}/receive`, {
@@ -265,11 +302,13 @@ export function WorkbenchPurchaseOrderForms({
         }
       });
       onActivity(t("workbench.po.activityReceived"));
-      closeReceiveForm();
-      await onRefreshCoreData();
+      setReceiveCommitted(true);
+      onRefreshRequiredChange(true);
+      await refreshCommittedForm(closeReceiveForm, setReceiveError);
       return true;
     } catch (error) {
-      onActivity(message(locale, "workbench.po.activityReceiveFailed", { reason: (error as Error).message }));
+      setReceiveError(errorText(error));
+      onActivity(message(locale, "workbench.po.activityReceiveFailed", { reason: errorText(error) }));
       return false;
     } finally {
       onBusyChange(false);
@@ -279,7 +318,7 @@ export function WorkbenchPurchaseOrderForms({
   return (
     <>
       {showPoCreateForm && canManageCatalog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.createDialogAria")}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.createDialogAria")} aria-describedby={createError ? "po-create-error" : undefined}>
           <div className={`modal-card ${poStyles.modalCard}`}>
             <div className={`title-row ${poStyles.modalHead}`}>
               <h4>{t("workbench.po.createTitle")}</h4>
@@ -395,15 +434,17 @@ export function WorkbenchPurchaseOrderForms({
               </section>
             </div>
             <div className={`actions ${poStyles.modalFooter}`}>
+              {createError ? <p id="po-create-error" role="alert" className={poStyles.formError}>{createError}</p> : null}
+              {createCommitted ? <button type="button" disabled={busy} onClick={() => void refreshCommittedForm(closeCreateForm, setCreateError)}>{t("workbench.po.refreshData")}</button> : null}
               <button
                 type="button"
-                disabled={busy || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
+                disabled={busy || createCommitted || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
                 onClick={() => void handleCreatePurchaseOrder()}
               >
                 {t("workbench.po.createTitle")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={closeCreateForm}>
-                {t("workbench.po.cancel")}
+                {t(createCommitted ? "common.close" : "workbench.po.cancel")}
               </button>
             </div>
           </div>
@@ -411,7 +452,7 @@ export function WorkbenchPurchaseOrderForms({
       ) : null}
 
       {showPoReceiveForm && canReceivePurchaseOrders ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.receiveDialogAria")}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.receiveDialogAria")} aria-describedby={receiveError ? "po-receive-error" : undefined}>
           <div className={`modal-card ${poStyles.modalCard}`}>
             <div className={`title-row ${poStyles.modalHead}`}>
               <h4>{t("workbench.po.receiveTitle")}</h4>
@@ -501,15 +542,17 @@ export function WorkbenchPurchaseOrderForms({
               </section>
             </div>
             <div className={`actions ${poStyles.modalFooter}`}>
+              {receiveError ? <p id="po-receive-error" role="alert" className={poStyles.formError}>{receiveError}</p> : null}
+              {receiveCommitted ? <button type="button" disabled={busy} onClick={() => void refreshCommittedForm(closeReceiveForm, setReceiveError)}>{t("workbench.po.refreshData")}</button> : null}
               <button
                 type="button"
-                disabled={busy || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
+                disabled={busy || receiveCommitted || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
                 onClick={() => void handleReceivePurchaseOrder()}
               >
                 {t("workbench.po.receive")}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={closeReceiveForm}>
-                {t("workbench.po.cancel")}
+                {t(receiveCommitted ? "common.close" : "workbench.po.cancel")}
               </button>
             </div>
           </div>

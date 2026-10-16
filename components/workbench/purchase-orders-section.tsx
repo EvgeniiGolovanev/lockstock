@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
@@ -103,6 +103,9 @@ type WorkbenchPurchaseOrdersSectionProps = {
   onActivity: (message: string) => void;
   onBusyChange: (busy: boolean) => void;
   onRefreshCoreData: () => Promise<void>;
+  refreshRequired: boolean;
+  formOpen: boolean;
+  onRefreshRequiredChange: (required: boolean) => void;
   poTotal: number;
   poPage: number;
   poTotalPages: number;
@@ -160,6 +163,9 @@ export function WorkbenchPurchaseOrdersSection({
   onActivity,
   onBusyChange,
   onRefreshCoreData,
+  refreshRequired,
+  formOpen,
+  onRefreshRequiredChange,
   poTotal,
   poPage,
   poTotalPages,
@@ -187,12 +193,48 @@ export function WorkbenchPurchaseOrdersSection({
 }: WorkbenchPurchaseOrdersSectionProps) {
   const { locale } = useLanguage();
   const t = (key: StaticMessageKey) => message(locale, key);
+  const [statusError, setStatusError] = useState("");
+  const [cancelError, setCancelError] = useState("");
+  const [committedStatus, setCommittedStatus] = useState<{ id: string; cancel: boolean } | null>(null);
+  const mutationsBlocked = !!committedStatus || refreshRequired;
+  const errorText = (error: unknown) => error instanceof Error && error.message ? error.message : t("workbench.po.unexpectedError");
+  useEffect(() => { setCancelError(""); }, [pendingCancelPo?.id]);
+
+  function closeCancel() {
+    if (committedStatus) setStatusError(t("workbench.po.refreshFailed"));
+    setCancelError("");
+    onPendingCancelPoChange(null);
+  }
+
+  async function refreshCommittedStatus(operation: { id: string; cancel: boolean } | null) {
+    onBusyChange(true);
+    try {
+      await onRefreshCoreData();
+      if (operation?.cancel) {
+        onPendingCancelPoChange(null);
+        onSelectedPoDetailsIdChange(current => current === operation.id ? null : current);
+      }
+      setCommittedStatus(null);
+      onRefreshRequiredChange(false);
+      setStatusError("");
+      setCancelError("");
+    } catch {
+      const warning = t("workbench.po.refreshFailed");
+      if (operation?.cancel && pendingCancelPo) setCancelError(warning);
+      else setStatusError(warning);
+      onActivity(warning);
+    } finally {
+      onBusyChange(false);
+    }
+  }
   const sortAriaLabel = (label: string, sortKey: string) => {
     const active = tableSortState?.key === sortKey;
     const direction = tableSortState?.direction === "asc" ? "ascending" : "descending";
     return message(locale, "workbench.table.sortBy", { label, state: active ? `, ${direction}` : "" });
   };
   async function handleMarkPurchaseOrderSent(poId: string, poNumber: string) {
+    if (mutationsBlocked) return false;
+    setStatusError("");
     try {
       onBusyChange(true);
       await apiRequest(`/api/purchase-orders/${poId}/status`, {
@@ -202,10 +244,13 @@ export function WorkbenchPurchaseOrdersSection({
         }
       });
       onActivity(message(locale, "workbench.po.activitySent", { number: poNumber }));
-      await onRefreshCoreData();
+      const operation = { id: poId, cancel: false };
+      setCommittedStatus(operation);
+      await refreshCommittedStatus(operation);
       return true;
     } catch (error) {
-      onActivity(message(locale, "workbench.po.activitySentFailed", { reason: (error as Error).message }));
+      setStatusError(errorText(error));
+      onActivity(message(locale, "workbench.po.activitySentFailed", { reason: errorText(error) }));
       return false;
     } finally {
       onBusyChange(false);
@@ -213,6 +258,9 @@ export function WorkbenchPurchaseOrdersSection({
   }
 
   async function handleConfirmCancelPurchaseOrder(purchaseOrder: WorkbenchPurchaseOrder) {
+    if (mutationsBlocked) return false;
+    setCancelError("");
+    setStatusError("");
     try {
       onBusyChange(true);
       await apiRequest(`/api/purchase-orders/${purchaseOrder.id}/status`, {
@@ -222,12 +270,13 @@ export function WorkbenchPurchaseOrdersSection({
         }
       });
       onActivity(message(locale, "workbench.po.activityCancelled", { number: purchaseOrder.po_number }));
-      onPendingCancelPoChange(null);
-      onSelectedPoDetailsIdChange((current) => (current === purchaseOrder.id ? null : current));
-      await onRefreshCoreData();
+      const operation = { id: purchaseOrder.id, cancel: true };
+      setCommittedStatus(operation);
+      await refreshCommittedStatus(operation);
       return true;
     } catch (error) {
-      onActivity(message(locale, "workbench.po.activityCancelledFailed", { reason: (error as Error).message }));
+      setCancelError(errorText(error));
+      onActivity(message(locale, "workbench.po.activityCancelledFailed", { reason: errorText(error) }));
       return false;
     } finally {
       onBusyChange(false);
@@ -334,12 +383,12 @@ export function WorkbenchPurchaseOrdersSection({
           <h3>{t("workbench.po.all")}</h3>
           <div className={`actions table-head-actions ${styles.tableActions}`}>
             {canReceivePurchaseOrders ? (
-              <button type="button" className="ghost-btn" onClick={onOpenReceivePurchaseOrderForm}>
+              <button type="button" className="ghost-btn" disabled={busy || mutationsBlocked} onClick={onOpenReceivePurchaseOrderForm}>
                 {t("workbench.po.receiveOrder")}
               </button>
             ) : null}
             {canManageCatalog ? (
-              <button type="button" onClick={onOpenCreatePurchaseOrderForm}>
+              <button type="button" disabled={busy || mutationsBlocked} onClick={onOpenCreatePurchaseOrderForm}>
                 {t("workbench.po.create")}
               </button>
             ) : null}
@@ -350,6 +399,12 @@ export function WorkbenchPurchaseOrdersSection({
             ) : null}
           </div>
         </div>
+        {(statusError || refreshRequired) && !pendingCancelPo && !formOpen ? (
+          <div>
+            <p role="alert" className={poStyles.formError}>{statusError || t("workbench.po.refreshFailed")}</p>
+            {mutationsBlocked ? <button type="button" disabled={busy} onClick={() => void refreshCommittedStatus(committedStatus)}>{t("workbench.po.refreshData")}</button> : null}
+          </div>
+        ) : null}
         {purchaseOrderTableRows.length === 0 ? (
           <div className={styles.empty}>
             <p>{t("workbench.po.empty")}</p>
@@ -418,7 +473,7 @@ export function WorkbenchPurchaseOrdersSection({
                           {canMarkSent ? (
                             <button
                               type="button"
-                              disabled={busy}
+                              disabled={busy || mutationsBlocked}
                               className={`ghost-btn ${styles.receiveButton}`}
                               onClick={() => {
                                 void handleMarkPurchaseOrderSent(po.id, po.po_number);
@@ -430,7 +485,7 @@ export function WorkbenchPurchaseOrdersSection({
                           {canReceive ? (
                             <button
                               type="button"
-                              disabled={busy || summary.lineCount === 0}
+                              disabled={busy || mutationsBlocked || summary.lineCount === 0}
                               className={`ghost-btn ${styles.receiveButton}`}
                               onClick={() => {
                                 onPrepareReceivePurchaseOrder(po.id, po.lines[0]?.id ?? "");
@@ -442,7 +497,7 @@ export function WorkbenchPurchaseOrdersSection({
                           {canCancel ? (
                             <button
                               type="button"
-                              disabled={busy}
+                              disabled={busy || mutationsBlocked}
                               className={`ghost-btn danger-btn ${styles.receiveButton}`}
                               onClick={() => onPendingCancelPoChange(po)}
                             >
@@ -566,20 +621,22 @@ export function WorkbenchPurchaseOrdersSection({
       ) : null}
 
       {pendingCancelPo ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.cancelDialogAria")}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("workbench.po.cancelDialogAria")} aria-describedby={cancelError ? "po-cancel-error" : undefined}>
           <div className="modal-card">
             <div className="title-row">
               <h4>{t("workbench.po.cancelTitle")}</h4>
-              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} onClick={() => onPendingCancelPoChange(null)}>
+              <button type="button" className={`ghost-btn ${poStyles.modalClose}`} disabled={busy} onClick={closeCancel}>
                 x
               </button>
             </div>
             <p className="subtle-line">{message(locale, "workbench.po.cancelConfirm", { number: pendingCancelPo.po_number })}</p>
+            {cancelError ? <p id="po-cancel-error" role="alert" className={poStyles.formError}>{cancelError}</p> : null}
             <div className="actions">
-              <button type="button" className="ghost-btn" disabled={busy} onClick={() => onPendingCancelPoChange(null)}>
-                {t("workbench.po.keep")}
+              {committedStatus ? <button type="button" disabled={busy} onClick={() => void refreshCommittedStatus(committedStatus)}>{t("workbench.po.refreshData")}</button> : null}
+              <button type="button" className="ghost-btn" disabled={busy} onClick={closeCancel}>
+                {t(committedStatus ? "common.close" : "workbench.po.keep")}
               </button>
-              <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleConfirmCancelPurchaseOrder(pendingCancelPo)}>
+              <button type="button" className="danger-btn" disabled={busy || !!committedStatus} onClick={() => void handleConfirmCancelPurchaseOrder(pendingCancelPo)}>
                 {t("workbench.po.cancelPo")}
               </button>
             </div>

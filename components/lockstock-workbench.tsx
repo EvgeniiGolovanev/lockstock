@@ -444,6 +444,7 @@ export function LockstockWorkbench() {
   const [showMovementForm, setShowMovementForm] = useState(false);
   const [showPoCreateForm, setShowPoCreateForm] = useState(false);
   const [showPoReceiveForm, setShowPoReceiveForm] = useState(false);
+  const [poRefreshRequired, setPoRefreshRequired] = useState(false);
   const [selectedPoDetailsId, setSelectedPoDetailsId] = useState<string | null>(null);
   const [receivePoId, setReceivePoId] = useState("");
   const [receivePoLineId, setReceivePoLineId] = useState("");
@@ -2291,6 +2292,9 @@ export function LockstockWorkbench() {
       {showPurchaseOrderSection ? (
         <>
           <WorkbenchPurchaseOrdersSection
+            refreshRequired={poRefreshRequired}
+            formOpen={showPoCreateForm || showPoReceiveForm}
+            onRefreshRequiredChange={setPoRefreshRequired}
             busy={busy}
             canManageCatalog={canManageCatalog}
             canReceivePurchaseOrders={canReceivePurchaseOrders}
@@ -2352,6 +2356,7 @@ export function LockstockWorkbench() {
             onSort={handleTableSort}
           />
           <WorkbenchPurchaseOrderForms
+            onRefreshRequiredChange={setPoRefreshRequired}
             busy={busy}
             isOrgScopedReady={isOrgScopedReady}
             canManageCatalog={canManageCatalog}

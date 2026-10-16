@@ -17,6 +17,7 @@ describe("WorkbenchPurchaseOrdersSection", () => {
 
     render(
       <WorkbenchPurchaseOrdersSection
+        refreshRequired={false} formOpen={false} onRefreshRequiredChange={vi.fn()}
         busy={false}
         canManageCatalog={true}
         canReceivePurchaseOrders={true}
