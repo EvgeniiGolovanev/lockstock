@@ -58,7 +58,7 @@ destroys the temporary database after the checks. These results describe the
 candidate. PR #82 merged as `04972b5`; PR/main CI and the production browser
 checks on `lockstockapp.com` passed on October 16, 2026.
 
-## Member feedback candidate
+## Member feedback release
 
 The Members page now shows failures for renaming a group, invitations,
 acceptance, rejection, member removal, leaving, and list refreshes. Rejected
@@ -88,7 +88,43 @@ Local verification on October 16, 2026 passes: 527 component/API tests,
 194 database assertions, and both real-browser scenarios. Types, lint,
 production build, hygiene, and the production dependency audit pass. The action
 and section modules have over 99% line and 92% branch coverage. The temporary
-database is destroyed afterward. These results describe the candidate.
+database is destroyed afterward. PR #83 merged as `e4a37ba`; PR/main CI and
+production browser checks passed on October 16, 2026.
+
+## Stock movement recovery candidate
+
+Adjustment, consumption, and transfer forms now distinguish a rejected write
+from a successful write followed by a failed refresh. A committed operation
+disables submission and offers **Refresh data**. The warning and write guard
+survive closing and reopening the form. A successful refresh closes the form.
+
+Recovery reads only material balances, movement history, and locations. Account
+or workspace changes invalidate delayed responses. Each refresh batch also
+invalidates its outstanding requests when it fails, so a late sibling response
+cannot overwrite a later successful retry.
+
+Run the targeted real-database browser checks:
+
+```powershell
+node scripts/verify-database.mjs --inventory --grep "stock recovery never repeats"
+```
+
+At desktop and mobile widths, the checks perform actual adjustments,
+consumption, and transfers, interrupt only subsequent list reads, and verify
+persisted balances and ledger rows. They exercise another failed refresh,
+closing/reopening the form, and read-only recovery without a repeated POST.
+A genuine insufficient-stock rejection must preserve the draft and leave
+stored rows unchanged. No provider credentials or legal decisions are needed.
+
+Local verification on October 16, 2026 passes: 533 component/API tests,
+194 database assertions, both real-browser recovery scenarios, and 22 mocked
+E2E regressions. Three existing real-browser regressions also pass: the full
+stock/receipt cycle and rejected stock writes with correction at both widths.
+Types, lint, production build, hygiene, and the production
+dependency audit pass. Focused stock-section coverage is 100% lines, 92.25%
+branches, and 81.48% functions. The browser checks verify that refresh retries
+leave the persisted balances and ledger unchanged. This candidate has not
+been released to production.
 
 ## External technical acceptance
 
@@ -111,7 +147,7 @@ loopback monitoring, and logical restore checks are documented in
 
 ## Next steps
 
-Review and release the member feedback candidate after its checks pass.
+Review and release the stock movement recovery candidate after its checks pass.
 Run external acceptance when the listed access is available, then add dated
 evidence to the release record. Legal text, tax
 registration, and live paid-launch approval remain separate decisions.
