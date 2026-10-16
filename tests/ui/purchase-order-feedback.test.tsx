@@ -210,5 +210,3 @@ describe("purchase order status feedback", () => {
     expect(props.apiRequest).not.toHaveBeenCalled();
   });
 });
-
-
