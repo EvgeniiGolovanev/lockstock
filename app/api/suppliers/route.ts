@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createSupplierSchema } from "@/lib/validators/supplier";
+import { supplierSearchFilter } from "@/lib/api/supplier-search";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
       .range(from, to);
 
     if (q) {
-      query = query.or(`name.ilike.%${q}%,phone.ilike.%${q}%,address.ilike.%${q}%,vendor_number::text.ilike.%${q}%`);
+      query = query.or(supplierSearchFilter(q));
     }
     if (status === "active") {
       query = query.eq("is_active", true);

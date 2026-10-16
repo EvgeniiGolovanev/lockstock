@@ -91,7 +91,7 @@ and section modules have over 99% line and 92% branch coverage. The temporary
 database is destroyed afterward. PR #83 merged as `e4a37ba`; PR/main CI and
 production browser checks passed on October 16, 2026.
 
-## Stock movement recovery candidate
+## Stock movement recovery release
 
 Adjustment, consumption, and transfer forms now distinguish a rejected write
 from a successful write followed by a failed refresh. A committed operation
@@ -123,8 +123,51 @@ stock/receipt cycle and rejected stock writes with correction at both widths.
 Types, lint, production build, hygiene, and the production
 dependency audit pass. Focused stock-section coverage is 100% lines, 92.25%
 branches, and 81.48% functions. The browser checks verify that refresh retries
-leave the persisted balances and ledger unchanged. This candidate has not
-been released to production.
+leave the persisted balances and ledger unchanged. PR #84 merged as `82e1cae`;
+PR/main CI and production checks at both widths passed on October 16, 2026.
+Temporary hosted users, sessions, workspaces, and their data were removed.
+
+## List response protection candidate
+
+Materials, stock movements, locations, suppliers, active supplier choices,
+purchase orders, member loading, and invitations now reject superseded
+responses before updating state. Each list tracks its latest request and
+rendered query. Workspace/account changes invalidate older callbacks and
+clear the prior workspace's displayed rows and totals.
+
+Changing search, filters, or pages reloads the affected list without restarting
+workspace bootstrap. Delayed failures from older reads cannot clear a newer
+session or overwrite newer results. A filter change during a shared refresh
+does not discard unrelated location or supplier-choice reads. A genuine failed
+refresh still invalidates its remaining sibling reads before a retry.
+
+Real acceptance also exposed an existing supplier-search failure: PostgREST
+rejects numeric-column casts in filters. Text fields now use quoted search
+values, and complete vendor IDs use numeric equality within the schema's
+range. Displayed IDs with leading zeros are accepted. Longer numeric phone
+searches stay text searches instead of overflowing the vendor ID column.
+
+Run the real-database browser checks:
+
+```powershell
+node scripts/verify-database.mjs --inventory --grep "lists keep current results"
+```
+
+At desktop and mobile widths, the checks use actual API responses delayed
+until newer searches, status filters, and pages have completed. They switch
+between two real workspaces, return to the first, and deliver the older
+workspace's reads last. Native history keeps the same Workbench instance
+while inspecting its lists, so a route remount cannot hide stale state.
+Stored rows must remain unchanged and browsing must issue no domain writes.
+Both list scenarios passed on October 16, 2026. Local verification also passes:
+552 component/API tests, 194 database assertions, and 22 mocked browser
+regressions, plus types, lint, production build, repository hygiene, and the
+production dependency audit. The new request and supplier-search modules have
+100% statement, branch, function, and line coverage in the focused tests.
+Nine existing real-browser regressions also pass: the full stock/receipt
+cycle and catalog, membership, purchase-order, and stock recovery at both
+widths. The isolated database stacks are destroyed after the runs.
+This candidate has not been released to production.
 
 ## External technical acceptance
 
@@ -147,7 +190,7 @@ loopback monitoring, and logical restore checks are documented in
 
 ## Next steps
 
-Review and release the stock movement recovery candidate after its checks pass.
+Review and release the list response protection candidate after its checks pass.
 Run external acceptance when the listed access is available, then add dated
 evidence to the release record. Legal text, tax
 registration, and live paid-launch approval remain separate decisions.
