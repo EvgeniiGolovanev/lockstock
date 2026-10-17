@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
@@ -13,22 +13,13 @@ import { getSignedOutRedirectPath } from "@/lib/auth/route-guards";
 import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { summarizeAuditMetadata } from "@/lib/ui/audit-log";
+import { isSupersededRequest, useLatestRequest } from "@/lib/ui/use-latest-request";
+import { useAccountAudit } from "@/lib/ui/use-account-audit";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
 import type { PlanEntitlements } from "@/lib/billing/entitlements";
 
 type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
 type OrgRole = "owner" | "manager" | "member" | "viewer";
-
-type AuditLogEntry = {
-  id: string;
-  actor_user_id: string | null;
-  action: string;
-  entity_type: string;
-  entity_label: string | null;
-  message: string;
-  metadata: unknown;
-  created_at: string;
-};
 
 type OrganizationMembership = {
   role: OrgRole;
@@ -137,11 +128,22 @@ export function LockstockAccount() {
   } | null>(null);
   const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [auditRefresh, setAuditRefresh] = useState(0);
-  const [auditStatus, setAuditStatus] = useState("");
+  const [contextStatus, setContextStatus] = useState("");
   const [auditExportFrom, setAuditExportFrom] = useState(daysAgoDateInputValue(7));
   const [auditExportTo, setAuditExportTo] = useState(todayDateInputValue());
+
+  const accountScope = JSON.stringify([signedInAs, accessToken, activeOrgId]);
+  const contextReads = useLatestRequest(accountScope);
+  const audit = useAccountAudit({
+    accountKey: JSON.stringify([signedInAs, accessToken]), orgId: activeOrgId,
+    enabled: Boolean(accessToken && activeOrgId), refresh: auditRefresh,
+    canExport: canExportAuditLog(activeOrgRole) && Boolean(planAccess?.canExportAudit),
+    from: auditExportFrom, to: auditExportTo
+  });
+  useLayoutEffect(() => {
+    setActiveOrgRole(""); setPlanAccess(null); setBillingSummary(null); setContextStatus("");
+  }, [accountScope]);
 
   function applySessionState(session: {
     access_token?: string;
@@ -225,7 +227,6 @@ export function LockstockAccount() {
           setPlanAccess(null);
           setBillingSummary(null);
           setIsPlatformAdmin(false);
-          setAuditLog([]);
           setAccountEmail("");
           setAccountFullName("");
           setAccountCompany("");
@@ -304,69 +305,68 @@ export function LockstockAccount() {
 
   useEffect(() => {
     if (!accessToken || !activeOrgId) {
-      setAuditLog([]);
       setActiveOrgRole("");
       setPlanAccess(null);
       setBillingSummary(null);
-      setAuditStatus(accessToken ? t("account.openWorkspace") : "");
+      setContextStatus(accessToken ? t("account.openWorkspace") : "");
       return;
     }
 
-    let cancelled = false;
     async function loadAuditContext() {
       try {
-        setAuditStatus(t("account.loadingAudit"));
-        const [auditResponse, organizationsResponse, entitlementsResponse, billingResponse] = await Promise.allSettled([
-          browserApiRequest<{ data: AuditLogEntry[] }>("/api/audit-log", { orgId: activeOrgId }),
-          browserApiRequest<{ data: OrganizationMembership[] }>("/api/organizations"),
-          browserApiRequest<{ data: PlanEntitlements }>("/api/billing/entitlements", { orgId: activeOrgId }),
-          browserApiRequest<{ data: BillingSummary }>("/api/billing/summary", { orgId: activeOrgId })
-        ]);
+        setContextStatus("");
+        await contextReads.run(async () => {
+          const [organizationsResponse, entitlementsResponse] = await Promise.allSettled([
+            browserApiRequest<{ data: OrganizationMembership[] }>("/api/organizations"),
+            browserApiRequest<{ data: PlanEntitlements }>("/api/billing/entitlements", { orgId: activeOrgId })
+          ]);
+          const isOwner = organizationsResponse.status === "fulfilled" && organizationsResponse.value.data.some(
+            item => item.organization.id === activeOrgId && item.role === "owner"
+          );
+          const [billingResponse] = isOwner ? await Promise.allSettled([
+            browserApiRequest<{ data: BillingSummary }>("/api/billing/summary", { orgId: activeOrgId })
+          ]) : [];
+          return { organizationsResponse, entitlementsResponse, billingResponse };
+        }, ({ organizationsResponse, entitlementsResponse, billingResponse }) => {
+          const errors: string[] = [];
 
-        if (cancelled) return;
-        const errors: string[] = [];
+          if (organizationsResponse.status === "fulfilled") {
+            const membership = organizationsResponse.value.data.find((item) => item.organization.id === activeOrgId);
+            setActiveOrgRole(membership?.role ?? "");
+          } else {
+            setActiveOrgRole("");
+            errors.push(organizationsResponse.reason instanceof Error ? organizationsResponse.reason.message : "Unable to load organization context.");
+          }
 
-        if (organizationsResponse.status === "fulfilled") {
-          const membership = organizationsResponse.value.data.find((item) => item.organization.id === activeOrgId);
-          setActiveOrgRole(membership?.role ?? "");
-        } else {
-          errors.push(organizationsResponse.reason instanceof Error ? organizationsResponse.reason.message : "Unable to load organization context.");
-        }
+          if (entitlementsResponse.status === "fulfilled") {
+            setPlanAccess({
+              selectedPlan: entitlementsResponse.value.data.selectedPlan,
+              effectivePlan: entitlementsResponse.value.data.effectivePlan,
+              isReadOnly: entitlementsResponse.value.data.isReadOnly,
+              accessReason: entitlementsResponse.value.data.accessReason,
+              canExportAudit: entitlementsResponse.value.data.features.auditCsvExport
+            });
+          } else {
+            setPlanAccess(null);
+            errors.push(entitlementsResponse.reason instanceof Error ? entitlementsResponse.reason.message : "Unable to load entitlement context.");
+          }
 
-        if (entitlementsResponse.status === "fulfilled") {
-          setPlanAccess({
-            selectedPlan: entitlementsResponse.value.data.selectedPlan,
-            effectivePlan: entitlementsResponse.value.data.effectivePlan,
-            isReadOnly: entitlementsResponse.value.data.isReadOnly,
-            accessReason: entitlementsResponse.value.data.accessReason,
-            canExportAudit: entitlementsResponse.value.data.features.auditCsvExport
-          });
-        } else {
-          setPlanAccess(null);
-          errors.push(entitlementsResponse.reason instanceof Error ? entitlementsResponse.reason.message : "Unable to load entitlement context.");
-        }
+          if (billingResponse?.status === "fulfilled") {
+            setBillingSummary(billingResponse.value.data);
+          } else {
+            setBillingSummary(null);
+            if (billingResponse) errors.push(billingResponse.reason instanceof Error ? billingResponse.reason.message : "Unable to load billing summary.");
+          }
 
-        if (billingResponse.status === "fulfilled") {
-          setBillingSummary(billingResponse.value.data);
-        } else {
-          errors.push(billingResponse.reason instanceof Error ? billingResponse.reason.message : "Unable to load billing summary.");
-        }
-
-        if (auditResponse.status === "fulfilled") {
-          setAuditLog(auditResponse.value.data ?? []);
-        } else {
-          errors.push(auditResponse.reason instanceof Error ? auditResponse.reason.message : "Unable to load audit log.");
-        }
-
-        setAuditStatus(errors[0] ?? "");
+          setContextStatus(errors.length ? t("account.contextFailed") : "");
+        });
       } catch (error) {
-        if (!cancelled) setAuditStatus((error as Error).message);
+        if (!isSupersededRequest(error)) setContextStatus(t("account.contextFailed"));
       }
     }
 
     void loadAuditContext();
-    return () => { cancelled = true; };
-  }, [accessToken, activeOrgId, auditRefresh, t]);
+  }, [accessToken, activeOrgId, auditRefresh, contextReads, t]);
 
   useEffect(() => {
     if (!authResolved || !accessToken || !signedInAs) {
@@ -507,40 +507,6 @@ export function LockstockAccount() {
     } catch (error) {
       setPasswordFeedback({ success: false, key: "account.passwordUpdateFailed" });
       addActivity(message(locale, "account.actionFailed", { action: t("account.passwordAction"), reason: (error as Error).message }));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDownloadAuditLog() {
-    try {
-      if (!accessToken || !activeOrgId) {
-        setAuditStatus(t("account.selectWorkspace"));
-        return;
-      }
-
-      setBusy(true);
-      setAuditStatus(t("account.preparingExport"));
-      const params = new URLSearchParams({
-        format: "csv",
-        from: auditExportFrom,
-        to: auditExportTo
-      });
-      const blob = await browserApiRequest<Blob>(`/api/audit-log?${params.toString()}`, {
-        orgId: activeOrgId,
-        responseType: "blob"
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `audit-log-${auditExportFrom}-${auditExportTo}.csv`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      setAuditStatus("");
-    } catch (error) {
-      setAuditStatus((error as Error).message);
     } finally {
       setBusy(false);
     }
@@ -745,6 +711,10 @@ export function LockstockAccount() {
         )}
       </section>
 
+      {contextStatus ? <div className="card" role="alert">
+        <p>{contextStatus}</p>
+        {accessToken && activeOrgId ? <button type="button" onClick={() => setAuditRefresh(value => value + 1)}>{t("account.contextRetry")}</button> : null}
+      </div> : null}
       {activeOrgRole === "owner" && billingSummary ? (
         <section className={`card ${styles.billingCard}`}>
           <article className={styles.accountCard}>
@@ -801,16 +771,29 @@ export function LockstockAccount() {
               <span>{t("account.to")}</span>
               <input type="date" value={auditExportTo} onChange={(event) => setAuditExportTo(event.target.value)} />
             </label>
-            <button type="button" disabled={busy || !auditExportFrom || !auditExportTo} onClick={handleDownloadAuditLog}>
+            <button type="button" disabled={busy || audit.exportPhase === "loading" || !auditExportFrom || !auditExportTo} onClick={() => void audit.download()}>
               {t("account.downloadCsv")}
             </button>
           </div>
         ) : planAccess && !planAccess.canExportAudit ? <p className="subtle-line">{t("account.auditUpgrade")}</p> : null}
 
-        {auditStatus ? <p className="subtle-line">{auditStatus}</p> : null}
-        {!auditStatus && auditLog.length === 0 ? <p>{t("account.noActivity")}</p> : null}
-        <div className={styles.auditLogList}>
-          {auditLog.map((item) => (
+        {!accessToken || !activeOrgId ? <p>{t("account.openWorkspace")}</p> : <>
+          {audit.state.phase === "loading" ? <p role="status">{t("account.loadingAudit")}</p> : null}
+          {audit.state.phase === "error" ? <div role="alert">
+            <p>{t("account.auditFailed")}</p>
+            <button type="button" onClick={() => void audit.retry()}>{t("account.auditRetry")}</button>
+          </div> : null}
+          {audit.state.phase !== "ready" && audit.state.hasData ? <p>{t("account.auditStale")}</p> : null}
+          {audit.state.phase === "ready" && audit.rows.length === 0 ? <p>{t("account.noActivity")}</p> : null}
+        </>}
+        {audit.exportPhase === "loading" ? <p role="status">{t("account.preparingExport")}</p> : null}
+        {audit.exportPhase === "error" ? <div role="alert">
+          <p>{t("account.exportFailed")}</p>
+          {canExportAuditLog(activeOrgRole) && planAccess?.canExportAudit ? <button type="button" onClick={() => void audit.download()}>{t("account.exportRetry")}</button> : null}
+        </div> : null}
+        {audit.exportPhase === "ready" ? <p role="status">{t("account.exportReady")}</p> : null}
+        <div className={styles.auditLogList} aria-busy={Boolean(accessToken && activeOrgId) && audit.state.phase === "loading"}>
+          {audit.rows.map((item) => (
             <article key={item.id} className={styles.auditLogRow}>
               <time>{formatAuditDate(item.created_at, locale)}</time>
               <div>

@@ -171,6 +171,22 @@ describe("LockstockAccount", () => {
     expect(screen.queryByText("Read & write")).not.toBeInTheDocument();
   });
 
+  it.each(["manager", "member", "viewer"])("does not request owner billing or show a futile retry for %s", async role => {
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/organizations")) return mockJsonResponse({ data: [
+        { role, organization: { id: "org-1", name: "Northstar Materials" } }
+      ] });
+      return originalFetch(input, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<LockstockAccount />);
+    expect(await screen.findByText("No recorded changes yet.")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/billing/entitlements"))).toBe(true));
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/billing/summary"))).toBe(false);
+    expect(screen.queryByText("Some workspace details could not be loaded.")).not.toBeInTheDocument();
+  });
+
   it("keeps paid access and offers reactivation when renewal is cancelled", async () => {
     overrideBilling({ isReadOnly: false, accessReason: "active_subscription" }, {
       status: "active", stripe_subscription_id: "sub-1", cancel_at_period_end: true,
@@ -341,7 +357,9 @@ describe("LockstockAccount", () => {
 
     expect(await screen.findByRole("heading", { name: "Subscription" })).toBeInTheDocument();
     expect(screen.getByText("Current plan")).toBeInTheDocument();
-    expect(await screen.findByText("Unexpected server error.")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to load activity");
+    expect(screen.getByRole("button", { name: "Retry activity" })).toBeEnabled();
+    expect(screen.queryByText("No recorded changes yet.")).not.toBeInTheDocument();
   });
 
   it("renders account controls from French message keys", async () => {

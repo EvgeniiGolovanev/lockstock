@@ -171,7 +171,7 @@ PR #85 merged as `70be920` on October 16, 2026. PR and main CI passed,
 and the production deployment and real-browser checks on `lockstockapp.com`
 passed at 1440px and 390px. Temporary hosted fixtures were removed.
 
-## List loading and retry candidate
+## List loading and retry release
 
 Materials, inventory, locations, suppliers, purchase orders, and movement
 history distinguish a pending read, a failed read, and a successful empty
@@ -206,8 +206,45 @@ The new request-state hook and feedback boundary have 100% statement, branch,
 function, and line coverage in the focused tests. Ten real-browser scenarios
 pass: new list feedback, stale-response protection, catalog feedback, order
 feedback, and stock recovery, each at 1440px and 390px. The final runner exits
-successfully and destroys its disposable database. This candidate has not
-been deployed to production.
+successfully and destroys its disposable database. PR #86 merged as `30972c2`;
+PR/main CI, the production deployment, and desktop/mobile hosted acceptance
+passed on October 17, 2026. Temporary hosted fixtures were removed.
+
+## Account journal and CSV recovery candidate
+
+Account distinguishes a pending journal read, a failed read, and a successful
+empty result. **Retry activity** issues a GET request without changing stored
+data. Failed refreshes retain the current workspace's rows with a warning.
+Account and workspace changes clear those rows and invalidate old responses,
+including delayed failures. Workspace details have a separate retry; only
+owners request the owner-only billing summary.
+
+CSV export has independent progress and failure feedback. **Retry CSV** keeps
+the selected dates and performs another read. Duplicate clicks are disabled
+while preparing the file. Workspace, account, date, or export-permission
+changes invalidate pending downloads, so old files cannot download into the
+new context. English and French messages use status and alert regions.
+
+Run the targeted browser scenarios with Docker available:
+
+```powershell
+node scripts/verify-database.mjs --inventory --grep "account audit retries"
+```
+
+At 1440px and 390px, the tests use real API responses, audit rows, and saved
+CSV contents from two disposable workspaces. They delay reads, inject 503
+responses, abort connections, switch workspace in a second tab, and deliver
+old responses after the switch. A real role revocation produces a 403 export
+response; restoring the role permits a new download. Empty results require a
+successful read. Browsing and retries must leave stored rows unchanged and
+issue no domain writes. Paid access is a local database fixture without
+Stripe credentials or live activation.
+
+The database CI job runs these scenarios and uploads successful screenshots
+and CSV files as `account-audit-acceptance`. Check its actual result before
+claiming acceptance. Local Docker startup is currently blocked by an
+inaccessible Docker Desktop socket, so this candidate uses CI for real
+database/browser execution. This candidate has not been deployed.
 
 ## External technical acceptance
 
@@ -230,7 +267,7 @@ loopback monitoring, and logical restore checks are documented in
 
 ## Next steps
 
-Review and release the list loading and retry candidate after its checks pass.
+Review and release the Account journal and CSV candidate after its checks pass.
 Run external acceptance when the listed access is available, then add dated
 evidence to the release record. Legal text, tax
 registration, and live paid-launch approval remain separate decisions.
