@@ -224,6 +224,8 @@ the selected dates and performs another read. Duplicate clicks are disabled
 while preparing the file. Workspace, account, date, or export-permission
 changes invalidate pending downloads, so old files cannot download into the
 new context. English and French messages use status and alert regions.
+At mobile widths, journal entries stack vertically so messages and metadata
+remain readable instead of squeezing into the desktop columns.
 
 Run the targeted browser scenarios with Docker available:
 

@@ -79,6 +79,16 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("status").filter({ hasText: "Preparing audit export" })).toBeVisible();
     const firstDownload = page.waitForEvent("download"); csvMode = "pass"; await release();
     await verifyCsv(await firstDownload, "AUDIT-A-ONLY", "AUDIT-B-ONLY", `account-audit-A-${width}.csv`);
+    if (width === 390) {
+      const event = page.locator("article").filter({ has: page.getByText("Material created: AUDIT-A-ONLY", { exact: true }) });
+      const readable = await event.evaluate(row => ({
+        row: row.getBoundingClientRect().width,
+        text: row.querySelector("p")!.getBoundingClientRect().width,
+        overflow: document.documentElement.scrollWidth > innerWidth
+      }));
+      expect(readable.text).toBeGreaterThanOrEqual(readable.row * 0.9);
+      expect(readable.overflow).toBe(false);
+    }
     await page.screenshot({ path: testInfo.outputPath(`account-audit-loaded-${width}.png`), fullPage: true });
 
     const switcher = await page.context().newPage(); await switcher.goto("/members"); await switcher.waitForLoadState("networkidle");
