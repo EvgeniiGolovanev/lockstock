@@ -52,6 +52,14 @@ type MessageParams = {
 };
 
 const MESSAGES = {
+  "account.auditFailed": { en: "Unable to load activity. Please try again.", fr: "Impossible de charger le journal. Veuillez réessayer." },
+  "account.auditRetry": { en: "Retry activity", fr: "Réessayer le journal" },
+  "account.auditStale": { en: "Displayed activity has not been refreshed.", fr: "Le journal affiché n’a pas été actualisé." },
+  "account.exportFailed": { en: "Unable to download CSV. Check the dates and your access, then try again.", fr: "Impossible de télécharger le CSV. Vérifiez les dates et vos droits, puis réessayez." },
+  "account.exportRetry": { en: "Retry CSV", fr: "Réessayer le CSV" },
+  "account.exportReady": { en: "CSV download prepared.", fr: "Téléchargement du CSV préparé." },
+  "account.contextFailed": { en: "Some workspace details could not be loaded.", fr: "Certaines informations du groupe n’ont pas pu être chargées." },
+  "account.contextRetry": { en: "Retry workspace details", fr: "Réessayer les informations du groupe" },
   "workbench.list.loading": { en: "Loading data…", fr: "Chargement des données…" },
   "workbench.list.failed": { en: "Could not load data. Please try again.", fr: "Impossible de charger les données. Veuillez réessayer." },
   "workbench.list.stale": { en: "Displayed data has not been refreshed.", fr: "Les données affichées n’ont pas été actualisées." },

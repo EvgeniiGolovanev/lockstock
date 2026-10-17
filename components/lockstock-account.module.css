@@ -31,12 +31,14 @@
 .auditLogRow { display: grid; grid-template-columns: minmax(150px, 0.32fr) minmax(0, 1fr) minmax(140px, 0.32fr); gap: 0.8rem; align-items: center; border-top: 1px solid #d8d1c8; padding-top: 0.55rem; }
 .auditLogRow time, .auditLogRow span { color: var(--ls-text-muted); font-size: 0.84rem; }
 .auditLogRow p { margin: 0; }
+.auditLogRow > div { min-width: 0; overflow-wrap: anywhere; }
 .auditLogRow small { display: block; margin-top: 0.18rem; color: var(--ls-text-muted); font-size: 0.78rem; line-height: 1.35; }
 
 @media (max-width: 768px) {
   .accountGrid { grid-template-columns: 1fr; }
   .accountCard:last-child { grid-column: auto; }
   .auditExportRow { grid-template-columns: 1fr; }
+  .auditLogRow { grid-template-columns: 1fr; gap: 0.3rem; }
 }
 
 @media (max-width: 650px) {
