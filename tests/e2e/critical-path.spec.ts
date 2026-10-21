@@ -486,6 +486,19 @@ test("critical pages stay accessible at desktop and mobile widths", async ({ pag
   }
 });
 
+test("short desktop navigation keeps lower sections clear of account actions", async ({ page }) => {
+  await seedSignedInPage(page);
+  await installAppRoutes(page, baseAppState());
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/inventory", { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: "Members", exact: true }).click();
+  await expect(page).toHaveURL(/\/members$/);
+  await page.getByRole("link", { name: "Workflows", exact: true }).click();
+  await expect(page).toHaveURL(/\/workflows$/);
+  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await expect(page).toHaveURL(/\/account$/);
+});
+
 test("inventory page can switch workspaces after login", async ({ page }) => {
   const state = baseAppState();
   await seedSignedInPage(page);

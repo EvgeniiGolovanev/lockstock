@@ -857,7 +857,8 @@ main:has(.shell-nav) {
   align-content: start;
   gap: 0.5rem;
   min-width: 0;
-  overflow: visible;
+  min-height: 0;
+  overflow: auto;
   padding: 0;
   border: none;
   border-radius: 0;
@@ -1278,6 +1279,7 @@ input[readonly] {
   .nav-links {
     display: flex;
     overflow-x: auto;
+    overflow-y: hidden;
     gap: 0.35rem;
   }
 
