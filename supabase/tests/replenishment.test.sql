@@ -24,8 +24,8 @@ select is((select quantity from public.inventory_balances where material_id='f30
 select is((select suggested_order from public.replenishment_rows('f1000000-0000-4000-8000-000000000001',current_date+14,'UTC')),'0.000','draft prevents repeated recommendation');
 select is((select confirmed_incoming from public.replenishment_rows('f1000000-0000-4000-8000-000000000001',current_date+14,'UTC')),'0.000','draft is not confirmed supply');
 select is((select public.create_replenishment_drafts('f1000000-0000-4000-8000-000000000001',payload) from rep_input),(select result from rep_result),'same key replays exact result');
-select throws_ok($$select public.create_replenishment_drafts('f1000000-0000-4000-8000-000000000001',jsonb_set(payload,'{rows,0,quantity}','"1"')) from rep_input$$,'40001','Request ID already used with different input','changed payload rejected');
-select throws_ok($$select public.create_replenishment_drafts('f1000000-0000-4000-8000-000000000001',jsonb_set(payload,'{request_id}','"f6000000-0000-4000-8000-000000000002"')) from rep_input$$,'40001','Recommendations changed; review again','second manager stale snapshot rejected');
+select throws_ok($$select public.create_replenishment_drafts('f1000000-0000-4000-8000-000000000001',jsonb_set(payload,'{rows,0,quantity}','"1"')) from rep_input$$,'PT409','Request ID already used with different input','changed payload rejected');
+select throws_ok($$select public.create_replenishment_drafts('f1000000-0000-4000-8000-000000000001',jsonb_set(payload,'{request_id}','"f6000000-0000-4000-8000-000000000002"')) from rep_input$$,'PT409','Recommendations changed; review again','second manager stale snapshot rejected');
 select public.transition_purchase_order_status('f1000000-0000-4000-8000-000000000001',(select id from public.purchase_orders where org_id='f1000000-0000-4000-8000-000000000001'),'cancelled');
 select is((select suggested_order from public.replenishment_rows('f1000000-0000-4000-8000-000000000001',current_date+14,'UTC')),'42.000','cancelling releases planned quantity');
 reset role;

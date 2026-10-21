@@ -17,12 +17,12 @@ async function recommendations(inventory: InventoryFixture) {
 function input(material: Material, supplier: Supplier, row: { snapshot_token: string }, required: string, requestId = crypto.randomUUID()) {
   return { request_id: requestId, required_by: required, timezone: "UTC", rows: [{ material_id: material.id, supplier_id: supplier.id, snapshot_token: row.snapshot_token, quantity: "42", currency: "EUR", acknowledge_incoming: false }] };
 }
-for (const width of [1440,390]) test(`replenishment ${width}px: shortage → reviewed draft → repeat prevention`, async ({ page, inventory }) => {
+for (const width of [1440,390]) test(`replenishment ${width}px: shortage → reviewed draft → repeat prevention`, async ({ page, inventory }, testInfo) => {
   test.setTimeout(180_000);
   const { material } = await setup(inventory);
   await page.setViewportSize({ width, height: 960 });
   await inventory.login(page); await page.goto("/replenishment");
-  await expect(page.getByRole("heading", { name: "Replenishment", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Replenishment", exact: true, level: 2 })).toBeVisible();
   await page.getByLabel(`Select ${material.sku}`, { exact: true }).check();
   await page.getByRole("button", { name: "Review draft orders", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -33,6 +33,7 @@ for (const width of [1440,390]) test(`replenishment ${width}px: shortage → rev
   const row = (await recommendations(inventory)).rows.find((r: { material_id: string }) => r.material_id===material.id);
   expect(row.draft_planned).toBe("42.000"); expect(row.confirmed_incoming).toBe("0.000"); expect(row.suggested_order).toBe("0.000");
   await expect(page.getByLabel(`Select ${material.sku}`, { exact: true })).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath("replenishment.png"), fullPage: true });
   await page.getByRole("link", { name: po.po_number, exact: true }).first().click();
   await expect(page.getByRole("dialog")).toContainText(po.po_number);
 });

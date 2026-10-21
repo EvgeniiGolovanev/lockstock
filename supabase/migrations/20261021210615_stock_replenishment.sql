@@ -162,7 +162,9 @@ begin
   into v_canonical from jsonb_array_elements(p_payload->'rows') r;
   select * into v_existing from public.replenishment_requests where org_id=p_org_id and request_id=v_id;
   if found then
-    if v_existing.payload<>v_canonical then raise exception using errcode='40001',message='Request ID already used with different input'; end if;
+    -- Business conflicts must not use 40001: older PostgREST versions retry
+    -- serialization failures indefinitely instead of returning them to the UI.
+    if v_existing.payload<>v_canonical then raise exception using errcode='PT409',message='Request ID already used with different input'; end if;
     return v_existing.result;
   end if;
   v_required:=(p_payload->>'required_by')::date; v_zone:=p_payload->>'timezone';
@@ -175,7 +177,7 @@ begin
   for v_row in select value from jsonb_array_elements(p_payload->'rows') loop
     select * into v_current from public.replenishment_rows(p_org_id,v_required,v_zone) where material_id=(v_row->>'material_id')::uuid;
     if not found or v_current.snapshot_token is distinct from v_row->>'snapshot_token' then
-      raise exception using errcode='40001',message='Recommendations changed; review again';
+      raise exception using errcode='PT409',message='Recommendations changed; review again';
     end if;
     if v_row->>'quantity' is null or (v_row->>'quantity') !~ '^\d{1,11}(\.\d{1,3})?$'
       or (v_row->>'quantity')::numeric<=0 or (v_row->>'quantity')::numeric>v_current.suggested_order::numeric then

@@ -1,7 +1,9 @@
 # Stock replenishment: product design and implementation plan
 
-**Status:** Draft for review. Planning only; no implementation is authorized by
-this document. Baseline inspected on October 17, 2026.
+**Status:** Approved for implementation by the user on October 21, 2026.
+The original baseline was inspected on October 17, 2026. Implementation is on
+`codex/stock-replenishment`, rebased onto the current `main`; release evidence is
+recorded in the pull request, not inferred from this planning document.
 
 **Goal:** Let a manager turn an observed material shortage into reviewed draft
 purchase orders without re-entering materials or duplicating planned purchases.
@@ -14,8 +16,32 @@ Keep the replenishment UI in a focused module beside the existing workbench.
 **Tech stack:** Next.js 16.4.0 App Router, React 19, TypeScript, Zod, Supabase
 Postgres, Vitest, Playwright, and the existing disposable database test harness.
 
-**Spec:** The product-design sections in this document define the proposed v1.
-All new names and paths below are proposals, not existing interfaces.
+**Spec:** The product-design sections define v1. The task checklists preserve
+the original planning baseline; the implementation record below reports actual
+evidence separately.
+
+## Implementation record
+
+The implementation includes organization-wide recommendations, minimum/target
+settings, preferred supplier and currency, grouped review, atomic ordinary draft
+orders, snapshot revalidation, and durable request recovery. Drafts cover planned
+purchases separately from confirmed incoming; creation does not change stock.
+
+Verification on October 21, 2026 includes 613 Vitest checks, TypeScript, ESLint
+(three existing warnings), repository hygiene, the production dependency audit,
+and a production build through the disposable acceptance harness. The browser
+suite covers 1440px and 390px creation and PO navigation, lost-response recovery,
+and concurrent independent request IDs. SQL covers fractional arithmetic,
+supplier grouping and rollback after a later group fails, partial receipts,
+aggregation beyond 100 orders, cancellation, currency, and authorization.
+
+Review fixes clear completed selections, open generated PO details, preserve
+safe edits after a conflict, support explicit USD setup, and distinguish draft
+date warnings from uncertain confirmed supply. Current limitations: policies
+remain organization-wide; a replayed POST returns 201 with the original result;
+an overnight-open screen requires refresh for a new calendar day. Concurrent
+direct writes can return a retryable lock conflict. Hosted acceptance and
+deployment remain separate release steps.
 
 ## Product design
 
@@ -460,5 +486,5 @@ transfer-before-buy recommendations. A separate purchasing depth increment can
 add MOQ, packs, supplier-specific lead times, and reservations. Neither is
 silently included in this plan.
 
-Next action: review the organization-wide scope, target fallback, draft coverage,
-and uncertain-incoming acknowledgment rules before starting implementation.
+Next action: review the pull request and CI evidence before merging. After an
+authorized deployment, perform the hosted desktop/mobile acceptance above.

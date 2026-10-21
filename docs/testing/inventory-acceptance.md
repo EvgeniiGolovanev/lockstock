@@ -43,6 +43,18 @@ these artifacts on failure. They contain disposable test-account data.
 
 ## Acceptance scenario
 
+The replenishment suite adds desktop (1440px) and mobile (390px) creation,
+inspection of the generated purchase order, durable recovery after a lost POST
+response, and concurrent managers attempting the same recommendation. SQL tests
+also exercise fractional quantities, dated incoming supply, existing drafts,
+preferred supplier currency, and organization isolation.
+
+On Windows, if a managed worktree links its dependencies to another drive, set
+`INVENTORY_NODE_MODULES` to an installed dependency directory on the worktree's
+drive. The disposable application uses that runtime without changing the
+worktree's dependency link. `--write-types` optionally regenerates database types
+from the isolated schema before running acceptance.
+
 The browser test signs in, creates two materials with PC and KG units, creates two
 locations and two vendors, and performs each operation through the UI. Each PO
 contains one material and uses a different vendor. Receipts go to location A.
