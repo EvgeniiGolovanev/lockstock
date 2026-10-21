@@ -33,10 +33,14 @@ export const updateMaterialSchema = z
     category: z.enum(MATERIAL_CATEGORIES).optional(),
     subcategory: z.string().min(1).max(160).optional(),
     min_stock: z.number().min(0).optional(),
+    target_stock: z.number().min(0).multipleOf(0.001).nullable().optional(),
     is_active: z.boolean().optional()
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.target_stock != null && value.min_stock !== undefined && value.target_stock < value.min_stock) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Target must be at least minimum.", path: ["target_stock"] });
+    }
     if (value.category && value.subcategory && !isValidMaterialSubcategory(value.category, value.subcategory)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

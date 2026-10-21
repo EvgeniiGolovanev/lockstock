@@ -39,6 +39,8 @@ select set_eq(
       ('fail_stripe_webhook_event'::text),
       ('create_organization_with_owner'::text),
       ('create_purchase_order_with_lines'::text),
+      ('create_replenishment_drafts'::text),
+      ('set_replenishment_settings'::text),
       ('create_team_with_owner'::text),
       ('create_stock_movement'::text),
       ('create_stock_transfer'::text),

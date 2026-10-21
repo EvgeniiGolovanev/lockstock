@@ -162,6 +162,7 @@ export type Database = {
           org_id: string
           sku: string
           subcategory: string | null
+          target_stock: number | null
           uom: string
           updated_at: string
         }
@@ -177,6 +178,7 @@ export type Database = {
           org_id: string
           sku: string
           subcategory?: string | null
+          target_stock?: number | null
           uom?: string
           updated_at?: string
         }
@@ -192,6 +194,7 @@ export type Database = {
           org_id?: string
           sku?: string
           subcategory?: string | null
+          target_stock?: number | null
           uom?: string
           updated_at?: string
         }
@@ -583,6 +586,41 @@ export type Database = {
           },
           {
             foreignKeyName: "purchase_orders_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replenishment_requests: {
+        Row: {
+          actor_id: string
+          created_at: string
+          org_id: string
+          payload: Json
+          request_id: string
+          result: Json
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          org_id: string
+          payload: Json
+          request_id: string
+          result: Json
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          org_id?: string
+          payload?: Json
+          request_id?: string
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replenishment_requests_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1032,6 +1070,10 @@ export type Database = {
         }
         Returns: Json
       }
+      create_replenishment_drafts: {
+        Args: { p_org_id: string; p_payload: Json }
+        Returns: Json
+      }
       create_stock_movement: {
         Args: {
           p_created_by?: string
@@ -1089,6 +1131,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_replenishment_result: {
+        Args: { p_org_id: string; p_request_id: string }
+        Returns: Json
+      }
       get_stock_health: {
         Args: { p_org_id: string }
         Returns: {
@@ -1106,6 +1152,17 @@ export type Database = {
           target_org_id: string
         }
         Returns: boolean
+      }
+      list_replenishment: {
+        Args: {
+          p_limit?: number
+          p_org_id: string
+          p_page?: number
+          p_required_by: string
+          p_state?: string
+          p_timezone: string
+        }
+        Returns: Json
       }
       receive_purchase_order: {
         Args: {
@@ -1131,6 +1188,40 @@ export type Database = {
       remove_org_member_with_team_memberships: {
         Args: { p_org_id: string; p_target_user_id: string }
         Returns: Json
+      }
+      replenishment_rows: {
+        Args: { p_org_id: string; p_required_by: string; p_timezone: string }
+        Returns: {
+          confirmed_incoming: string
+          currency: string
+          draft_planned: string
+          draft_warning: boolean
+          material_id: string
+          min_stock: string
+          name: string
+          on_hand: string
+          orders: Json
+          sku: string
+          snapshot_token: string
+          state: string
+          suggested_order: string
+          supplier_id: string
+          target_stock: string
+          uncertain: boolean
+          unit_price: string
+          uom: string
+        }[]
+      }
+      set_replenishment_settings: {
+        Args: {
+          p_currency?: string
+          p_material_id: string
+          p_min_stock: number
+          p_org_id: string
+          p_supplier_id: string
+          p_target_stock: number
+        }
+        Returns: undefined
       }
       start_workspace_trial: {
         Args: { p_org_id: string }

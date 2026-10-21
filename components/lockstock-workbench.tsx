@@ -2,6 +2,7 @@
 
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { AccessibilityDialog } from "@/components/accessibility-dialog";
+import { ReplenishmentScreen } from "@/components/replenishment/replenishment-screen";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -232,6 +233,7 @@ type NavHref =
   | "/locations"
   | "/vendors"
   | "/purchase-orders"
+  | "/replenishment"
   | "/members"
   | "/workflows";
 
@@ -415,6 +417,7 @@ const NAV_ITEMS: Array<{ href: NavHref; labelKey: StaticMessageKey; icon: NavIco
   { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
   { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
   { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
+  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "purchase-orders" },
   { href: "/members", labelKey: "workbench.nav.members", icon: "members" },
   { href: "/workflows", labelKey: "workbench.nav.workflows", icon: "workflows" }
 ] as const;
@@ -627,6 +630,9 @@ export function LockstockWorkbench() {
     if (pathname === "/purchase-orders") {
       return { titleKey: "workbench.screen.orders.title", subtitleKey: "workbench.screen.orders.subtitle" } as const;
     }
+    if (pathname === "/replenishment") {
+      return { titleKey: "workbench.nav.replenishment", subtitleKey: "workbench.screen.replenishment.subtitle" } as const;
+    }
     if (pathname === "/members") {
       return { titleKey: "workbench.screen.members.title", subtitleKey: "workbench.screen.members.subtitle" } as const;
     }
@@ -644,6 +650,14 @@ export function LockstockWorkbench() {
   const showMembersSection = pathname === "/members";
   const showWorkflowsSection = pathname === "/workflows";
   const showSnapshotSection = pathname === "/inventory";
+  useEffect(() => {
+    if (pathname !== "/purchase-orders" || !isOrgScopedReady) return;
+    const query = new URLSearchParams(window.location.search);
+    const order = query.get("order"); const number = query.get("q");
+    if (order && /^[0-9a-f-]{36}$/i.test(order) && number) {
+      setPoFilterQuery(number); setPoFilterStatus("all"); setPoFilterSupplierId("all"); setPoPage(1); setSelectedPoDetailsId(order);
+    }
+  }, [pathname, orgId, isOrgScopedReady]);
   const contextualWorkflows = useMemo(() => workflowsForPathname(pathname), [pathname]);
   const showSignedOutPanels = shouldShowSignedOutPanels({
     isAuthenticated: isDemoMode || Boolean(signedInAs),
@@ -1977,6 +1991,7 @@ export function LockstockWorkbench() {
       ) : null}
 
       {showWorkflowsSection ? <WorkflowGallery /> : null}
+      {pathname === "/replenishment" && isOrgScopedReady ? <ReplenishmentScreen key={`${signedInAs}:${orgId}`} orgId={orgId} accountKey={signedInAs} locale={locale} canManage={canManageCatalog} apiRequest={apiRequest} /> : null}
 
       {pendingLeaveGroup ? (
         <AccessibilityDialog showCloseButton={false} title={t("workbench.members.leaveGroup")} onClose={() => { if (!busy) setPendingLeaveGroup(null); }}>

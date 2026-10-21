@@ -603,6 +603,8 @@ const MESSAGES = {
   "workbench.nav.locations": { en: "Locations", fr: "Emplacements" },
   "workbench.nav.vendors": { en: "Vendors", fr: "Fournisseurs" },
   "workbench.nav.orders": { en: "Purchase Orders", fr: "Commandes d'achat" },
+  "workbench.nav.replenishment": { en: "Replenishment", fr: "Réapprovisionnement" },
+  "workbench.screen.replenishment.subtitle": { en: "Review shortages and plan supplier orders.", fr: "Vérifiez les besoins et préparez les commandes fournisseurs." },
   "workbench.nav.members": { en: "Members", fr: "Membres" },
   "workbench.nav.workflows": { en: "Workflows", fr: "Workflows" },
   "workbench.screen.inventory.title": { en: "Inventory Management", fr: "Gestion des stocks" },
