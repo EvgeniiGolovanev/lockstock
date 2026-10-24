@@ -65,7 +65,7 @@ const csvRowSchema = z.object({
       return Number(trimmed);
     }
     return value;
-  }, z.number({ invalid_type_error: "Minimum stock must be a valid non-negative number." }).finite("Minimum stock must be a valid non-negative number.").min(0, "Minimum stock must be a valid non-negative number."))
+  }, z.number({ error: "Minimum stock must be a valid non-negative number." }).finite("Minimum stock must be a valid non-negative number.").min(0, "Minimum stock must be a valid non-negative number."))
 }).strict();
 
 function normalizeCsvInput(input: string) {

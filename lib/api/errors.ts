@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ZodError } from "zod";
+import { flattenError, ZodError } from "zod";
 import { createCorrelationId } from "@/lib/api/correlation-id";
 
 export class ApiError extends Error {
@@ -77,7 +77,7 @@ export function handleApiError(error: unknown) {
   }
 
   if (error instanceof ZodError) {
-    return NextResponse.json({ error: "Validation failed.", code: "validation_failed", requestId, details: error.flatten() }, { status: 400, headers: { "x-request-id": requestId } });
+    return NextResponse.json({ error: "Validation failed.", code: "validation_failed", requestId, details: flattenError(error) }, { status: 400, headers: { "x-request-id": requestId } });
   }
 
   if (isDatabaseLikeError(error)) {

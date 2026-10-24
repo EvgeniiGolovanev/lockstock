@@ -57,3 +57,52 @@ test("concurrent independent request IDs cannot buy the same proposal twice", as
   expect(responses.map(r => r.status()).sort()).toEqual([201,409]);
   expect(await inventory.rows("purchase_orders")).toHaveLength(1);
 });
+
+test("invalid replenishment API input returns field errors without changing persisted data", async ({ inventory }) => {
+  const { material, supplier } = await setup(inventory);
+  const before = await inventory.snapshot();
+  const plan = await recommendations(inventory);
+  const row = plan.rows.find((r: { material_id: string }) => r.material_id === material.id);
+  const valid = input(material, supplier, row, plan.required);
+  const invalidDrafts = [
+    { ...valid, rows: [{ ...valid.rows[0], quantity: "1.0001" }] },
+    { ...valid, rows: [] },
+    { ...valid, rows: Array.from({ length: 1000 }, () => ({})) }
+  ];
+  for (const payload of invalidDrafts) {
+    const response = await inventory.request.post("/api/replenishment/drafts", { headers: inventory.headers(), data: payload });
+    expect(response.status(), await response.text()).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("validation_failed");
+    expect(body.details.fieldErrors.rows.length).toBeGreaterThan(0);
+    expect(body.requestId).toBe(response.headers()["x-request-id"]);
+  }
+  const settings = await inventory.request.patch("/api/replenishment/settings", { headers: inventory.headers(), data: { material_id: material.id, min_stock: "10", target_stock: "9", supplier_id: supplier.id } });
+  expect(settings.status(), await settings.text()).toBe(400);
+  expect((await settings.json()).details.fieldErrors.target_stock.length).toBeGreaterThan(0);
+  expect(await inventory.snapshot()).toEqual(before);
+  const requests = await inventory.db.from("replenishment_requests").select("*").eq("org_id", inventory.orgId);
+  expect(requests.error).toBeNull();
+  expect(requests.data).toEqual([]);
+});
+
+test("name-only API patches preserve inactive state and supplier lead time", async ({ inventory }) => {
+  const catalog = await inventory.catalog();
+  const supplier = catalog.suppliers[0];
+  const location = catalog.locations[0];
+  async function patch(path: string, data: Record<string, unknown>) {
+    const response = await inventory.request.patch(path, { headers: inventory.headers(), data });
+    expect(response.status(), await response.text()).toBe(200);
+    return (await response.json()).data;
+  }
+  await patch(`/api/suppliers/${supplier.id}`, { is_active: false, lead_time_days: 7 });
+  const vendor = await patch(`/api/suppliers/${supplier.id}`, { name: "Renamed inactive supplier" });
+  expect(vendor).toMatchObject({ is_active: false, lead_time_days: 7 });
+  await patch(`/api/locations/${location.id}`, { is_active: false });
+  const warehouse = await patch(`/api/locations/${location.id}`, { name: "Renamed inactive location" });
+  expect(warehouse.is_active).toBe(false);
+  for (const path of [`/api/suppliers/${supplier.id}`, `/api/locations/${location.id}`]) {
+    const response = await inventory.request.patch(path, { headers: inventory.headers(), data: {} });
+    expect(response.status(), await response.text()).toBe(400);
+  }
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSupplierSchema } from "@/lib/validators/supplier";
+import { createSupplierSchema, updateSupplierSchema } from "@/lib/validators/supplier";
 
 describe("createSupplierSchema", () => {
   it("accepts phone numbers that include a country code and trims address fields", () => {
@@ -42,5 +42,23 @@ describe("createSupplierSchema", () => {
         address: "A".repeat(257)
       })
     ).toThrow();
+  });
+});
+
+describe("updateSupplierSchema", () => {
+  it("rejects an empty patch", () => {
+    expect(updateSupplierSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("does not reset lead time or reactivate a supplier when only its name is patched", () => {
+    expect(updateSupplierSchema.parse({ name: "Renamed supplier" })).toEqual({ name: "Renamed supplier" });
+  });
+
+  it("retains explicitly requested zero lead time and inactive state", () => {
+    expect(updateSupplierSchema.parse({ lead_time_days: 0, is_active: false })).toEqual({ lead_time_days: 0, is_active: false });
+  });
+
+  it("keeps creation defaults separate from partial updates", () => {
+    expect(createSupplierSchema.parse({ name: "New supplier" })).toMatchObject({ lead_time_days: 0, is_active: true });
   });
 });

@@ -32,6 +32,10 @@ describe("createLocationSchema", () => {
 });
 
 describe("updateLocationSchema", () => {
+  it("does not reactivate a location when only its name is patched", () => {
+    expect(updateLocationSchema.parse({ name: "Renamed warehouse" })).toEqual({ name: "Renamed warehouse" });
+  });
+
   it("accepts partial active state updates", () => {
     const parsed = updateLocationSchema.parse({
       is_active: false
