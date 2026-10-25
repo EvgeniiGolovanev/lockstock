@@ -4,6 +4,7 @@ import { GoogleSignInButton } from "@/components/google-sign-in-button";
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { AppSidebar } from "@/components/app-sidebar";
 import type { Session } from "@supabase/supabase-js";
 import { browserApiRequest } from "@/lib/api/browser-request";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -40,6 +41,31 @@ export function LockstockPayment() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsPlatformAdmin(false);
+    if (session?.user.id) {
+      void browserApiRequest<{ isPlatformAdmin: boolean }>("/api/platform/me")
+        .then(result => { if (!cancelled) setIsPlatformAdmin(result.isPlatformAdmin); })
+        .catch(() => { /* The standard navigation remains available. */ });
+    }
+    return () => { cancelled = true; };
+  }, [session?.user.id]);
+
+  async function signOut() {
+    setBusy("signout");
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.signOut();
+      if (error) throw error;
+      setSession(null);
+    } catch {
+      setMessage(t("platform.signOutFailed"));
+    } finally {
+      setBusy("");
+    }
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -149,9 +175,9 @@ export function LockstockPayment() {
 
   return (
     <main className={styles.page} data-i18n-rendered="true">
+      <AppSidebar pathname="/payment" signedIn={Boolean(session)} isPlatformAdmin={isPlatformAdmin} busy={Boolean(busy)} onSignOut={signOut} />
       <header className={styles.header}>
         <Link className={styles.brand} href="/"><span aria-hidden="true" />LockStock</Link>
-        <Link className="ghost-btn" href="/account">{t("payment.account")}</Link>
       </header>
       <section className={styles.hero}>
         <p>{t("payment.eyebrow")}</p>

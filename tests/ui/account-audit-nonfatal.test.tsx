@@ -77,6 +77,7 @@ describe("LockstockAccount", () => {
   it("keeps replenishment accessible from the account navigation", async () => {
     render(<LockstockAccount />);
     expect(await screen.findByRole("link", { name: "Replenishment" })).toHaveAttribute("href", "/replenishment");
+    expect(screen.getByRole("link", { name: "Workflows" })).toHaveAttribute("href", "/workflows");
   });
   it("refreshes membership events when returning to an already open account tab", async () => {
     const originalFetch = globalThis.fetch;

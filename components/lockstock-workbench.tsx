@@ -8,9 +8,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { csvHeader, message, type StaticMessageKey } from "@/lib/i18n";
-import { NavItemIcon, type NavIcon } from "@/components/nav-item-icon";
+import { AppSidebar } from "@/components/app-sidebar";
 import { WorkbenchCatalogForms } from "@/components/workbench/catalog-forms";
 import { WorkbenchLocationsSection } from "@/components/workbench/locations-section";
 import { WorkbenchMaterialsSection } from "@/components/workbench/materials-section";
@@ -226,16 +225,7 @@ const ROLE_AUTHORIZATIONS = [
   ["Rename group", "No", "No", "No", "Yes"]
 ] as const;
 
-type NavHref =
-  | "/inventory"
-  | "/materials"
-  | "/stock-movements"
-  | "/locations"
-  | "/vendors"
-  | "/purchase-orders"
-  | "/replenishment"
-  | "/members"
-  | "/workflows";
+
 
 const DEMO_ORG_ID = "00000000-0000-4000-8000-000000000001";
 const DEMO_NOW = "2026-05-14T09:00:00.000Z";
@@ -410,17 +400,7 @@ const DEMO_INVITATIONS: PendingInvitation[] = [
   }
 ];
 
-const NAV_ITEMS: Array<{ href: NavHref; labelKey: StaticMessageKey; icon: NavIcon }> = [
-  { href: "/inventory", labelKey: "workbench.nav.inventory", icon: "inventory" },
-  { href: "/materials", labelKey: "workbench.nav.materials", icon: "materials" },
-  { href: "/stock-movements", labelKey: "workbench.nav.movements", icon: "stock-movements" },
-  { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
-  { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
-  { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
-  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "purchase-orders" },
-  { href: "/members", labelKey: "workbench.nav.members", icon: "members" },
-  { href: "/workflows", labelKey: "workbench.nav.workflows", icon: "workflows" }
-] as const;
+
 
 export function LockstockWorkbench() {
   const pathname = usePathname();
@@ -1837,65 +1817,8 @@ export function LockstockWorkbench() {
   }, [supplierTotalPages]);
 
   return (
-    <>
-      <section className="card shell-nav">
-        <div className="shell-top">
-          <div className="brand-wrap">
-            <svg className="brand-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
-              <rect x="2" y="4" width="60" height="8" />
-              <rect className="brand-mark-accent" x="2" y="16" width="60" height="8" />
-              <rect x="2" y="28" width="60" height="8" />
-            </svg>
-            <div>
-              <h2>LockStock</h2>
-            </div>
-          </div>
-          <div className="nav-links">
-            {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-link ${active ? "nav-link-active" : ""}`}
-                  aria-label={t(item.labelKey)}
-                  title={t(item.labelKey)}
-                >
-                  <span className="nav-icon" aria-hidden="true">
-                    <NavItemIcon icon={item.icon} />
-                  </span>
-                  <span>{t(item.labelKey)}</span>
-                </Link>
-              );
-            })}
-          </div>
-          <div className="shell-user-actions">
-            {signedInAs ? (
-              <>
-                {isPlatformAdmin ? (
-                  <Link href="/platform" className={`nav-link ${pathname === "/platform" ? "nav-link-active" : ""}`}>
-                    {t("workbench.nav.platform")}
-                  </Link>
-                ) : null}
-                <LanguageSwitcher />
-                <Link href="/account" className={`nav-link ${pathname === "/account" ? "nav-link-active" : ""}`}>
-                  {t("workbench.nav.account")}
-                </Link>
-                <button type="button" className="ghost-btn" disabled={busy} onClick={handleLogout}>
-                  {t("workbench.auth.signOut")}
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/" className="nav-link">
-                  {t("workbench.auth.signIn")}
-                </Link>
-                <LanguageSwitcher />
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+    <main>
+      <AppSidebar pathname={pathname} signedIn={Boolean(signedInAs)} isPlatformAdmin={isPlatformAdmin} busy={busy} onSignOut={handleLogout} />
 
       <section className="card">
         <div className="title-row">
@@ -2442,6 +2365,6 @@ export function LockstockWorkbench() {
           />
         </ListReadBoundary>
       ) : null}
-    </>
+    </main>
   );
 }
