@@ -74,6 +74,10 @@ function mockJsonResponse(body: unknown, ok = true) {
 
 describe("LockstockAccount", () => {
   afterEach(cleanup);
+  it("keeps replenishment accessible from the account navigation", async () => {
+    render(<LockstockAccount />);
+    expect(await screen.findByRole("link", { name: "Replenishment" })).toHaveAttribute("href", "/replenishment");
+  });
   it("refreshes membership events when returning to an already open account tab", async () => {
     const originalFetch = globalThis.fetch;
     let joined = false;

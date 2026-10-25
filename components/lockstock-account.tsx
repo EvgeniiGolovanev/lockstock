@@ -18,7 +18,7 @@ import { useAccountAudit } from "@/lib/ui/use-account-audit";
 import { useActivityLog } from "@/lib/ui/use-activity-log";
 import type { PlanEntitlements } from "@/lib/billing/entitlements";
 
-type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/members";
+type NavHref = "/inventory" | "/materials" | "/stock-movements" | "/locations" | "/vendors" | "/purchase-orders" | "/replenishment" | "/members";
 type OrgRole = "owner" | "manager" | "member" | "viewer";
 
 type OrganizationMembership = {
@@ -55,6 +55,7 @@ const NAV_ITEMS: Array<{ href: NavHref; labelKey: StaticMessageKey; icon: NavIco
   { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
   { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
   { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
+  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "purchase-orders" },
   { href: "/members", labelKey: "workbench.nav.members", icon: "members" }
 ];
 
