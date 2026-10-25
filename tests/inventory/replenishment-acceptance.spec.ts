@@ -22,7 +22,7 @@ for (const width of [1440,390]) test(`replenishment ${width}px: shortage → rev
   const { material } = await setup(inventory);
   await page.setViewportSize({ width, height: 960 });
   await inventory.login(page); await page.goto("/replenishment");
-  await expect(page.getByRole("heading", { name: "Replenishment", exact: true, level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Replenishment", exact: true, level: 1 })).toBeVisible();
   await page.getByLabel(`Select ${material.sku}`, { exact: true }).check();
   await page.getByRole("button", { name: "Review draft orders", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();

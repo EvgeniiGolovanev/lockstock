@@ -1,6 +1,6 @@
 export const replenishmentCopy = {
   en: {
-    title: "Replenishment", scope: "Company-wide stock · all locations", date: "Plan through", refresh: "Refresh", state: "View", all: "All shortages",
+    title: "Replenishment", plan: "Replenishment plan", scope: "Company-wide stock · all locations", date: "Plan through", refresh: "Refresh", state: "View", all: "All shortages",
     ready: "Ready", review: "Review incoming", setup: "Setup required", draft: "Draft in progress", covered: "Covered / nothing to order",
     loading: "Loading recommendations…", empty: "No materials match this view.", retry: "Retry", readOnly: "A manager with workspace write access can change settings and create drafts.",
     material: "Material", onHand: "On hand", minimum: "Minimum", target: "Target", incoming: "Timely incoming", planned: "In drafts", suggested: "Suggested", supplier: "Supplier", settings: "Settings",
@@ -12,7 +12,7 @@ export const replenishmentCopy = {
     ,draftWarning: "An existing draft has no date or falls outside this horizon. It prevents repeat planning but is not a confirmed delivery."
   },
   fr: {
-    title: "Réapprovisionnement", scope: "Stock de l’entreprise · tous les emplacements", date: "Planifier jusqu’au", refresh: "Actualiser", state: "Vue", all: "Tous les besoins",
+    title: "Réapprovisionnement", plan: "Plan de réapprovisionnement", scope: "Stock de l’entreprise · tous les emplacements", date: "Planifier jusqu’au", refresh: "Actualiser", state: "Vue", all: "Tous les besoins",
     ready: "Prêt", review: "Livraisons à vérifier", setup: "Configuration requise", draft: "Brouillon en cours", covered: "Couvert / rien à commander",
     loading: "Calcul des recommandations…", empty: "Aucun article ne correspond à cette vue.", retry: "Réessayer", readOnly: "Un responsable disposant des droits d’écriture peut modifier les paramètres et créer des brouillons.",
     material: "Article", onHand: "En stock", minimum: "Minimum", target: "Cible", incoming: "Livraisons à temps", planned: "En brouillons", suggested: "À commander", supplier: "Fournisseur", settings: "Paramètres",
