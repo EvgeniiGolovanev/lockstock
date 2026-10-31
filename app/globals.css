@@ -790,7 +790,11 @@ body {
 }
 
 main:has(.shell-nav) {
-  padding: 0 1.5rem 2.5rem 16.5rem;
+  padding: 0 1.5rem 2.5rem 17.5rem;
+}
+
+@media (min-width: 981px) {
+  main:has(.shell-nav[data-collapsed="true"]) { padding-left: 6rem; }
 }
 
 .shell-nav {
