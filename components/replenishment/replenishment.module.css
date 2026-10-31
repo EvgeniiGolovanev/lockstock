@@ -18,7 +18,7 @@
 .dialogActions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
 .supplierGroup { padding: .8rem 0; border-bottom: 1px solid var(--ls-border); }
 .supplierGroup p { color: var(--ls-text-muted); margin-bottom: 0; font-size: .85rem; }
-.reviewRow { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin: 1rem 0; padding: 1rem; border: 2px solid #111; background: var(--ls-surface); min-width: 0; }
+.reviewRow { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--ls-border); background: var(--ls-surface); min-width: 0; }
 .reviewRow legend { padding-inline: .4rem; font-size: .85rem; font-weight: 750; overflow-wrap: anywhere; }
 .reviewRow > span { color: var(--ls-text-muted); font-size: .8rem; }
 .reviewRow .warning { grid-column: 1/-1; display: flex; flex-direction: row; align-items: start; gap: .6rem; margin: 0; }
@@ -26,3 +26,6 @@
   .filters, .settingsGrid, .reviewRow { grid-template-columns: minmax(0,1fr); }
   .root :global(.table-head-actions) { width: 100%; justify-content: flex-start; }
 }
+
+.reviewRow { border: 1px solid var(--ls-border); border-radius: 5px; }
+.notice { border-color: var(--ls-primary); background: #eef1e9; }

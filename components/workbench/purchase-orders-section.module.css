@@ -11,18 +11,18 @@
 
 .empty {
   margin-top: 0.75rem;
-  border: 2px solid #111111;
-  border-radius: 0;
-  background: #f8f5ef;
+  border: 1px solid var(--ls-border);
+  border-radius: 4px;
+  background: #f3f2ec;
   padding: 1.2rem;
   text-align: center;
 }
 
-.empty p { margin: 0; color: #586980; }
+.empty p { margin: 0; color: #626b63; }
 .receiveButton { padding: 0.35rem 0.65rem; font-size: 0.82rem; }
 .table { min-width: 1080px; }
-.cellMain { font-weight: 600; color: #172334; }
-.cellSubtle { margin-top: 0.22rem; color: #64748b; font-size: 0.78rem; }
+.cellMain { font-weight: 600; color: #272d28; }
+.cellSubtle { margin-top: 0.22rem; color: #626b63; font-size: 0.78rem; }
 .rowActions { flex-wrap: wrap; }
 .row { cursor: pointer; }
 .table .row:hover td { background: #fff0e7; }

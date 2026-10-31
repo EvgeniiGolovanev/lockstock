@@ -1,34 +1,34 @@
 .accountGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.accountCard { border: 2px solid #111111; border-radius: 0; background: #f8f5ef; padding: 0.85rem; box-shadow: 6px 6px 0 rgba(17, 17, 17, 0.08); }
+.accountCard { border: 1px solid var(--ls-border); border-radius: 4px; background: #f3f2ec; padding: 0.85rem; box-shadow: none; }
 .accountCard p { margin-top: 0.35rem; }
 .accountCard:last-child { grid-column: span 2; }
-.accountCard h3 { color: #111111; font-weight: 900; letter-spacing: -0.025em; }
+.accountCard h3 { color: #272d28; font-weight: 650; letter-spacing: -0.025em; }
 .billingCard { min-width: 0; }
 .billingHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .billingHeading > div { flex: 1; min-width: 0; }
 .billingHeading p { margin-bottom: 1rem; color: var(--ls-text-muted); }
-.billingStatus { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; border: 2px solid #111; padding: 6px 10px; font-size: .75rem; font-weight: 900; background: #eee8df; }
-.billingStatus::before { content: ""; width: 7px; height: 7px; background: #6b6259; }
+.billingStatus { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; border: 1px solid var(--ls-border); padding: 6px 10px; font-size: .75rem; font-weight: 650; background: #eeeee7; }
+.billingStatus::before { content: ""; width: 7px; height: 7px; background: #626b63; }
 .billingStatus[data-status="trialing"] { background: #fff0e7; }
 .billingStatus[data-status="trialing"]::before { background: #f26522; }
 .billingStatus[data-status="active"] { background: #edf2e8; }
 .billingStatus[data-status="active"]::before { background: #497539; }
 .billingSummaryGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 0; }
 .billingSummaryGrid > div { min-width: 0; }
-.billingSummaryGrid dd { display: flex; align-items: center; flex: 1; min-height: 44px; margin: 0; padding: .56rem .68rem; border: 2px solid #111; background: #eee8df; font-weight: 650; overflow-wrap: anywhere; }
+.billingSummaryGrid dd { display: flex; align-items: center; flex: 1; min-height: 44px; margin: 0; padding: .56rem .68rem; border: 1px solid var(--ls-border); background: #eeeee7; font-weight: 650; overflow-wrap: anywhere; }
 .billingPlan { text-transform: capitalize; }
 .billingActions { margin-top: 1rem; }
-.billingPrimary { display: inline-flex; align-items: center; justify-content: center; padding: .56rem .68rem; border: 2px solid #111; background: #111; color: #fff; font: inherit; font-weight: 900; letter-spacing: .035em; text-decoration: none; }
+.billingPrimary { display: inline-flex; align-items: center; justify-content: center; padding: .56rem .68rem; border: 1px solid var(--ls-border); background: #111; color: #fff; font: inherit; font-weight: 650; letter-spacing: .035em; text-decoration: none; }
 .billingPrimary:hover { background: #f26522; color: #111; border-color: #f26522; }
 .billingPrimary:focus-visible { outline: 3px solid #f26522; outline-offset: 3px; }
-.billingActions .billingSecondary { background: #fffdf9; color: #111; }
+.billingActions .billingSecondary { background: #fffefa; color: #111; }
 .billingActions .billingCancel { margin-left: auto; background: transparent; color: #a12d22; border-color: #a12d22; }
 .billingActions button:disabled { background: #6f6f6f; color: #fff; border-color: #6f6f6f; }
 .auditCard :global(.title-row) { align-items: end; }
 .auditExportRow { margin: 0.85rem 0 1rem; display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 180px) max-content; gap: 0.6rem; align-items: end; }
 .auditExportRow button { width: auto; min-width: 0; padding-left: 0.85rem; padding-right: 0.85rem; }
 .auditLogList { display: grid; gap: 0.55rem; }
-.auditLogRow { display: grid; grid-template-columns: minmax(150px, 0.32fr) minmax(0, 1fr) minmax(140px, 0.32fr); gap: 0.8rem; align-items: center; border-top: 1px solid #d8d1c8; padding-top: 0.55rem; }
+.auditLogRow { display: grid; grid-template-columns: minmax(150px, 0.32fr) minmax(0, 1fr) minmax(140px, 0.32fr); gap: 0.8rem; align-items: center; border-top: 1px solid #dcded5; padding-top: 0.55rem; }
 .auditLogRow time, .auditLogRow span { color: var(--ls-text-muted); font-size: 0.84rem; }
 .auditLogRow p { margin: 0; }
 .auditLogRow > div { min-width: 0; overflow-wrap: anywhere; }
@@ -54,3 +54,26 @@
 }
 .passwordFeedback { margin: 1rem 0 0; padding: 0.8rem 1rem; border: 1px solid #b64a3b; border-left-width: 4px; background: #fff0ed; color: #8b251b; font-weight: 600; }
 .passwordFeedback[data-success="true"] { border-color: #497539; background: #edf2e8; color: #305024; }
+
+.accountNav { display: flex; flex-wrap: wrap; gap: 1.6rem; margin-top: 1.4rem; border-bottom: 1px solid var(--ls-border); }
+.accountNav a { padding: .65rem 0; color: var(--ls-primary); font-size: .875rem; font-weight: 600; text-decoration: none; border-bottom: 2px solid transparent; }
+.accountNav a:hover, .accountNav a:focus-visible { border-bottom-color: var(--ls-primary); }
+.accountGrid { grid-template-columns: 1fr; gap: 1.8rem; }
+.accountCard { padding: 1.4rem 0; border: 0; border-bottom: 1px solid var(--ls-border); box-shadow: none; background: transparent; border-radius: 0; scroll-margin-top: 8rem; }
+.accountCard:last-child { grid-column: auto; border-bottom: 0; }
+.accountCard h3 { font-size: 1.15rem; font-weight: 650; }
+.billingCard, .auditCard { scroll-margin-top: 8rem; }
+.billingSummaryGrid { padding: 1rem 0; background: #f0f1eb; }
+.billingSummaryGrid > div { padding-inline: 1rem; border-right: 1px solid var(--ls-border); }
+.billingSummaryGrid > div:last-child { border: 0; }
+.billingSummaryGrid dd { padding: .3rem 0; border: 0; background: transparent; font-size: 1.05rem; }
+.billingStatus { border: 0; border-radius: 4px; font-weight: 500; background: #eeeee7; }
+.billingStatus::before { border-radius: 50%; }
+.billingPrimary { color: white; background: var(--ls-primary); border: 1px solid var(--ls-primary); border-radius: 4px; font-weight: 600; letter-spacing: 0; }
+.billingPrimary:hover { background: #263c32; color: white; border-color: #263c32; }
+.billingActions .billingSecondary { background: transparent; color: var(--ls-primary); border-color: var(--ls-border); }
+.billingActions .billingCancel:hover:not(:disabled),
+.billingActions .billingCancel:focus-visible { background: #a33124; color: #fffefa; border-color: #a33124; }
+@media(max-width:1100px) {
+  .accountCard, .billingCard, .auditCard { scroll-margin-top: 12rem; }
+}

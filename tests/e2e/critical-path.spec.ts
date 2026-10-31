@@ -653,3 +653,88 @@ test("public page responsive shells keep the desktop and mobile visual baseline"
     await expect(page.locator("body")).toHaveScreenshot(`${path.slice(1)}-mobile.png`, { animations: "disabled", caret: "initial" });
   }
 });
+
+test("Quiet Ledger keeps public and working screens within the viewport", async ({ page }) => {
+  test.setTimeout(180_000);
+  await seedSignedInPage(page);
+  await installAppRoutes(page, baseAppState());
+  await page.route("**/api/replenishment?*", route => route.fulfill({ json: { data: {
+    rows: [{ material_id: materialId, sku: "MAT-100", name: "Masonry Cement", uom: "BAG",
+      min_stock: "30", target_stock: "50", on_hand: "26", confirmed_incoming: "0",
+      draft_planned: "0", suggested_order: "24", supplier_id: supplierId, currency: "EUR",
+      unit_price: "18", uncertain: false, state: "ready", snapshot_token: "visual-fixture", orders: [] }],
+    total: 1, counts: { ready: 1, review: 0, setup: 0, draft: 0, covered: 0 }, can_write: true
+  } } }));
+  await page.route("**/api/platform/me", route => route.fulfill({ json: { isPlatformAdmin: true, role: "admin" } }));
+  await page.route("**/api/platform/overview*", route => route.fulfill({ json: {
+    metrics: { totalOrganizations: 1, registeredUsers: 2, tenantUsers: 2, totalMaterials: 1,
+      totalLocations: 1, totalStockMovements: 1, totalPurchaseOrders: 2, openPurchaseOrders: 2 },
+    tenants: [], recentAudit: []
+  } }));
+  const routes = ["/", "/about", "/contact", "/pricing", "/privacy", "/terms", "/security",
+    "/france-pme", "/france-pme/construction-materiaux", "/france-pme/industrie-atelier",
+    "/france-pme/maintenance-terrain", "/france-pme/checklist-audit-stock", "/forgot-password",
+    "/reset-password", "/inventory", "/materials", "/stock-movements", "/locations",
+    "/vendors", "/purchase-orders", "/members", "/workflows", "/account", "/payment",
+    "/replenishment", "/platform"];
+  for (const width of [1440, 375]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const path of routes) {
+      await page.goto(path, { waitUntil: "networkidle" });
+      await expect(page.locator("h1").first()).toBeVisible();
+      expect(new URL(page.url()).pathname).toBe(path);
+      const navigation = page.getByRole("navigation", { name: "LockStock", exact: true });
+      if (await navigation.count()) {
+        const overlaps = await navigation.locator("a").evaluateAll(links => links.slice(1).some((link, index) =>
+          link.getBoundingClientRect().left < links[index].getBoundingClientRect().right - 1));
+        expect.soft(overlaps, `${path} navigation links at ${width}px must not overlap`).toBe(false);
+      }
+      if (path === "/platform") await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect.soft(overflow, `${path} at ${width}px must scroll tables internally`).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: `.superpowers/quiet-ledger/screenshots/${width}-${path.slice(1).replaceAll("/", "-") || "home"}.png`, fullPage: true });
+    }
+  }
+  await page.goto("/inventory", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "FR", exact: true }).click();
+  const frenchNav = page.getByRole("navigation", { name: "LockStock", exact: true });
+  await expect(frenchNav.getByRole("link", { name: "Réapprovisionnement", exact: true })).toHaveAttribute("href", "/replenishment");
+  const frenchOverlaps = await frenchNav.locator("a").evaluateAll(links => links.slice(1).some((link, index) =>
+    link.getBoundingClientRect().left < links[index].getBoundingClientRect().right - 1));
+  expect(frenchOverlaps).toBe(false);
+  await page.screenshot({ path: ".superpowers/quiet-ledger/screenshots/375-fr-inventory.png", fullPage: true });
+});
+
+test("Quiet Ledger account anchors and campaign CTAs stay readable", async ({ page }) => {
+  const readContrast = (element: Element) => {
+    const style = getComputedStyle(element);
+    const luminance = (color: string) => {
+      const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(v => v / 255)
+        .map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+      return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+    };
+    const a = luminance(style.color), b = luminance(style.backgroundColor);
+    return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+  };
+  await seedSignedInPage(page);
+  await installAppRoutes(page, baseAppState());
+  for (const width of [375, 1280]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/account", { waitUntil: "networkidle" });
+    await page.getByRole("link", { name: /^Security$/ }).click();
+    const heading = await page.locator("#account-security h3").boundingBox();
+    const header = await page.locator(".shell-nav").boundingBox();
+    expect.soft(heading!.y, `Security heading must clear the sticky header at ${width}px`).toBeGreaterThanOrEqual(header!.y + header!.height + 8);
+  }
+  await page.goto("/france-pme", { waitUntil: "networkidle" });
+  const ctas = page.locator('a[class*="primaryLink"]');
+  expect(await ctas.count()).toBeGreaterThan(0);
+  for (const cta of await ctas.all()) {
+    const contrast = await cta.evaluate(readContrast);
+    expect.soft(contrast, "Campaign CTA text contrast").toBeGreaterThanOrEqual(4.5);
+  }
+  await page.goto("/account", { waitUntil: "networkidle" });
+  const cancel = page.getByRole("button", { name: "Cancel renewal", exact: true });
+  await cancel.hover();
+  expect.soft(await cancel.evaluate(readContrast), "Cancel renewal hover contrast").toBeGreaterThanOrEqual(4.5);
+});
