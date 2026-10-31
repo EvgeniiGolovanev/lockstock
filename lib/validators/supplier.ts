@@ -18,12 +18,15 @@ const supplierSchema = z.object({
   email: z.string().trim().email().optional(),
   phone: phoneSchema,
   address: optionalTrimmedString(256),
-  lead_time_days: z.coerce.number().int().min(0).max(365).default(0),
+  lead_time_days: z.coerce.number().int().min(0).max(365),
   payment_terms: optionalTrimmedString(200),
-  is_active: z.boolean().default(true)
+  is_active: z.boolean()
 });
 
-export const createSupplierSchema = supplierSchema;
+export const createSupplierSchema = supplierSchema.extend({
+  lead_time_days: supplierSchema.shape.lead_time_days.default(0),
+  is_active: supplierSchema.shape.is_active.default(true)
+});
 export const updateSupplierSchema = supplierSchema.partial().refine((value) => Object.keys(value).length > 0, {
   message: "At least one supplier field is required."
 });

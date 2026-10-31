@@ -1,0 +1,28 @@
+.root { min-width: 0; }
+.filters { display: grid; grid-template-columns: minmax(180px, 260px) minmax(220px, 360px); gap: 1rem; align-items: end; }
+.tableScroll table { min-width: 980px; }
+.tableScroll th { white-space: nowrap; }
+.tableScroll td { vertical-align: top; }
+.materialMeta { color: var(--ls-text-muted); font-size: .78rem; margin: .3rem 0 .5rem; }
+.quantity { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tableScroll details { min-width: 190px; max-width: 360px; margin-top: .65rem; }
+.tableScroll summary { cursor: pointer; font-size: .78rem; font-weight: 650; }
+.tableScroll details p { font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
+.warning { border: 1px solid #9f3c0d; background: #fff0e7; padding: .8rem; color: #9f3c0d; margin-block: .75rem; }
+.pagination { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
+.pagination span { color: var(--ls-text-muted); font-size: .85rem; }
+.settingsGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin-block: 1rem; }
+.notice { border-left: 3px solid #f26522; padding: .65rem .8rem; background: var(--ls-surface); line-height: 1.5; }
+.error { border-left: 3px solid #bd2634; padding: .8rem; margin-block: .75rem; background: #fff1f2; color: #8f1d29; }
+.success { border-left: 3px solid #257447; padding: .8rem; margin-block: .75rem; background: #ecf6ee; color: #257447; }
+.dialogActions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
+.supplierGroup { padding: .8rem 0; border-bottom: 1px solid var(--ls-border); }
+.supplierGroup p { color: var(--ls-text-muted); margin-bottom: 0; font-size: .85rem; }
+.reviewRow { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin: 1rem 0; padding: 1rem; border: 2px solid #111; background: var(--ls-surface); min-width: 0; }
+.reviewRow legend { padding-inline: .4rem; font-size: .85rem; font-weight: 750; overflow-wrap: anywhere; }
+.reviewRow > span { color: var(--ls-text-muted); font-size: .8rem; }
+.reviewRow .warning { grid-column: 1/-1; display: flex; flex-direction: row; align-items: start; gap: .6rem; margin: 0; }
+@media(max-width:640px) {
+  .filters, .settingsGrid, .reviewRow { grid-template-columns: minmax(0,1fr); }
+  .root :global(.table-head-actions) { width: 100%; justify-content: flex-start; }
+}

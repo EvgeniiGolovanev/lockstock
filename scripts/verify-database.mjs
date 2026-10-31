@@ -5,11 +5,15 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { normalizeDatabaseTypes } from "./database-types-core.js";
 
 const require = createRequire(import.meta.url);
 const { rewriteSupabaseConfig, startWithPortRetry } = require("./verify-database-core.js");
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Windows worktrees may link to dependencies on another drive. An explicit
+// same-drive runtime keeps Next's Webpack entry paths valid without touching it.
+const inventoryDependencies = process.env.INVENTORY_NODE_MODULES || path.join(repositoryRoot, "node_modules");
 const sourceSupabaseDirectory = path.join(repositoryRoot, "supabase");
 // Webpack cannot make relative entry paths across Windows drive letters when
 // the disposable application links to the repository's node_modules.
@@ -181,6 +185,11 @@ try {
     ["status", "--output", "json", "--workdir", disposableRoot],
     { capture: true }
   );
+  if (process.argv.includes("--write-types")) {
+    const generated = runSupabase(["gen", "types", "--local", "--lang=typescript", "--schema", "public", "--workdir", disposableRoot], { capture: true });
+    writeFileSync(path.join(repositoryRoot, "types", "database.ts"), normalizeDatabaseTypes(generated), "utf8");
+    console.log("Generated database types from the disposable schema.");
+  }
   const apiVerification = spawnSync(
     process.execPath,
     [path.join(repositoryRoot, "scripts", "verify-database-api.mjs"), projectId, statusJson],
@@ -209,7 +218,7 @@ try {
     const failureRoute = path.join(applicationRoot, "app", "api", "acceptance-error");
     mkdirSync(failureRoute, { recursive: true });
     writeFileSync(path.join(failureRoute, "route.ts"), 'export function GET() { throw new Error("synthetic-private-payload"); }\n');
-    symlinkSync(path.join(repositoryRoot, "node_modules"), path.join(applicationRoot, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+    symlinkSync(inventoryDependencies, path.join(applicationRoot, "node_modules"), process.platform === "win32" ? "junction" : "dir");
     const status = JSON.parse(statusJson);
     const applicationEnvironment = {
       ...process.env,
@@ -228,7 +237,7 @@ try {
     console.log("Running inventory acceptance tests against the disposable application and database.");
     const inventoryVerification = spawnSync(process.execPath, [
       path.join(repositoryRoot, "node_modules", "@playwright", "test", "cli.js"),
-      "test", "--config", "playwright.inventory.config.ts", ...process.argv.slice(2).filter((arg) => arg !== "--inventory")
+      "test", "--config", "playwright.inventory.config.ts", ...process.argv.slice(2).filter((arg) => !["--inventory", "--write-types"].includes(arg))
     ], {
       cwd: repositoryRoot,
       stdio: "inherit",

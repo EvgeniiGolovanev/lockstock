@@ -84,6 +84,7 @@ export function WorkbenchCatalogForms({
   const [editMaterialCategory, setEditMaterialCategory] = useState<MaterialCategory>(MATERIAL_CATEGORIES[0]);
   const [editMaterialSubcategory, setEditMaterialSubcategory] = useState("");
   const [editMaterialMinStock, setEditMaterialMinStock] = useState("");
+  const [editMaterialTargetStock, setEditMaterialTargetStock] = useState("");
   const [editMaterialDescription, setEditMaterialDescription] = useState("");
   const [editMaterialRequiredErrors, setEditMaterialRequiredErrors] = useState<MaterialDraftRequiredField[]>([]);
   const scope = showLocationForm ? `location:${editingLocation?.id ?? "new"}` : pendingLocationUsageChange ? `location-usage:${pendingLocationUsageChange.id}` : showMaterialCreateForm ? "material-new" : editingMaterial ? `material:${editingMaterial.id}` : pendingMaterialUsageChange ? `material-usage:${pendingMaterialUsageChange.id}` : "closed";
@@ -157,6 +158,7 @@ export function WorkbenchCatalogForms({
         editingMaterial.subcategory && subcategories.includes(editingMaterial.subcategory) ? editingMaterial.subcategory : subcategories[0] ?? ""
       );
       setEditMaterialMinStock(String(editingMaterial.min_stock ?? 0));
+      setEditMaterialTargetStock(editingMaterial.target_stock == null ? "" : String(editingMaterial.target_stock));
       setEditMaterialDescription(editingMaterial.description ?? "");
       setEditMaterialRequiredErrors([]);
       return;
@@ -166,6 +168,7 @@ export function WorkbenchCatalogForms({
     setEditMaterialCategory(MATERIAL_CATEGORIES[0]);
     setEditMaterialSubcategory(getMaterialSubcategories(MATERIAL_CATEGORIES[0])[0] ?? "");
     setEditMaterialMinStock("");
+    setEditMaterialTargetStock("");
     setEditMaterialDescription("");
     setEditMaterialRequiredErrors([]);
   }, [editingMaterial]);
@@ -235,7 +238,7 @@ export function WorkbenchCatalogForms({
     await feedback.run(async () => {
       await apiRequest(`/api/materials/${editingMaterial.id}`, { method: "PATCH", body: {
         name: editMaterialName.trim(), category: editMaterialCategory, subcategory: editMaterialSubcategory,
-        min_stock: Number(editMaterialMinStock), description: editMaterialDescription.trim() || null
+        min_stock: Number(editMaterialMinStock), target_stock: editMaterialTargetStock === "" ? null : Number(editMaterialTargetStock), description: editMaterialDescription.trim() || null
       } });
       onActivity("Material updated.");
     }, onCloseEditMaterialForm);
@@ -455,6 +458,7 @@ export function WorkbenchCatalogForms({
                     required
                     aria-invalid={editMaterialRequiredErrors.includes("minStock")}
                     value={editMaterialMinStock}
+                    step="0.001"
                     onChange={(event) => setEditMaterialMinStock(event.target.value)}
                   />
                 </label>
@@ -462,10 +466,12 @@ export function WorkbenchCatalogForms({
                   <span>{t("workbench.material.description")}</span>
                   <textarea value={editMaterialDescription} maxLength={256} rows={3} onChange={(event) => setEditMaterialDescription(event.target.value)} />
                 </label>
+                <label className="field"><span>{locale === "fr" ? "Stock cible (facultatif)" : "Target stock (optional)"}</span><input type="number" min={editMaterialMinStock || 0} step="0.001" value={editMaterialTargetStock} onChange={e => setEditMaterialTargetStock(e.target.value)} /></label>
+                {editMaterialTargetStock !== "" && Number(editMaterialTargetStock) < Number(editMaterialMinStock) ? <p role="alert">{locale === "fr" ? "La cible doit être supérieure ou égale au minimum." : "Target must be at least minimum."}</p> : null}
               </div>
               <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseEditMaterialForm} />
               <div className="actions">
-                <button type="button" disabled={busy || feedback.committed} onClick={() => void handleUpdateMaterial()}>
+                <button type="button" disabled={busy || feedback.committed || (editMaterialTargetStock !== "" && Number(editMaterialTargetStock)<Number(editMaterialMinStock))} onClick={() => void handleUpdateMaterial()}>
                   {t("workbench.catalog.saveChanges")}
                 </button>
                 <button type="button" className="ghost-btn" disabled={busy} onClick={onCloseEditMaterialForm}>

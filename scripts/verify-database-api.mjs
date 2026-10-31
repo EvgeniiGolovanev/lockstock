@@ -381,4 +381,12 @@ for (const surface of raceSurfaces) {
   );
 }
 
+// Delay triggers belong only to the race probes. Leaving them installed slows
+// every later browser mutation and can turn request timeouts into false failures.
+sql(projectId, `
+  ${raceSurfaces.map((surface) => `drop trigger zzzz_p001_test_overlap on public.${surface.name};`).join("\n")}
+  drop function public.p001_test_overlap();
+  drop trigger zzzz_p001_workspace_overlap on public.organizations;
+  drop function public.p001_workspace_overlap();
+`);
 console.log("Data API JWT matrix, workspace race, and all seven finite-limit races passed.");

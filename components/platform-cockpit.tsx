@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { AppSidebar } from "@/components/app-sidebar";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { useLanguage } from "@/components/language-provider";
@@ -338,6 +339,7 @@ export function PlatformCockpit() {
 
   return (
     <main className={styles.shell}>
+      <AppSidebar pathname="/platform" signedIn={sessionStatus.isAuthenticated} isPlatformAdmin={isPlatformAdmin === true} busy={busy} onSignOut={handleSignOut} />
       <header className={`${styles.content} ${styles.header}`}>
         <div>
           <Link className={styles.brand} href="/">
@@ -355,11 +357,6 @@ export function PlatformCockpit() {
             <Link className={styles.sessionLink} href="/inventory">
               {t("platform.signIn")}
             </Link>
-          ) : null}
-          {sessionStatus.isAuthenticated ? (
-            <button type="button" className={styles.sessionLink} disabled={busy} onClick={() => void handleSignOut()}>
-              {t("platform.signOut")}
-            </button>
           ) : null}
           <button type="button" className={styles.iconButton} disabled={busy} onClick={() => void loadOverview()} title={t("platform.refresh")}>
             <RefreshIcon />

@@ -89,6 +89,7 @@ describe("WorkbenchCatalogForms", () => {
           subcategory: editSubcategory,
           created_at: "2026-08-01",
           min_stock: 10,
+          target_stock: 50,
           is_active: true,
           total_quantity: 25,
           primary_location: "Main Warehouse",
@@ -120,6 +121,7 @@ describe("WorkbenchCatalogForms", () => {
         category: nextCategory,
         subcategory: getMaterialSubcategories(nextCategory)[0] ?? "",
         min_stock: 10,
+        target_stock: 50,
         description: "For foundations"
       }
     });

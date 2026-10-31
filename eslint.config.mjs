@@ -19,6 +19,8 @@ const eslintConfig = [
   {
     ignores: [
       ".next/**",
+      ".superpowers/**",
+      "coverage/**",
       "out/**",
       "build/**",
       "test-results/**",

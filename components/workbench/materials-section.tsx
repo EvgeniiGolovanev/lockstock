@@ -21,6 +21,7 @@ export type WorkbenchMaterial = {
   subcategory?: string | null;
   created_at?: string;
   min_stock: number;
+  target_stock?: number | null;
   is_active: boolean;
   total_quantity?: number;
   primary_location?: string | null;

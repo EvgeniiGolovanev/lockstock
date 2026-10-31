@@ -22,6 +22,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       .maybeSingle();
 
     if (error) {
+      if (error.code === "23514" && error.message.includes("material_target_minimum")) {
+        throw new ApiError(400, "Target stock must be at least minimum stock. Update both values together.");
+      }
       throw error;
     }
 
