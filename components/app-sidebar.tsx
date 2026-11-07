@@ -16,7 +16,7 @@ const NAV_ITEMS: ReadonlyArray<{ href: Route; labelKey: StaticMessageKey; icon: 
   { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
   { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
   { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
-  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "purchase-orders" },
+  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "replenishment" },
   { href: "/members", labelKey: "workbench.nav.members", icon: "members" },
   { href: "/workflows", labelKey: "workbench.nav.workflows", icon: "workflows" }
 ];
