@@ -5,8 +5,8 @@
 .heroGrid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.58fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
 .eyebrow { margin: 0 0 0.9rem; color: var(--landing-orange); font-size: 0.82rem; font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; }
 .hero h1 { max-width: 13ch; color: var(--landing-black); font-size: clamp(3.1rem, 8vw, 6.6rem); font-weight: 650; line-height: 0.88; letter-spacing: 0; text-transform: uppercase; }
-.heroCopy { max-width: 42rem; margin: 1.25rem 0 0; color: #3f3933; font-size: clamp(1.05rem, 2vw, 1.35rem); font-weight: 750; }
-.primaryLink { background: var(--landing-orange) !important; border-color: var(--landing-orange) !important; color: #fffefa !important; }
+.heroCopy { max-width: 42rem; margin: 1.25rem 0 0; color: #3b4651; font-size: clamp(1.05rem, 2vw, 1.35rem); font-weight: 750; }
+.primaryLink { background: var(--landing-orange) !important; border-color: var(--landing-orange) !important; color: #ffffff !important; }
 .commandBoard { display: grid; gap: 1rem; border: 1px solid var(--ls-border); background: var(--landing-surface); box-shadow: 10px 10px 0 rgba(17, 17, 17, 0.12); padding: clamp(1rem, 2.5vw, 1.4rem); }
 .commandBoard span, .commandBoard dt { color: var(--landing-orange); font-size: 0.72rem; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; }
 .commandBoard strong { display: block; color: var(--landing-black); font-size: clamp(1.5rem, 3vw, 2.4rem); line-height: 0.98; letter-spacing: 0; text-transform: uppercase; }
@@ -46,6 +46,18 @@
 .twoColumn h2 { font-size: clamp(2rem,4vw,3.3rem); }
 .segmentCard, .channelCard, .sequenceCard, .checklistCard, .caseStudyCard { border: 0; border-top: 1px solid var(--landing-line); box-shadow: none; background: transparent; border-radius: 0; }
 .outcomePanel article { border-color: var(--landing-line); }
-.outcomePanel span { background: #e8eee8; color: var(--landing-orange); border-radius: 4px; font-weight: 600; }
-.keywordList li, .metricStrip span { background: #e8eee8; border-color: var(--landing-line); color: var(--landing-orange); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.outcomePanel span { background: #fff0e6; color: var(--landing-orange); border-radius: 4px; font-weight: 600; }
+.keywordList li, .metricStrip span { background: #fff0e6; border-color: var(--landing-line); color: var(--landing-orange); font-weight: 500; letter-spacing: 0; text-transform: none; }
 .hero p, .outcomePanel p, .twoColumn > div > p:not(.eyebrow) { font-weight: 400; }
+
+.hero { background: #252b31 url("/design/industrial-hero-texture.webp") center/cover; border-bottom: 3px solid var(--landing-orange); padding-block: 3rem; }
+.hero h1 { color: #fff; font-weight: 750; font-size: clamp(2.2rem,4.5vw,3.8rem); line-height: 1.1; letter-spacing: -.03em; }
+.hero .eyebrow { color: #ffb17d; }
+.heroCopy { color: #e2e8ee; }
+.main .hero :global(.ghost-btn) { color: #fff; border-color: #93a1af; }
+.main .hero :global(.ghost-btn:hover) { color: #fff; border-color: #d2d9df; background: #38434d; }
+.hero .primaryLink { color: #fff !important; border-color: var(--landing-orange) !important; background: var(--landing-orange) !important; }
+.commandBoard { background: #fff; border-radius: 3px; box-shadow: 0 8px 24px #14212d26; }
+.commandBoard p, .commandBoard dd { color: #596672; }
+.segmentCard, .channelCard, .sequenceCard, .checklistCard, .caseStudyCard { border: 1px solid var(--landing-line); border-radius: 3px; padding: 1.25rem; background: #fff; box-shadow: var(--ls-shadow); }
+.segmentCard h3, .channelCard h3, .checklistCard h2, .twoColumn h2 { font-family: var(--ls-font-display); font-weight: 750; }

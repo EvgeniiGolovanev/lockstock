@@ -1,12 +1,12 @@
 .form { gap: 0.65rem; }
-.divider { display: flex; align-items: center; color: #626b63; font-size: 0.82rem; margin: 0.1rem 0; }
+.divider { display: flex; align-items: center; color: #596672; font-size: 0.82rem; margin: 0.1rem 0; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
 .divider span { padding: 0 0.45rem; }
 .googleButton { width: 100%; }
-.switch { margin: 0; text-align: center; color: #626b63; font-size: 0.88rem; }
-.switch :global(.ghost-btn) { padding: 0; border: none; margin-left: 0.2rem; color: #344d43; background: transparent; }
+.switch { margin: 0; text-align: center; color: #596672; font-size: 0.88rem; }
+.switch :global(.ghost-btn) { padding: 0; border: none; margin-left: 0.2rem; color: #b7460c; background: transparent; }
 .error { margin: 0; color: #b91c1c; font-size: 0.88rem; }
-.message { margin: 0; color: #344d43; font-size: 0.88rem; }
+.message { margin: 0; color: #b7460c; font-size: 0.88rem; }
 .demoVideo { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--ls-border); background: #000000; }
 
 .switch :global(.ghost-btn) { color: var(--landing-orange); }

@@ -137,3 +137,5 @@
 
 .membersTable th { font-size: .75rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
 .membersTable .sortHeader:hover:not(:disabled) { color: var(--ls-primary); }
+
+.tableTitle { font-weight: 750; }

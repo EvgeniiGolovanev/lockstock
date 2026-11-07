@@ -664,7 +664,7 @@ test("public page responsive shells keep the desktop and mobile visual baseline"
   }
 });
 
-test("Quiet Ledger keeps public and working screens within the viewport", async ({ page }) => {
+test("Industrial Command keeps public and working screens within the viewport", async ({ page }) => {
   test.setTimeout(180_000);
   await seedSignedInPage(page);
   await installAppRoutes(page, baseAppState());
@@ -706,7 +706,7 @@ test("Quiet Ledger keeps public and working screens within the viewport", async 
       if (path === "/platform") await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect.soft(overflow, `${path} at ${width}px must scroll tables internally`).toBeLessThanOrEqual(1);
-      await page.screenshot({ path: `.superpowers/quiet-ledger/screenshots/${width}-${path.slice(1).replaceAll("/", "-") || "home"}.png`, fullPage: true });
+      await page.screenshot({ path: `.superpowers/industrial-command/screenshots/${process.platform}/${width}-${path.slice(1).replaceAll("/", "-") || "home"}.png`, fullPage: true });
     }
   }
   await page.goto("/inventory", { waitUntil: "networkidle" });
@@ -720,10 +720,10 @@ test("Quiet Ledger keeps public and working screens within the viewport", async 
             return a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
           })()));
   expect(frenchOverlaps).toBe(false);
-  await page.screenshot({ path: ".superpowers/quiet-ledger/screenshots/375-fr-inventory.png", fullPage: true });
+  await page.screenshot({ path: `.superpowers/industrial-command/screenshots/${process.platform}/375-fr-inventory.png`, fullPage: true });
 });
 
-test("Quiet Ledger account anchors and campaign CTAs stay readable", async ({ page }) => {
+test("Industrial Command account anchors and campaign CTAs stay readable", async ({ page }) => {
   const readContrast = (element: Element) => {
     const style = getComputedStyle(element);
     const luminance = (color: string) => {
@@ -731,7 +731,9 @@ test("Quiet Ledger account anchors and campaign CTAs stay readable", async ({ pa
         .map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
       return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
     };
-    const a = luminance(style.color), b = luminance(style.backgroundColor);
+    let backdrop = element;
+    while (getComputedStyle(backdrop).backgroundColor === "rgba(0, 0, 0, 0)" && backdrop.parentElement) backdrop = backdrop.parentElement;
+    const a = luminance(style.color), b = luminance(getComputedStyle(backdrop).backgroundColor);
     return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
   };
   await seedSignedInPage(page);
@@ -754,6 +756,11 @@ test("Quiet Ledger account anchors and campaign CTAs stay readable", async ({ pa
   for (const cta of await ctas.all()) {
     const contrast = await cta.evaluate(readContrast);
     expect.soft(contrast, "Campaign CTA text contrast").toBeGreaterThanOrEqual(4.5);
+  }
+  const secondaryCtas = page.locator('section[class*="hero"] a.ghost-btn:not([class*="primaryLink"])');
+  expect(await secondaryCtas.count()).toBeGreaterThan(0);
+  for (const cta of await secondaryCtas.all()) {
+    expect.soft(await cta.evaluate(readContrast), "Secondary campaign CTA text contrast on dark hero").toBeGreaterThanOrEqual(4.5);
   }
   await page.goto("/account", { waitUntil: "networkidle" });
   const cancel = page.getByRole("button", { name: "Cancel renewal", exact: true });
