@@ -798,7 +798,13 @@ input:focus, select:focus, textarea:focus { border-color: #6f8c77; box-shadow: 0
 button { min-height: 2.65rem; font-weight: 600; letter-spacing: 0; box-shadow: none; }
 button:hover:not(:disabled) { background: #263c32; border-color: #263c32; }
 button:disabled { opacity: .55; }
-main:has(.shell-nav) { padding: 0 clamp(1rem, 3vw, 3.5rem) 3rem; }
+main:has(.shell-nav) { padding: 0 1.5rem 3rem 17.5rem; }
+@media(min-width:981px) {
+  main:has(.shell-nav[data-collapsed="true"]) { padding-left: 6rem; }
+}
+@media(max-width:980px) {
+  main:has(.shell-nav) { padding: 0 1rem 3rem; }
+}
 .card { width: 100%; max-width: 1440px; padding: 1.4rem 0; border: 0; border-bottom: 1px solid var(--ls-border); box-shadow: none; background: transparent; border-radius: 0; }
 .shell-nav ~ .card { margin-top: .5rem; }
 h1, h2, h3 { color: var(--ls-text); letter-spacing: -.025em; }

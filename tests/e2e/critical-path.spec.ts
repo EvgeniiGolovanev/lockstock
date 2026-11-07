@@ -491,6 +491,16 @@ test("short desktop navigation keeps lower sections clear of account actions", a
   await installAppRoutes(page, baseAppState());
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/inventory", { waitUntil: "domcontentloaded" });
+  const sidebar = page.locator(".shell-nav");
+  await expect(sidebar).toHaveCSS("position", "fixed");
+  await expect(sidebar).toHaveCSS("width", "256px");
+  const firstLink = page.getByRole("navigation", { name: "LockStock", exact: true }).getByRole("link").first();
+  const secondLink = page.getByRole("navigation", { name: "LockStock", exact: true }).getByRole("link").nth(1);
+  expect((await secondLink.boundingBox())!.y).toBeGreaterThan((await firstLink.boundingBox())!.y);
+  await page.getByRole("button", { name: "Collapse navigation", exact: true }).click();
+  await expect(sidebar).toHaveCSS("width", "72px");
+  await page.getByRole("button", { name: "Expand navigation", exact: true }).click();
+  await expect(sidebar).toHaveCSS("width", "256px");
   await page.getByRole("link", { name: "Members", exact: true }).click();
   await expect(page).toHaveURL(/\/members$/);
   await page.getByRole("link", { name: "Workflows", exact: true }).click();
@@ -686,7 +696,11 @@ test("Quiet Ledger keeps public and working screens within the viewport", async 
       const navigation = page.getByRole("navigation", { name: "LockStock", exact: true });
       if (await navigation.count()) {
         const overlaps = await navigation.locator("a").evaluateAll(links => links.slice(1).some((link, index) =>
-          link.getBoundingClientRect().left < links[index].getBoundingClientRect().right - 1));
+          (() => {
+            const a = link.getBoundingClientRect();
+            const b = links[index].getBoundingClientRect();
+            return a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+          })()));
         expect.soft(overlaps, `${path} navigation links at ${width}px must not overlap`).toBe(false);
       }
       if (path === "/platform") await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
@@ -700,7 +714,11 @@ test("Quiet Ledger keeps public and working screens within the viewport", async 
   const frenchNav = page.getByRole("navigation", { name: "LockStock", exact: true });
   await expect(frenchNav.getByRole("link", { name: "Réapprovisionnement", exact: true })).toHaveAttribute("href", "/replenishment");
   const frenchOverlaps = await frenchNav.locator("a").evaluateAll(links => links.slice(1).some((link, index) =>
-    link.getBoundingClientRect().left < links[index].getBoundingClientRect().right - 1));
+    (() => {
+            const a = link.getBoundingClientRect();
+            const b = links[index].getBoundingClientRect();
+            return a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+          })()));
   expect(frenchOverlaps).toBe(false);
   await page.screenshot({ path: ".superpowers/quiet-ledger/screenshots/375-fr-inventory.png", fullPage: true });
 });
@@ -724,7 +742,11 @@ test("Quiet Ledger account anchors and campaign CTAs stay readable", async ({ pa
     await page.getByRole("link", { name: /^Security$/ }).click();
     const heading = await page.locator("#account-security h3").boundingBox();
     const header = await page.locator(".shell-nav").boundingBox();
-    expect.soft(heading!.y, `Security heading must clear the sticky header at ${width}px`).toBeGreaterThanOrEqual(header!.y + header!.height + 8);
+    if (width > 980) {
+      expect.soft(heading!.x, `Security heading must clear the sidebar at ${width}px`).toBeGreaterThanOrEqual(header!.x + header!.width + 8);
+    } else {
+      expect.soft(heading!.y, `Security heading must clear the sticky header at ${width}px`).toBeGreaterThanOrEqual(header!.y + header!.height + 8);
+    }
   }
   await page.goto("/france-pme", { waitUntil: "networkidle" });
   const ctas = page.locator('a[class*="primaryLink"]');
