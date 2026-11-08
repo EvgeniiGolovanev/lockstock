@@ -3,7 +3,7 @@
 .scope :global(.landing-header) { position: sticky; top: 0; z-index: 20; background: #252b31; border-bottom: 1px solid #46515c; color: #fff; }
 .scope :global(.landing-header .landing-wrap), .scope :global(.landing-header-row) { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 1.5rem; min-height: 4.25rem; }
 .scope :global(.landing-brand) { display: inline-flex; align-items: center; gap: .6rem; color: inherit; font: 750 1.35rem/1.2 "Segoe UI",sans-serif; text-decoration: none; letter-spacing: -.04em; }
-.scope :global(.landing-brand-mark) { width: 2rem; height: 1.35rem; display: block; padding: 0; background: transparent; border: 0; fill: #f26522; border-radius: 0; }
+.scope :global(.landing-brand-mark) { width: 2.25rem; height: 1.65rem; display: block; padding: 4px; background: #f4f6f8; border: 0; fill: #111111; border-radius: 2px; }
 .scope :global(.landing-brand-mark-accent) { fill: #f26522; }
 .scope :global(.landing-brand-text) { font-weight: 750; letter-spacing: -.04em; }
 .scope :global(.landing-nav) { display: flex; align-items: center; justify-content: center; gap: 1.6rem; }
