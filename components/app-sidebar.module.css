@@ -10,7 +10,7 @@
 .sidebar :global(.nav-link), .sidebar .navigation :global(.nav-link) { display: grid; grid-template-columns: 18px minmax(0,1fr); align-items: center; justify-items: start; gap: 10px; width: 100%; min-height: 40px; padding: 9px 10px; margin: 0 0 2px; background: transparent; color: var(--ls-text-muted); border: 0; border-left: 3px solid transparent; box-shadow: none; font-size: 13px; font-weight: 550; letter-spacing: 0; line-height: 1.25; text-align: left; text-transform: none; }
 .sidebar .navigation :global(.nav-link) .label, .sidebar :global(.nav-link) .label { position: static; width: 100%; height: auto; max-width: none; clip: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar :global(.nav-link):hover, .sidebar .navigation :global(.nav-link):hover { background: var(--ls-primary-soft); color: var(--ls-text); }
-.sidebar :global(.nav-link-active), .sidebar :global(.nav-link-active):hover, .sidebar .navigation :global(.nav-link-active), .sidebar .navigation :global(.nav-link-active):hover { background: var(--ls-primary); border-left-color: #ff8b42; color: #fff; font-weight: 700; }
+.sidebar :global(.nav-link-active), .sidebar :global(.nav-link-active):hover, .sidebar .navigation :global(.nav-link-active), .sidebar .navigation :global(.nav-link-active):hover { background: #f26522; border-left-color: #f26522; color: #252b31; font-weight: 700; }
 .sidebar .utilities { display: block; width: 100%; padding: 12px 0 0; margin: auto 0 0; border-top: 1px solid var(--ls-border); }
 .utilityRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
 .sidebar .utilityRow :global(.locale-switcher) { width: auto; padding: 2px; background: transparent; border: 1px solid var(--ls-border); }
