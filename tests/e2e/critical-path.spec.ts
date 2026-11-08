@@ -499,6 +499,16 @@ test("short desktop navigation keeps lower sections clear of account actions", a
   expect((await secondLink.boundingBox())!.y).toBeGreaterThan((await firstLink.boundingBox())!.y);
   await page.getByRole("button", { name: "Collapse navigation", exact: true }).click();
   await expect(sidebar).toHaveCSS("width", "72px");
+  for (const name of ["EN", "FR"]) {
+    const language = page.getByRole("button", { name, exact: true });
+    await expect(language).toBeVisible();
+    const bounds = await language.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(720);
+  }
+  await page.getByRole("button", { name: "FR", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Réapprovisionnement", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
   await page.getByRole("button", { name: "Expand navigation", exact: true }).click();
   await expect(sidebar).toHaveCSS("width", "256px");
   await page.getByRole("link", { name: "Members", exact: true }).click();

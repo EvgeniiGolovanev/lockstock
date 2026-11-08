@@ -34,15 +34,12 @@ describe("shared app navigation", () => {
     expect(screen.getByRole("button", { name: "Expand navigation" })).toBeInTheDocument();
     storage.mockRestore();
   });
-  it("keeps the language chooser reachable from icon-only mode", () => {
+  it("keeps both languages directly available in collapsed navigation", () => {
     render(<AppSidebar pathname="/account" signedIn onSignOut={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
-    const language = screen.getByRole("button", { name: "Language" });
-    expect(language).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(language);
     expect(screen.getByRole("button", { name: "EN" })).toBeVisible();
     expect(screen.getByRole("button", { name: "FR" })).toBeVisible();
-    expect(language).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByRole("button", { name: "Language" })).not.toBeInTheDocument();
   });
   it.each([...routes, "account", "platform", "payment"])("keeps every section available from /%s", route => {
     render(<AppSidebar pathname={`/${route}`} signedIn isPlatformAdmin={route === "platform"} onSignOut={vi.fn()} />);
