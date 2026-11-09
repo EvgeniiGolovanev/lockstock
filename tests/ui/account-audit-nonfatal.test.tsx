@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const { authMock, localeMock, addActivityMock } = vi.hoisted(() => ({
@@ -76,8 +76,8 @@ function mockJsonResponse(body: unknown, ok = true) {
 describe("LockstockAccount", () => {
   afterEach(cleanup);
   it("links to each account area without losing an edited profile", async () => {
-    render(<LockstockAccount />);
-    await screen.findByRole("heading", { name: "Subscription" });
+    await act(async () => { render(<LockstockAccount />); });
+    expect(screen.getByRole("heading", { name: "Subscription" })).toBeInTheDocument();
     const name = await screen.findByLabelText("Full Name");
     fireEvent.change(name, { target: { value: "Updated profile name" } });
     const navigation = await screen.findByRole("navigation", { name: "Account sections" });
