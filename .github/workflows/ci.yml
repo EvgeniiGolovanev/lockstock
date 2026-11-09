@@ -9,7 +9,7 @@ on:
 jobs:
   quality:
     name: Application verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -57,7 +57,7 @@ jobs:
 
   database:
     name: Disposable database verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout

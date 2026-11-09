@@ -55,7 +55,7 @@ corrections and the new contrast assertion.
 
 The source reference, normalized comparison images, focused comparisons,
 intentional source-preserving differences, and final assessment are documented
-in [the design QA report](../../design-qa.md).
+in [the design QA report](../design-qa.md).
 
 One independent read-only review found a P2 cascade issue on a secondary
 campaign link. It was reproduced and corrected. The reviewer found no additional
