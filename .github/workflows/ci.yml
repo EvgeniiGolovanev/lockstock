@@ -10,6 +10,8 @@ jobs:
   quality:
     name: Application verification
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
 
     steps:
       - name: Checkout
@@ -35,9 +37,6 @@ jobs:
 
       - name: Run coverage report
         run: npm run test:coverage
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
 
       - name: Run critical E2E suite
         run: npm run test:e2e
