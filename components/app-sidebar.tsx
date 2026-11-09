@@ -16,7 +16,7 @@ const NAV_ITEMS: ReadonlyArray<{ href: Route; labelKey: StaticMessageKey; icon: 
   { href: "/locations", labelKey: "workbench.nav.locations", icon: "locations" },
   { href: "/vendors", labelKey: "workbench.nav.vendors", icon: "vendors" },
   { href: "/purchase-orders", labelKey: "workbench.nav.orders", icon: "purchase-orders" },
-  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "purchase-orders" },
+  { href: "/replenishment", labelKey: "workbench.nav.replenishment", icon: "replenishment" },
   { href: "/members", labelKey: "workbench.nav.members", icon: "members" },
   { href: "/workflows", labelKey: "workbench.nav.workflows", icon: "workflows" }
 ];
@@ -33,17 +33,15 @@ export function AppSidebar({ pathname, signedIn, isPlatformAdmin = false, busy =
   const { locale } = useLanguage();
   const navigation = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [languageOpen, setLanguageOpen] = useState(false);
   const copy = locale === "fr"
-    ? { groups: ["Stock", "Achats", "Espace de travail"], collapse: "Réduire la navigation", expand: "Développer la navigation", language: "Langue" }
-    : { groups: ["Stock", "Purchasing", "Workspace"], collapse: "Collapse navigation", expand: "Expand navigation", language: "Language" };
+    ? { groups: ["Stock", "Achats", "Espace de travail"], collapse: "Réduire la navigation", expand: "Développer la navigation" }
+    : { groups: ["Stock", "Purchasing", "Workspace"], collapse: "Collapse navigation", expand: "Expand navigation" };
   useLayoutEffect(() => {
     try { setCollapsed(window.localStorage.getItem("lockstock.sidebar.collapsed") === "true"); } catch { /* Keep navigation usable without storage. */ }
   }, []);
   function toggle() {
     const next = !collapsed;
     setCollapsed(next);
-    setLanguageOpen(false);
     try { window.localStorage.setItem("lockstock.sidebar.collapsed", String(next)); } catch { /* The current page can still collapse. */ }
   }
   useLayoutEffect(() => {
@@ -102,10 +100,9 @@ export function AppSidebar({ pathname, signedIn, isPlatformAdmin = false, busy =
             <Link href="/account" {...activeProps("/account")} aria-label={t("workbench.nav.account")} title={t("workbench.nav.account")}><span className="nav-icon" aria-hidden="true"><NavItemIcon icon="vendors" /></span><span className={styles.label}>{t("workbench.nav.account")}</span></Link>
           </> : <Link href="/" className="nav-link" aria-label={t("workbench.auth.signIn")} title={t("workbench.auth.signIn")}><span className="nav-icon" aria-hidden="true"><NavItemIcon icon="vendors" /></span><span className={styles.label}>{t("workbench.auth.signIn")}</span></Link>}
           <div className={styles.utilityRow}>
-            {collapsed ? <button type="button" className={styles.languageToggle} onClick={() => setLanguageOpen(!languageOpen)} aria-label={copy.language} title={copy.language} aria-expanded={languageOpen}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18"/></svg></button> : <LanguageSwitcher />}
+            <LanguageSwitcher />
             {signedIn ? <button type="button" className={styles.signOut} disabled={busy} onClick={() => void onSignOut()} aria-label={t("workbench.auth.signOut")} title={t("workbench.auth.signOut")}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5M9 12h12m-4-4 4 4-4 4"/></svg><span className={styles.label}>{t("workbench.auth.signOut")}</span></button> : null}
           </div>
-          {collapsed && languageOpen ? <div className={styles.languagePanel}><LanguageSwitcher /></div> : null}
         </div>
       </div>
     </section>

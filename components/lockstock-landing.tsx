@@ -87,14 +87,11 @@ function StaticProductScreenshot({ variant, locale }: { variant: "inventory" | "
 
   return (
     <div className={`landing-product-shot ${isInventory ? "landing-product-shot-inventory" : "landing-product-shot-orders"}`}>
-      <div className="landing-shot-rail" aria-hidden="true">
-        <span className="landing-shot-logo-line" />
-        <span className="landing-shot-logo-line landing-shot-logo-line-accent" />
-        <span className="landing-shot-logo-line" />
-        <span className="landing-shot-nav landing-shot-nav-active" />
-        <span className="landing-shot-nav" />
-        <span className="landing-shot-nav" />
-        <span className="landing-shot-nav" />
+      <div className="landing-shot-navigation" aria-hidden="true">
+        <strong>LockStock</strong>
+        <span>{t("workbench.nav.materials")}</span>
+        <span>{t("workbench.nav.inventory")}</span>
+        <span>{t("workbench.nav.orders")}</span>
       </div>
       <div className="landing-shot-workspace">
         <div className="landing-shot-top">

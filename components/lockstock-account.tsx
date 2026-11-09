@@ -546,12 +546,18 @@ export function LockstockAccount() {
             <p>{t("account.description")}</p>
           </div>
         </div>
+        {signedInAs ? <nav className={styles.accountNav} aria-label={t("account.nav.label")}>
+          <a href="#account-profile">{t("account.nav.profile")}</a>
+          <a href="#account-security">{t("account.nav.security")}</a>
+          {activeOrgRole === "owner" && billingSummary ? <a href="#account-subscription">{t("account.subscription")}</a> : null}
+          <a href="#account-activity">{t("account.nav.activity")}</a>
+        </nav> : null}
       </section>
 
       <section className="card">
         {signedInAs ? (
           <div className={`grid ${styles.accountGrid}`}>
-            <article className={styles.accountCard}>
+            <article id="account-profile" className={styles.accountCard}>
               <h3>{t("account.privateInfo")}</h3>
               <p className="subtle-line">{t("account.privateDescription")}</p>
               <div className="grid grid-2">
@@ -579,7 +585,7 @@ export function LockstockAccount() {
               </div>
             </article>
 
-            <article className={styles.accountCard}>
+            <article id="account-security" className={styles.accountCard}>
               <h3>{t("account.email")}</h3>
               <p className="subtle-line">{t("account.emailDescription")}</p>
               <div className="grid">
@@ -649,7 +655,7 @@ export function LockstockAccount() {
         {accessToken && activeOrgId ? <button type="button" onClick={() => setAuditRefresh(value => value + 1)}>{t("account.contextRetry")}</button> : null}
       </div> : null}
       {activeOrgRole === "owner" && billingSummary ? (
-        <section className={`card ${styles.billingCard}`}>
+        <section id="account-subscription" className={`card ${styles.billingCard}`}>
           <article className={styles.accountCard}>
             <div className={styles.billingHeading}>
               <div>
@@ -680,7 +686,7 @@ export function LockstockAccount() {
         </section>
       ) : null}
 
-      <section className={`card ${styles.auditCard}`}>
+      <section id="account-activity" className={`card ${styles.auditCard}`}>
         <div className="title-row">
           <div>
             <h3>{t("account.activityLog")}</h3>

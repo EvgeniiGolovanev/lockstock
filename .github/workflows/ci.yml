@@ -9,11 +9,16 @@ on:
 jobs:
   quality:
     name: Application verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configure checked-out repository ownership in container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,9 +41,6 @@ jobs:
       - name: Run coverage report
         run: npm run test:coverage
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
       - name: Run critical E2E suite
         run: npm run test:e2e
 
@@ -57,7 +59,7 @@ jobs:
 
   database:
     name: Disposable database verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout

@@ -5,10 +5,19 @@ export type NavIcon =
   | "locations"
   | "vendors"
   | "purchase-orders"
+  | "replenishment"
   | "members"
   | "workflows";
 
 export function NavItemIcon({ icon }: { icon: NavIcon }) {
+  if (icon === "replenishment") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3 3 7.5v9L12 21l2-1M12 3l9 4.5V12M3 7.5l9 4.5 9-4.5M12 12v9M7.5 5.25l9 4.5M19 15v6M16 18h6" />
+      </svg>
+    );
+  }
+
   if (icon === "inventory") {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">

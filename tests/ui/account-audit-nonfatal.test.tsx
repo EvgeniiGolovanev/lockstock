@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
-const { authMock, localeMock } = vi.hoisted(() => ({
+const { authMock, localeMock, addActivityMock } = vi.hoisted(() => ({
+  addActivityMock: vi.fn(),
   authMock: {
     getSession: vi.fn(),
     updateUser: vi.fn(),
@@ -59,7 +60,7 @@ vi.mock("@/lib/supabase-browser", () => ({
 }));
 
 vi.mock("@/lib/ui/use-activity-log", () => ({
-  useActivityLog: () => ({ addActivity: vi.fn() })
+  useActivityLog: () => ({ addActivity: addActivityMock })
 }));
 
 import { LockstockAccount } from "@/components/lockstock-account";
@@ -74,6 +75,21 @@ function mockJsonResponse(body: unknown, ok = true) {
 
 describe("LockstockAccount", () => {
   afterEach(cleanup);
+  it("links to each account area without losing an edited profile", async () => {
+    await act(async () => { render(<LockstockAccount />); });
+    expect(screen.getByRole("heading", { name: "Subscription" })).toBeInTheDocument();
+    const name = await screen.findByLabelText("Full Name");
+    fireEvent.change(name, { target: { value: "Updated profile name" } });
+    const navigation = await screen.findByRole("navigation", { name: "Account sections" });
+    for (const area of ["profile", "security", "subscription", "activity"]) {
+      const link = navigation.querySelector(`a[href="#account-${area}"]`);
+      expect(link).toBeInTheDocument();
+      expect(document.getElementById(`account-${area}`)).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("link", { name: /^Security$/ }));
+    expect(name).toHaveValue("Updated profile name");
+    expect(screen.getByLabelText("New Password")).toBeVisible();
+  });
   it("keeps replenishment accessible from the account navigation", async () => {
     render(<LockstockAccount />);
     expect(await screen.findByRole("link", { name: "Replenishment" })).toHaveAttribute("href", "/replenishment");

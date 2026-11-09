@@ -129,6 +129,31 @@ export function WorkbenchSnapshotSection({
   };
   return (
     <section className="card">
+      <div className="table-section-head">
+        <h2>{t("workbench.snapshot.inventoryStatus")}</h2>
+        <div className="actions table-head-actions inventory-table-actions">
+          {canManageCatalog ? (
+            <Link className="ghost-btn link-button" href="/materials">
+              {t("workbench.material.create")}
+            </Link>
+          ) : null}
+          {canCreateStockMovement ? (
+            <Link className="ghost-btn link-button" href="/stock-movements">
+              {t("workbench.movement.open")}
+            </Link>
+          ) : null}
+          {canManageCatalog ? (
+            <Link className="ghost-btn link-button" href="/purchase-orders">
+              {t("workbench.snapshot.orderMaterial")}
+            </Link>
+          ) : null}
+          {canExportCsv ? (
+            <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || inventoryTableRows.length === 0} onClick={onExportCsv}>
+              {t("workbench.location.exportCsv")}
+            </button>
+          ) : null}
+        </div>
+      </div>
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-top">
@@ -213,31 +238,6 @@ export function WorkbenchSnapshotSection({
       </section>
 
       <section className="card">
-        <div className="table-section-head">
-          <h2>{t("workbench.snapshot.inventoryStatus")}</h2>
-          <div className="actions table-head-actions inventory-table-actions">
-            {canManageCatalog ? (
-              <Link className="ghost-btn link-button" href="/materials">
-                {t("workbench.material.create")}
-              </Link>
-            ) : null}
-            {canCreateStockMovement ? (
-              <Link className="ghost-btn link-button" href="/stock-movements">
-                {t("workbench.movement.open")}
-              </Link>
-            ) : null}
-            {canManageCatalog ? (
-              <Link className="ghost-btn link-button" href="/purchase-orders">
-                {t("workbench.snapshot.orderMaterial")}
-              </Link>
-            ) : null}
-            {canExportCsv ? (
-              <button type="button" className="ghost-btn export-csv-btn" disabled={!listReady || inventoryTableRows.length === 0} onClick={onExportCsv}>
-                {t("workbench.location.exportCsv")}
-              </button>
-            ) : null}
-          </div>
-        </div>
         {inventoryTableRows.length === 0 ? (listReady ? (
           <p>{t("workbench.snapshot.none")}</p>
         ) : null) : (
