@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { ApiError, handleApiError } from "@/lib/api/errors";
 import { requireMinRole, requireRequestContext } from "@/lib/api/route-context";
 import { createPurchaseOrderSchema } from "@/lib/validators/purchase-order";
@@ -21,7 +22,7 @@ function parsePositiveInt(value: string | null, fallback: number) {
 
 function makePoNumber() {
   const stamp = new Date().toISOString().replaceAll("-", "").replaceAll(":", "").replace("T", "-").slice(0, 15);
-  return `PO-${stamp}`;
+  return `PO-${stamp}-${randomUUID()}`;
 }
 
 export async function GET(request: NextRequest) {
