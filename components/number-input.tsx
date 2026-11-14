@@ -37,7 +37,9 @@ export function NumberInput({ value, onValueChange, min, max, disabled, readOnly
       {[1, -1].map(direction => <button key={direction} type="button" tabIndex={-1}
         aria-label={direction === 1 ? "+1" : "−1"} disabled={!allowed(direction)}
         onClick={event => { event.preventDefault(); inputRef.current?.focus(); change(direction); }}>
-        <span aria-hidden="true">{direction === 1 ? "▴" : "▾"}</span>
+        <svg aria-hidden="true" width="10" height="8" viewBox="0 0 10 8" fill="currentColor">
+          <path d={direction === 1 ? "M5 2 9 6H1Z" : "M5 6 1 2H9Z"} />
+        </svg>
       </button>)}
     </span>
   </span>;

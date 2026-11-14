@@ -12,6 +12,7 @@ function Field({ min, max, disabled = false }: { min?: number; max?: number; dis
 
 it("changes a fractional value by exactly one with both arrow buttons", () => {
   render(<Field />);
+  expect(screen.getByLabelText("Quantity", { exact: true })).toHaveValue(2.5);
   fireEvent.click(screen.getByRole("button", { name: "+1" }));
   expect(screen.getByRole("spinbutton")).toHaveValue(3.5);
   fireEvent.click(screen.getByRole("button", { name: "−1" }));

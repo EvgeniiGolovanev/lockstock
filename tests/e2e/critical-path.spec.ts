@@ -671,6 +671,7 @@ test("date fields keep dd-mmm-yyyy while purchase orders submit ISO dates", asyn
   await page.getByRole("button", { name: "Create PO", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Create purchase order" });
   const date = dialog.getByRole("textbox", { name: "Expected Date" });
+  await expect(dialog.getByLabel("Quantity", { exact: true })).toHaveValue("1");
   await expect(date).toHaveAttribute("placeholder", "dd-mmm-yyyy");
   await date.fill("14-Nov-2026");
   await dialog.getByRole("button", { name: "Open calendar", exact: true }).click();
