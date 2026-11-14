@@ -8,6 +8,7 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 type MaterialBalanceRow = {
+  location_id: string;
   quantity: number | string | null;
   location?: { code: string | null; name: string } | null;
 };
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("materials")
-      .select("*, balances:inventory_balances(quantity, location:locations(code,name))", { count: "exact" })
+      .select("*, balances:inventory_balances(location_id,quantity, location:locations(code,name))", { count: "exact" })
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .range(from, to);

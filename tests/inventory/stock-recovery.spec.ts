@@ -30,16 +30,15 @@ for (const width of [1440, 390]) {
         await dialog.getByRole("combobox", { name: "Transfer to", exact: true }).selectOption(b.id);
       } else await dialog.getByRole("combobox", { name: "Location", exact: true }).selectOption(a.id);
       const quantity = reason === "adjustment" ? 5 : reason === "consumption" ? 4 : 7;
-      const label = reason === "adjustment" ? "Quantity Delta" : "Quantity";
-      const submit = reason === "consumption" ? "Record Consumption" : "Add to Stock";
+      const label = reason === "adjustment" ? "Change in quantity" : "Quantity";
+      const submit = reason === "consumption" ? "Record Consumption" : reason === "transfer" ? "Transfer stock" : "Add to Stock";
       const note = `Safe ${reason} ${width}`;
       await dialog.getByRole("textbox", { name: "Comments", exact: true }).fill(note);
       if (reason === "consumption") {
         await dialog.getByLabel(label, { exact: true }).fill("999");
-        const before = await inventory.snapshot(), rejected = response();
-        await dialog.getByRole("button", { name: submit, exact: true }).click();
-        expect((await rejected).status()).toBe(400);
-        await expect(dialog.getByRole("alert")).toHaveText("Not enough quantity at the specified location.");
+        const before = await inventory.snapshot();
+        await expect(dialog.getByRole("button", { name: submit, exact: true })).toBeDisabled();
+        await expect(dialog.getByRole("status")).toContainText("Not enough stock");
         await expect(dialog.getByRole("textbox", { name: "Comments", exact: true })).toHaveValue(note);
         expect(await inventory.snapshot()).toEqual(before);
       }
@@ -73,7 +72,7 @@ for (const width of [1440, 390]) {
       expect(await inventory.snapshot()).toEqual(stored);
       await expect(page.getByRole("cell", { name: note, exact: true })).toHaveCount(reason === "transfer" ? 2 : 1);
     }
-    expect(writes).toBe(4); // Three successful writes and one genuine rejection.
+    expect(writes).toBe(3); // Invalid consumption is blocked before sending; successful writes are never repeated.
     expect(await inventory.rows("stock_movements")).toHaveLength(5);
     expect(errors).toEqual([]);
   });

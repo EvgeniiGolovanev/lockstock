@@ -60,7 +60,9 @@ describe("WorkbenchStockMovementsSection", () => {
     expect(screen.getByRole("button", { name: "Move Material" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
     expect(screen.getByRole("dialog", { name: "Move Material" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add to Stock" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Add to Stock" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Material"), { target: { value: "mat-1" } });
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "loc-1" } });
     expect(screen.getByText("Page 1/3")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/Search/), { target: { value: "Cement" } });
     expect(search).toHaveBeenCalledWith("Cement");

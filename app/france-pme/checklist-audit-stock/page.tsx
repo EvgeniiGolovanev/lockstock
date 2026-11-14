@@ -8,19 +8,19 @@ import styles from "@/components/france-campaign.module.css";
 const checklistSections = [
   {
     title: "france.checklist.data.title",
-    items: ["france.checklist.data.one", "france.checklist.data.two", "france.checklist.data.three"]
+    items: ["france.checklist.data.one", "france.checklist.data.two", "france.checklist.data.three", "france.checklist.data.four", "france.checklist.data.five"]
   },
   {
     title: "france.checklist.locations.title",
-    items: ["france.checklist.locations.one", "france.checklist.locations.two", "france.checklist.locations.three"]
+    items: ["france.checklist.locations.one", "france.checklist.locations.two", "france.checklist.locations.three", "france.checklist.locations.four", "france.checklist.locations.five"]
   },
   {
     title: "france.checklist.purchasing.title",
-    items: ["france.checklist.purchasing.one", "france.checklist.purchasing.two", "france.checklist.purchasing.three"]
+    items: ["france.checklist.purchasing.one", "france.checklist.purchasing.two", "france.checklist.purchasing.three", "france.checklist.purchasing.four", "france.checklist.purchasing.five"]
   },
   {
     title: "france.checklist.governance.title",
-    items: ["france.checklist.governance.one", "france.checklist.governance.two", "france.checklist.governance.three"]
+    items: ["france.checklist.governance.one", "france.checklist.governance.two", "france.checklist.governance.three", "france.checklist.governance.four", "france.checklist.governance.five"]
   }
 ] as const satisfies ReadonlyArray<{ title: StaticMessageKey; items: readonly StaticMessageKey[] }>;
 
@@ -65,8 +65,6 @@ export default function ChecklistAuditStockPage() {
                   {section.items.map((item) => (
                     <li key={item}><TranslatedMessage id={item} /></li>
                   ))}
-                  <li><TranslatedMessage id="france.checklist.owner" /></li>
-                  <li><TranslatedMessage id="france.checklist.measure" /></li>
                 </ol>
               </article>
             ))}

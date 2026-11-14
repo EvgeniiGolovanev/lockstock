@@ -16,6 +16,7 @@ export type MaterialRow = {
 };
 
 export type MaterialBalanceRow = {
+  location_id?: string;
   quantity: number | string | null;
   location?: {
     code?: string | null;
@@ -268,7 +269,7 @@ export function filterInventoryRows<T extends MaterialRow>(materials: T[], query
   const normalizedQuery = query.trim().toLowerCase();
   return materials.filter((material) => {
     const displayMaterial = material as MaybeInventoryDisplayRow;
-    const quantity = Number(displayMaterial.location_quantity ?? material.total_quantity ?? 0);
+    const quantity = Number(material.total_quantity ?? 0);
     const normalizedStatus = normalizeStatus(material.stock_status, quantity, Number(material.min_stock));
     const normalizedLocation = displayMaterial.location_label || material.primary_location?.trim() || "Unassigned";
 
@@ -297,6 +298,8 @@ function formatBalanceLocation(balance: MaterialBalanceRow): string {
 
 export function expandInventoryRows(materials: MaterialRow[]): InventoryDisplayRow[] {
   return materials.flatMap((material) => {
+    // A material has one company-wide threshold, not a threshold per location.
+    const stock_status = normalizeStatus(undefined, Number(material.total_quantity ?? 0), Number(material.min_stock));
     const positiveBalances = (material.balances ?? [])
       .map((balance, index) => ({
         index,
@@ -312,6 +315,7 @@ export function expandInventoryRows(materials: MaterialRow[]): InventoryDisplayR
       return [
         {
           ...material,
+          stock_status,
           inventory_row_id: `${material.id}:unassigned`,
           location_label: locationLabel,
           location_quantity: quantity
@@ -321,6 +325,7 @@ export function expandInventoryRows(materials: MaterialRow[]): InventoryDisplayR
 
     return positiveBalances.map((balance) => ({
       ...material,
+      stock_status,
       inventory_row_id: `${material.id}:${balance.index}`,
       location_label: balance.locationLabel,
       location_quantity: balance.quantity

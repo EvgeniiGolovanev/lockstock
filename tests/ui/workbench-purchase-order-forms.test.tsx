@@ -48,10 +48,16 @@ describe("WorkbenchPurchaseOrderForms", () => {
     );
 
     fireEvent.change(screen.getByRole("combobox", { name: "Supplier" }), { target: { value: "sup-1" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Expected Date" }), { target: { value: "14-Nov-2026" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Material" }), { target: { value: "mat-1" } });
     fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "12" } });
     fireEvent.change(screen.getByLabelText(/Unit Price/i), { target: { value: "4.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Item" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Expected Date" }), { target: { value: "31-Feb-2027" } });
+    expect(screen.getByRole("button", { name: "Create Purchase Order" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Create Purchase Order" }));
+    expect(apiRequest).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Expected Date" }), { target: { value: "14-Nov-2026" } });
     fireEvent.click(screen.getByRole("button", { name: "Create Purchase Order" }));
 
     await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
@@ -60,7 +66,7 @@ describe("WorkbenchPurchaseOrderForms", () => {
       body: {
         supplier_id: "sup-1",
         currency: "EUR",
-        expected_at: undefined,
+        expected_at: "2026-11-14",
         notes: undefined,
         lines: [
           {

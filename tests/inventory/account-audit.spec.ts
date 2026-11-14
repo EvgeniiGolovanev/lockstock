@@ -61,7 +61,8 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("status").filter({ hasText: "Loading audit log" })).toBeVisible();
     journalMode = "pass"; await release(); await expect(aRow).toBeVisible(); await expect(activityError).toHaveCount(0);
     const today = new Date().toISOString().slice(0, 10);
-    await page.getByLabel("From", { exact: true }).fill(today); await page.getByLabel("To", { exact: true }).fill(today);
+    const displayToday = `${today.slice(8, 10)}-${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(today.slice(5, 7)) - 1]}-${today.slice(0, 4)}`;
+    await page.getByLabel("From", { exact: true }).fill(displayToday); await page.getByLabel("To", { exact: true }).fill(displayToday);
     const verifyCsv = async (download: Download, present: string, absent: string, name: string) => {
       expect(download.suggestedFilename()).toBe(`audit-log-${today}-${today}.csv`);
       const file = testInfo.outputPath(name); await download.saveAs(file);
@@ -123,7 +124,7 @@ for (const width of [1440, 390]) {
     const denied = page.waitForResponse(response => new URL(response.url()).searchParams.get("format") === "csv");
     await page.getByRole("button", { name: "Download CSV", exact: true }).click(); expect((await denied).status()).toBe(403);
     await expect(exportError).toBeVisible(); expect(downloads).toHaveLength(2);
-    await expect(page.getByLabel("From", { exact: true })).toHaveValue(today); await expect(page.getByLabel("To", { exact: true })).toHaveValue(today);
+    await expect(page.getByLabel("From", { exact: true })).toHaveValue(displayToday); await expect(page.getByLabel("To", { exact: true })).toHaveValue(displayToday);
     expect(await other.snapshot()).toEqual(deniedSnapshot);
     await page.screenshot({ path: testInfo.outputPath(`account-audit-denied-${width}.png`), fullPage: true });
     // A viewer with no personal events has a genuinely empty successful journal.

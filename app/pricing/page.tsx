@@ -143,8 +143,7 @@ export default function PricingPage() {
           <div>
             <h4><TranslatedMessage id="pricing.company" /></h4>
             <Link href="/about"><TranslatedMessage id="pricing.about" /></Link>
-            <Link href="/#benefits"><TranslatedMessage id="footer.blog" /></Link>
-            <Link href="/#benefits"><TranslatedMessage id="pricing.contact" /></Link>
+            <Link href="/contact"><TranslatedMessage id="pricing.contact" /></Link>
           </div>
           <div>
             <h4><TranslatedMessage id="pricing.legal" /></h4>

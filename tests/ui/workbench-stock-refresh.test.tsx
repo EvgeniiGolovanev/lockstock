@@ -35,6 +35,8 @@ it("ignores a late sibling response from a failed stock refresh after a successf
   const open = await screen.findByRole("button", { name: "Move Material" });
   await waitFor(() => expect(open).toBeEnabled());
   fireEvent.click(open);
+  fireEvent.change(screen.getByLabelText("Material"), { target: { value: "mat" } });
+  fireEvent.change(screen.getByLabelText("Location"), { target: { value: "loc" } });
   fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
   await screen.findByText(/The operation completed/);
   expect(releaseOld).toBeDefined();

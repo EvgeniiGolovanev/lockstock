@@ -26,6 +26,19 @@ describe("replenishment screen", () => {
     setup([row], false); await screen.findByText("Bolts");
     expect(screen.getByRole("button", { name: "Review draft orders" })).toBeDisabled();
   });
+  it("blocks an invalid optional date but allows explicit clearing", async () => {
+    const api = setup(); await screen.findByText("Bolts");
+    fireEvent.click(screen.getByLabelText("Select BOLT"));
+    fireEvent.click(screen.getByRole("button", { name: "Review draft orders" }));
+    const date = screen.getByRole("textbox", { name: "Expected date (optional) BOLT" });
+    fireEvent.change(date, { target: { value: "31-Feb-2027" } });
+    const create = screen.getByRole("button", { name: "Create draft orders" });
+    expect(create).toBeDisabled();
+    fireEvent.click(create);
+    expect(api.mock.calls.every(([path]) => !path.endsWith("/drafts"))).toBe(true);
+    fireEvent.change(date, { target: { value: "" } });
+    expect(create).toBeEnabled();
+  });
   it("distinguishes empty from failed loading", async () => {
     setup([]); expect(await screen.findByText("No materials match this view.")).toBeVisible();
   });

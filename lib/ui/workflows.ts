@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n";
 
-export type WorkflowId = "overview" | "stock-movement" | "purchase-orders" | "members";
+export type WorkflowId = "overview" | "stock-movement" | "purchase-orders" | "replenishment" | "members";
 
 export type WorkflowDefinition = {
   id: WorkflowId;
@@ -57,6 +57,22 @@ export const WORKFLOWS: WorkflowDefinition[] = [
     image: {
       en: "/workflows/purchase-order-lifecycle.svg",
       fr: "/workflows/purchase-order-lifecycle-fr.svg"
+    }
+  },
+  {
+    id: "replenishment",
+    pages: ["/replenishment"],
+    title: {
+      en: "Replenishment workflow",
+      fr: "Workflow de réapprovisionnement"
+    },
+    summary: {
+      en: "From company stock needs to reviewed draft orders and goods receipt.",
+      fr: "Des besoins de stock de l’entreprise aux brouillons vérifiés et à la réception."
+    },
+    image: {
+      en: "/workflows/replenishment-workflow.svg",
+      fr: "/workflows/replenishment-workflow-fr.svg"
     }
   },
   {

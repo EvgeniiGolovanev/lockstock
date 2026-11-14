@@ -201,6 +201,9 @@ describe("POST /api/materials auth and role enforcement", () => {
     expect(supabase.materialListQuery.eq).toHaveBeenCalledWith("category", "Structural & Building Materials");
     expect(supabase.materialListQuery.eq).toHaveBeenCalledWith("subcategory", "Concrete & cement");
     expect(supabase.materialListQuery.range).toHaveBeenCalledWith(10, 19);
+    expect(supabase.materialsTable.select).toHaveBeenCalledWith(
+      "*, balances:inventory_balances(location_id,quantity, location:locations(code,name))", { count: "exact" }
+    );
   });
 
   it("defaults material catalog pagination to 20 rows", async () => {

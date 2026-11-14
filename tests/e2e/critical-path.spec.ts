@@ -42,7 +42,8 @@ type AppState = {
     organization: { id: string; name: string; created_at: string };
   }>;
   membersByOrg: Record<string, Array<{ user_id: string; email: string | null; full_name: string | null; role: string; created_at: string }>>;
-  materials: Array<{ id: string; sku: string; name: string; uom: string; is_active: boolean; min_stock: number; total_quantity: number; primary_location: string }>;
+  materials: Array<{ id: string; sku: string; name: string; uom: string; is_active: boolean; min_stock: number; total_quantity: number; primary_location: string;
+    balances?: Array<{ location_id: string; quantity: number; location: { code?: string | null; name: string } }> }>;
   locations: Array<{ id: string; code: string; name: string; is_active: boolean }>;
   suppliers: Array<{ id: string; name: string; lead_time_days: number; is_active: boolean; created_at: string; vendor_number: number }>;
   purchaseOrders: Array<{
@@ -439,7 +440,7 @@ test("landing page renders French copy from message keys after a locale switch",
 
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
   await expect(page.getByRole("heading", { name: /Maitrisez votre inventaire/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Tout ce dont vous avez besoin/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Du contrôle du stock à la réception fournisseur" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Demarrer/ })).toHaveCount(2);
 });
 
@@ -591,7 +592,19 @@ test("stock movement creation works and rejects read-only workspaces", async ({ 
   await moveDialog.getByRole("combobox", { name: "Material" }).selectOption(materialId);
   await moveDialog.getByRole("combobox", { name: "Reason" }).selectOption("adjustment");
   await moveDialog.getByRole("combobox", { name: "Location" }).selectOption(locationId);
-  await moveDialog.getByLabel("Quantity Delta").fill("3");
+  await moveDialog.getByRole("combobox", { name: "Material" }).selectOption(materialId);
+  await moveDialog.getByRole("combobox", { name: "Location" }).selectOption(locationId);
+  const quantity = moveDialog.getByLabel("Change in quantity");
+  await quantity.fill("0.125");
+  await quantity.press("ArrowUp");
+  await expect(quantity).toHaveValue("1.125");
+  await moveDialog.getByRole("button", { name: "−1", exact: true }).click();
+  await expect(quantity).toHaveValue("0.125");
+  await moveDialog.getByRole("button", { name: "+1", exact: true }).click();
+  await expect(quantity).toHaveValue("1.125");
+  await quantity.fill("2");
+  await quantity.press("ArrowUp");
+  await expect(quantity).toHaveValue("3");
   await page.getByRole("button", { name: "Add to Stock" }).click();
 
   await expect(page.locator("tbody tr")).toHaveCount(2);
@@ -612,12 +625,164 @@ test("stock movement creation works and rejects read-only workspaces", async ({ 
   await moveDialog.getByRole("combobox", { name: "Material" }).selectOption(materialId);
   await moveDialog.getByRole("combobox", { name: "Reason" }).selectOption("adjustment");
   await moveDialog.getByRole("combobox", { name: "Location" }).selectOption(locationId);
-  await moveDialog.getByLabel("Quantity Delta").fill("3");
+  await moveDialog.getByRole("combobox", { name: "Material" }).selectOption(materialId);
+  await moveDialog.getByRole("combobox", { name: "Location" }).selectOption(locationId);
+  await moveDialog.getByLabel("Change in quantity").fill("3");
   await page.getByRole("button", { name: "Add to Stock" }).click();
 
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(page.locator("tbody tr").first()).toContainText("3");
   expect(state.stockMovementPosts).toBe(2);
+});
+
+test("replenishment has the shared workflow guide and localized gallery diagram", async ({ page }) => {
+  await seedSignedInPage(page);
+  await installAppRoutes(page, baseAppState());
+  await page.route("**/api/replenishment?*", route => route.fulfill({ json: { data: {
+    rows: [], total: 0, counts: { ready: 0, review: 0, setup: 0, draft: 0, covered: 0 }, can_write: true
+  } } }));
+  await page.goto("/replenishment");
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  const guide = page.getByRole("dialog");
+  const diagram = guide.getByRole("img", { name: "Replenishment workflow", exact: true });
+  await expect(diagram).toBeVisible();
+  await expect(diagram).toHaveAttribute("src", "/workflows/replenishment-workflow.svg");
+  await expect.poll(() => diagram.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(1440);
+  await page.screenshot({ path: "output/playwright/replenishment-workflow-en.png", fullPage: true });
+  await guide.getByRole("button", { name: "Close", exact: true }).click();
+  await page.goto("/workflows");
+  await expect(page.getByRole("heading", { name: "Replenishment workflow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "FR", exact: true }).click();
+  await expect(page.getByRole("img", { name: "Workflow de réapprovisionnement", exact: true })).toHaveAttribute("src", "/workflows/replenishment-workflow-fr.svg");
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.goto("/replenishment");
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("img", { name: "Workflow de réapprovisionnement", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: "output/playwright/replenishment-workflow-fr-mobile.png", fullPage: true });
+});
+
+test("date fields keep dd-mmm-yyyy while purchase orders submit ISO dates", async ({ page }) => {
+  await seedSignedInPage(page);
+  await installAppRoutes(page, baseAppState());
+  await page.route("**/api/purchase-orders", route => route.request().method() === "POST"
+    ? route.fulfill({ status: 201, json: { data: { id: "date-check" } } }) : route.fallback());
+  await page.goto("/purchase-orders");
+  await page.getByRole("button", { name: "Create PO", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create purchase order" });
+  const date = dialog.getByRole("textbox", { name: "Expected Date" });
+  await expect(dialog.getByLabel("Quantity", { exact: true })).toHaveValue("1");
+  await expect(date).toHaveAttribute("placeholder", "dd-mmm-yyyy");
+  await date.fill("14-Nov-2026");
+  await dialog.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await dialog.locator('input[type="date"]').fill("2026-12-25", { force: true });
+  await expect(date).toHaveValue("25-Dec-2026");
+  await dialog.getByRole("combobox", { name: "Supplier", exact: true }).selectOption(supplierId);
+  await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(materialId);
+  await dialog.getByRole("button", { name: "Add Item", exact: true }).click();
+  await page.screenshot({ path: "output/playwright/date-mask-after.png", fullPage: true });
+  const request = page.waitForRequest(req => req.url().endsWith("/api/purchase-orders") && req.method() === "POST");
+  await dialog.getByRole("button", { name: "Create Purchase Order", exact: true }).click();
+  expect((await request).postDataJSON().expected_at).toBe("2026-12-25");
+  await expect(dialog).toBeHidden();
+});
+
+test("audit fixes keep company stock status consistent across split balances", async ({ page }) => {
+  const state = baseAppState();
+  state.materials[0].balances = [
+    { location_id: locationId, quantity: 1, location: { code: "MAIN", name: "Main Warehouse" } },
+    { location_id: "site", quantity: 25, location: { code: "SITE", name: "Site" } }
+  ];
+  await seedSignedInPage(page);
+  await installAppRoutes(page, state);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open inventory", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/inventory$/);
+  await expect(page.locator("tbody tr")).toHaveCount(2);
+  await expect(page.locator("tbody .status-pill").filter({ hasText: "In Stock" })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Sort by Company stock status" })).toBeVisible();
+  await page.screenshot({ path: "output/playwright/audit-inventory-after.png", fullPage: true });
+  await page.getByRole("combobox", { name: "Inventory status", exact: true }).selectOption("low-stock");
+  await expect(page.getByText("No inventory items match these filters.")).toBeVisible();
+});
+
+test("audit fixes select an outstanding receipt line and accept the exact decimal remainder", async ({ page }) => {
+  const state = baseAppState();
+  const po = state.purchaseOrders[1];
+  po.status = "partial";
+  po.lines = [
+    { id: "completed", material_id: materialId, quantity_ordered: 1, quantity_received: 1, unit_price: 1 },
+    { id: "remaining", material_id: materialId, quantity_ordered: 0.3, quantity_received: 0.1, unit_price: 1 }
+  ];
+  await seedSignedInPage(page);
+  await installAppRoutes(page, state);
+  await page.goto("/purchase-orders");
+  await page.getByRole("row").filter({ hasText: po.po_number }).getByRole("button", { name: "Receive", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Receive purchase order" });
+  await expect(dialog.getByRole("combobox", { name: "Line", exact: true })).toHaveValue("remaining");
+  await expect(dialog.getByRole("combobox", { name: "Line", exact: true }).getByRole("option")).toHaveCount(2);
+  await expect(dialog.getByRole("combobox", { name: "Purchase Order", exact: true }).getByRole("option")).toHaveCount(2);
+  await dialog.getByRole("combobox", { name: "Location", exact: true }).selectOption(locationId);
+  await dialog.getByLabel("Quantity Received", { exact: true }).fill("0.3");
+  await expect(dialog.getByRole("button", { name: "Receive", exact: true })).toBeDisabled();
+  await dialog.getByLabel("Quantity Received", { exact: true }).fill("0.2");
+  await expect(dialog.getByRole("button", { name: "Receive", exact: true })).toBeEnabled();
+  await page.screenshot({ path: "output/playwright/audit-receipt-after.png", fullPage: true });
+  const request = page.waitForRequest(req => req.url().endsWith(`/api/purchase-orders/${po.id}/receive`) && req.method() === "POST");
+  await dialog.getByRole("button", { name: "Receive", exact: true }).click();
+  expect((await request).postDataJSON()).toEqual({ receipts: [{ po_line_id: "remaining", location_id: locationId, quantity_received: 0.2 }] });
+  await expect(dialog).toBeHidden();
+});
+
+test("audit fixes show transfer stock before and after using the selected locations", async ({ page }) => {
+  const state = baseAppState();
+  state.locations.push({ id: "site", code: "SITE", name: "Site", is_active: true });
+  state.materials[0].balances = [
+    { location_id: locationId, quantity: 25, location: { code: "MAIN", name: "Main Warehouse" } },
+    { location_id: "site", quantity: 1, location: { code: "SITE", name: "Site" } }
+  ];
+  await seedSignedInPage(page);
+  await installAppRoutes(page, state);
+  await page.goto("/stock-movements");
+  await page.getByRole("button", { name: "Move Material", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Move Material" });
+  await expect(dialog.getByRole("button", { name: "Add to Stock" })).toBeDisabled();
+  await dialog.getByRole("combobox", { name: "Material", exact: true }).selectOption(materialId);
+  await dialog.getByRole("combobox", { name: "Reason", exact: true }).selectOption("transfer");
+  await dialog.getByRole("combobox", { name: "Transfer out", exact: true }).selectOption(locationId);
+  await dialog.getByRole("combobox", { name: "Transfer to", exact: true }).selectOption("site");
+  await dialog.getByLabel("Quantity", { exact: true }).fill("0.5");
+  await expect(dialog.getByRole("status")).toContainText("25 → 24.5 BAG");
+  await expect(dialog.getByRole("status")).toContainText("1 → 1.5 BAG");
+  await expect(dialog.getByRole("button", { name: "Transfer stock" })).toBeEnabled();
+  await page.screenshot({ path: "output/playwright/audit-transfer-after.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.getByRole("button", { name: "Transfer stock" }).scrollIntoViewIfNeeded();
+  await expect(dialog.getByRole("button", { name: "Transfer stock" })).toBeInViewport();
+  await page.screenshot({ path: "output/playwright/audit-transfer-mobile-after.png", fullPage: true });
+});
+
+test("audit fixes show customer-facing public copy in English and French", async ({ page }) => {
+  for (const locale of ["en", "fr"]) {
+    await page.goto("/france-pme");
+    await page.getByRole("button", { name: locale.toUpperCase(), exact: true }).click();
+    await expect(page.getByText(locale === "en" ? "15-day free trial" : "Essai gratuit 15 jours", { exact: false })).toBeVisible();
+    for (const slug of ["construction-materiaux", "industrie-atelier", "maintenance-terrain"]) {
+      await page.goto(`/france-pme/${slug}`);
+      await expect(page.getByText(locale === "en" ? "Example workflow" : "Exemple de parcours", { exact: true })).toBeVisible();
+      await expect(page.getByText(/Keywords to test|Mots-clés à tester|What the page should promise|Ce que la page doit promettre/)).toHaveCount(0);
+    }
+    await page.screenshot({ path: `output/playwright/audit-public-${locale}-after.png`, fullPage: true });
+    await page.goto("/france-pme/checklist-audit-stock");
+    await expect(page.locator("main ol li")).toHaveCount(20);
+    await expect(page.locator("main")).not.toContainText(/CAC|qualified leads|leads qualifiés/);
+    for (const route of ["/privacy", "/terms"]) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { name: locale === "en" ? "Document in preparation" : "Document en préparation" })).toBeVisible();
+      await expect(page.locator("main")).not.toContainText(/docs\/|Do not enable paid self-service/);
+    }
+  }
 });
 
 test("purchase orders and owner billing actions follow the critical path", async ({ page }) => {

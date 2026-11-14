@@ -92,8 +92,6 @@ export function WorkbenchSnapshotSection({
   canCreateStockMovement,
   canExportCsv,
   metrics,
-  lowStockCount,
-  stockHealth,
   inventoryValueBadge,
   inventoryValueLabel,
   materialFilterQuery,
@@ -154,6 +152,7 @@ export function WorkbenchSnapshotSection({
           ) : null}
         </div>
       </div>
+      <p className="subtle-line">{t("workbench.snapshot.scope")}</p>
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-top">
@@ -171,7 +170,7 @@ export function WorkbenchSnapshotSection({
               ↘
             </span>
           </div>
-          <strong>{lowStockCount ?? stockHealth?.low_stock ?? metrics.lowStock}</strong>
+          <strong>{metrics.lowStock}</strong>
         </div>
         <div className="kpi-card">
           <div className="kpi-top">
@@ -180,7 +179,7 @@ export function WorkbenchSnapshotSection({
               !
             </span>
           </div>
-          <strong>{stockHealth?.out_of_stock ?? metrics.outOfStock}</strong>
+          <strong>{metrics.outOfStock}</strong>
         </div>
         <div className="kpi-card">
           <div className="kpi-top">
@@ -249,12 +248,12 @@ export function WorkbenchSnapshotSection({
                   <SortableHeader tableId="inventory" sortKey="name" label={t("workbench.snapshot.itemName")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.itemName"), "name")} />
                   <SortableHeader tableId="inventory" sortKey="category" label={t("workbench.material.category")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.category"), "category")} />
                   <SortableHeader tableId="inventory" sortKey="subcategory" label={t("workbench.material.subcategory")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.subcategory"), "subcategory")} />
-                  <SortableHeader tableId="inventory" sortKey="quantity" label={t("workbench.movement.quantity")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.quantity"), "quantity")} />
+                  <SortableHeader tableId="inventory" sortKey="quantity" label={t("workbench.snapshot.locationQuantity")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.locationQuantity"), "quantity")} />
                   <SortableHeader tableId="inventory" sortKey="uom" label={t("workbench.material.uom")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.material.uom"), "uom")} />
                   <SortableHeader tableId="inventory" sortKey="pricePerUnit" label={t("workbench.snapshot.pricePerUnit")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.pricePerUnit"), "pricePerUnit")} />
                   <SortableHeader tableId="inventory" sortKey="total" label={t("workbench.snapshot.total")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.total"), "total")} />
                   <SortableHeader tableId="inventory" sortKey="location" label={t("workbench.movement.location")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.movement.location"), "location")} />
-                  <SortableHeader tableId="inventory" sortKey="statusLabel" label={t("workbench.location.status")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.location.status"), "statusLabel")} />
+                  <SortableHeader tableId="inventory" sortKey="statusLabel" label={t("workbench.snapshot.companyStatus")} sortState={inventorySortState} onSort={onSort} sortAriaLabel={sortAriaLabel(t("workbench.snapshot.companyStatus"), "statusLabel")} />
                 </tr>
               </thead>
               <tbody>

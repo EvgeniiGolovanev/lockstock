@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="980" viewBox="0 0 1440 980" role="img" aria-labelledby="title desc">
+<title id="title">Replenishment workflow</title>
+<desc id="desc">Six steps from stock settings to goods receipt, with calculation and recovery rules.</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#111" stroke-opacity=".035"/></pattern>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth"><path d="M2 2L12 7L2 12Z" fill="#111"/></marker>
+    <style>
+      .bg{fill:#f4f0ea}.grid{fill:url(#grid)}.paper{fill:#fffdf9}.soft{fill:#f8f5ef}.cream{fill:#fff0e7}.orange{fill:#f26522}.red{fill:#bd2634}.green{fill:#ecf6ee}.ink{fill:#111}.frame,.box,.pill{stroke:#111;stroke-width:2;rx:0}.shadow{fill:#111;opacity:.1}.title{font:900 46px "Segoe UI",Arial,sans-serif;letter-spacing:-2px;fill:#161412}.sub{font:600 17px "Segoe UI",Arial,sans-serif;fill:#6b6259}.eyebrow{font:900 12px "Segoe UI",Arial,sans-serif;letter-spacing:1.4px;text-transform:uppercase;fill:#6b6259}.h{font:900 18px "Segoe UI",Arial,sans-serif;fill:#111}.t{font:600 15px "Segoe UI",Arial,sans-serif;fill:#4c453f}.tiny{font:900 11px "Segoe UI",Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;fill:#111}.white{fill:#fff}.line{fill:none;stroke:#111;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#111;stroke-width:2;stroke-dasharray:7 7;marker-end:url(#arrow)}
+    </style>
+  </defs>
+<rect class="bg" width="1440" height="980"/><rect class="grid" width="1440" height="980"/>
+<g transform="translate(64 50)"><rect class="shadow" x="8" y="8" width="1312" height="110"/><rect class="frame paper" width="1312" height="110"/>
+<text class="title" x="32" y="48">Replenishment workflow</text>
+<text class="sub" x="34" y="80">Review company stock needs, create draft orders, then receive goods.</text>
+<rect class="orange frame" x="1120" y="30" width="142" height="42"/>
+<text class="tiny" x="1140" y="56">Purchasing</text>
+</g>
+<g transform="translate(80 210)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box paper" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">01 · Setup</text>
+<text class="h" x="24" y="62">Set stock rules</text>
+<text class="t" x="24" y="93">Set minimum and target stock.</text>
+<text class="t" x="24" y="116">Choose an active supplier and currency.</text>
+<text class="t" x="24" y="139">A manager with write access can edit.</text>
+</g>
+<g transform="translate(520 210)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box paper" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">02 · Plan</text>
+<text class="h" x="24" y="62">Choose “Plan through”</text>
+<text class="t" x="24" y="93">Use total company stock, all locations.</text>
+<text class="t" x="24" y="116">Materials at or below minimum appear.</text>
+<text class="t" x="24" y="139">The target defaults to the minimum.</text>
+</g>
+<g transform="translate(960 210)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box paper" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">03 · Check supply</text>
+<text class="h" x="24" y="62">Review incoming and drafts</text>
+<text class="t" x="24" y="93">Only timely Sent / Partial POs count.</text>
+<text class="t" x="24" y="116">Check late or undated incoming orders.</text>
+<text class="t" x="24" y="139">Existing drafts reduce the suggestion.</text>
+</g>
+<g transform="translate(960 430)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box cream" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">04 · Review</text>
+<text class="h" x="24" y="62">Review draft orders</text>
+<text class="t" x="24" y="93">Select materials with a positive need.</text>
+<text class="t" x="24" y="116">Check quantity, price and expected date.</text>
+<text class="t" x="24" y="139">Acknowledge uncertain incoming supply.</text>
+</g>
+<g transform="translate(520 430)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box cream" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">05 · Create</text>
+<text class="h" x="24" y="62">Create draft orders</text>
+<text class="t" x="24" y="93">Orders group by supplier and currency.</text>
+<text class="t" x="24" y="116">Nothing is sent to the supplier.</text>
+<text class="t" x="24" y="139">Stock does not change at this stage.</text>
+</g>
+<g transform="translate(80 430)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box green" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">06 · Receive</text>
+<text class="h" x="24" y="62">Open Purchase Orders</text>
+<text class="t" x="24" y="93">Mark Sent after placing the order.</text>
+<text class="t" x="24" y="116">Receive into the selected location.</text>
+<text class="t" x="24" y="139">Stock rises; PO is Partial or Received.</text>
+</g>
+<path class="line" d="M480 290H508"/><path class="line" d="M920 290H948"/><path class="line" d="M1160 370V418"/><path class="line" d="M960 510H932"/><path class="line" d="M520 510H492"/>
+<g transform="translate(80 640)"><rect class="box soft" width="1280" height="108"/><rect class="orange" width="16" height="108"/>
+<text class="h" x="38" y="31">How the suggestion is calculated</text>
+<text class="t" x="38" y="60">Suggested = max(0, target − on hand − timely incoming − existing drafts).</text>
+<text class="t" x="38" y="86">Example: target 50 − on hand 8 − timely incoming 12 − drafts 10 = 20 to order.</text>
+</g>
+<g transform="translate(80 790)"><rect class="box paper" width="1280" height="132"/>
+<text class="h" x="24" y="30">Before retrying or buying again</text>
+<text class="t" x="24" y="58">Setup required: check target, active supplier and currency. Covered / Draft in progress: review existing orders first.</text>
+<text class="t" x="24" y="83">Recommendations changed: refresh and review again. Result unknown: Check result or Retry same request.</text>
+<text class="t" x="24" y="108">Drafts prevent repeat planning; they are not confirmed deliveries. Refresh the plan after receiving goods.</text>
+</g>
+</svg>

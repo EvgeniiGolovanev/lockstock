@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { WORKFLOWS, workflowById, workflowImageForLocale, workflowsForPathname } from "@/lib/ui/workflows";
 
 describe("workflow registry", () => {
   it("maps contextual pages to the expected workflow", () => {
     expect(workflowsForPathname("/stock-movements").map((workflow) => workflow.id)).toEqual(["stock-movement"]);
     expect(workflowsForPathname("/purchase-orders").map((workflow) => workflow.id)).toEqual(["purchase-orders"]);
+    expect(workflowsForPathname("/replenishment").map((workflow) => workflow.id)).toEqual(["replenishment"]);
     expect(workflowsForPathname("/members").map((workflow) => workflow.id)).toEqual(["members"]);
   });
 
@@ -28,6 +31,18 @@ describe("workflow registry", () => {
       expect(workflow.image.fr).toMatch(/^\/workflows\/.+-fr\.svg$/);
       expect(workflow.title.en).not.toBe("");
       expect(workflow.title.fr).not.toBe("");
+    }
+  });
+
+  it("ships matching source and runtime diagrams for the replenishment guide", () => {
+    const workflow = WORKFLOWS.find(workflow => workflow.id === "replenishment");
+    expect(workflow).toBeDefined();
+    for (const locale of ["en", "fr"] as const) {
+      const path = workflowImageForLocale(workflow!, locale);
+      const runtime = readFileSync(join(process.cwd(), "public", path), "utf8");
+      const source = readFileSync(join(process.cwd(), "design", path), "utf8");
+      expect(runtime).toBe(source);
+      expect(runtime).toContain("<svg");
     }
   });
 

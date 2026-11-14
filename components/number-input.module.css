@@ -1,0 +1,52 @@
+.control {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.control input {
+  width: 100%;
+  padding-right: 2rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.control input::-webkit-inner-spin-button,
+.control input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.arrows {
+  position: absolute;
+  inset: 1px 1px 1px auto;
+  display: flex;
+  flex-direction: column;
+  width: 1.75rem;
+}
+
+.arrows button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.arrows button:hover:not(:disabled) {
+  background: rgb(0 0 0 / 8%);
+}
+
+.arrows button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}

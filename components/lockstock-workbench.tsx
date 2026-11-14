@@ -68,6 +68,7 @@ type Material = {
   primary_location?: string | null;
   stock_status?: "in-stock" | "low-stock" | "out-of-stock";
   balances?: Array<{
+    location_id?: string;
     quantity: number | string | null;
     location?: {
       code?: string | null;
@@ -1784,7 +1785,7 @@ export function LockstockWorkbench() {
   const inventoryTableRows = sortRowsByKey(
     inventoryRows.map((material) => {
       const quantity = Number(material.location_quantity ?? 0);
-      const status = normalizeStatus(undefined, quantity, Number(material.min_stock));
+      const status = normalizeStatus(material.stock_status, Number(material.total_quantity ?? 0), Number(material.min_stock));
       const materialPrice = priceByMaterial.get(material.id);
       return {
         id: material.inventory_row_id,

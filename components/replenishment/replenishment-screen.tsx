@@ -1,4 +1,8 @@
 "use client";
+
+import { DateInput } from "@/components/date-input";
+
+import { NumberInput } from "@/components/number-input";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AccessibilityDialog } from "@/components/accessibility-dialog";
@@ -44,7 +48,7 @@ export function ReplenishmentScreen({ orgId, accountKey, apiRequest, canManage: 
   return <>
     <section className="card">
     <div className={styles.filters}>
-      <label className="field"><span>{t.date}</span><input type="date" value={requiredBy} disabled={state.busy || !!state.pending} onChange={e => { setRequiredBy(e.target.value); setPage(1); setSelected([]); setReview(null); }} /></label>
+      <label className="field"><span>{t.date}</span><DateInput locale={locale} aria-label={t.date} value={requiredBy} disabled={state.busy || !!state.pending} onValueChange={value => { setRequiredBy(value); setPage(1); setSelected([]); setReview(null); }} /></label>
       <label className="field"><span>{t.state}</span><select value={view} onChange={e => { setView(e.target.value); setPage(1); setSelected([]); }}><option value="all">{t.all}</option>{(["ready","review","setup","draft","covered"] as const).map(s => <option key={s} value={s}>{t[s]} ({state.data?.counts[s] ?? 0})</option>)}</select></label>
 
     </div>
@@ -70,7 +74,7 @@ export function ReplenishmentScreen({ orgId, accountKey, apiRequest, canManage: 
     </tbody></table></div><div className={styles.pagination}><button type="button" className="ghost-btn" disabled={page<=1} onClick={() => { setPage(p=>p-1); setSelected([]); }}>{t.previous}</button><span>{page} / {Math.max(1,Math.ceil(state.data.total/50))}</span><button type="button" className="ghost-btn" disabled={page*50>=state.data.total} onClick={() => { setPage(p=>p+1); setSelected([]); }}>{t.next}</button></div></> : null}
     {review ? <ReviewDialog rows={review} previous={previous} supplierNames={Object.fromEntries(suppliers.map(s => [s.id,s.name]))} locale={locale} requiredBy={requiredBy} timezone={timezone} busy={state.busy || !!state.pending} onClose={() => setReview(null)} onSubmit={input => { setPrevious(input); setReview(null); void state.submit(input); }} /> : null}
     {editing ? <AccessibilityDialog title={`${t.settings} · ${editing.sku}`} onClose={() => { if (!saving) setEditing(null); }} closeLabel={t.close} closeAriaLabel={t.close}>
-      <div className={styles.settingsGrid}><label className="field"><span>{t.minimum}</span><input type="number" min="0" step="0.001" value={minimum} onChange={e=>setMinimum(e.target.value)} /></label><label className="field"><span>{t.target}</span><input type="number" min={minimum} step="0.001" value={target} onChange={e=>setTarget(e.target.value)} /></label><label className="field"><span>{t.supplier}</span><select value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">{t.none}</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
+      <div className={styles.settingsGrid}><label className="field"><span>{t.minimum}</span><NumberInput aria-label={t.minimum} min="0" value={minimum} onValueChange={value=>setMinimum(value)} /></label><label className="field"><span>{t.target}</span><NumberInput aria-label={t.target} min={minimum} value={target} onValueChange={value=>setTarget(value)} /></label><label className="field"><span>{t.supplier}</span><select value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">{t.none}</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
       <label className="field"><span>{t.currency}</span><select value={currency} onChange={e=>setCurrency(e.target.value)}><option value="EUR">EUR</option><option value="USD">USD</option></select></label>
       {settingError ? <p role="alert" className={styles.error}>{settingError}</p> : null}<div className={styles.dialogActions}><button type="button" disabled={saving || !canManage || minimum==="" || (target!=="" && Number(target)<Number(minimum))} onClick={()=>void save()}>{t.save}</button></div>
     </AccessibilityDialog> : null}

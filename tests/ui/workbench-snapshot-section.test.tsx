@@ -25,8 +25,8 @@ describe("WorkbenchSnapshotSection", () => {
         canCreateStockMovement={true}
         canExportCsv={true}
         metrics={{ totalMaterials: 12, lowStock: 2, outOfStock: 1 }}
-        lowStockCount={null}
-        stockHealth={{ low_stock: 2, out_of_stock: 1 }}
+        lowStockCount={9}
+        stockHealth={{ low_stock: 9, out_of_stock: 8 }}
         inventoryValueBadge="€"
         inventoryValueLabel="€123.45"
         materialFilterQuery=""
@@ -71,5 +71,7 @@ describe("WorkbenchSnapshotSection", () => {
     expect(screen.getByRole("combobox", { name: "Inventory status" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Location" })).toBeInTheDocument();
     expect(screen.getByText("Page 1/2")).toBeInTheDocument();
+    expect(screen.getByText("Low Stock Alerts").closest(".kpi-card")).toHaveTextContent("2");
+    expect(screen.getByText("Out of Stock", { selector: ".kpi-top p" }).closest(".kpi-card")).toHaveTextContent("1");
   });
 });

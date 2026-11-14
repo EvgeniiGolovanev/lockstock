@@ -86,6 +86,10 @@ for (const width of [1440, 390]) {
     await receive.getByRole("combobox", { name: "Line", exact: true }).selectOption(po.lines[0].id);
     await receive.getByRole("combobox", { name: "Location", exact: true }).selectOption(location.id);
     await receive.getByLabel("Quantity Received", { exact: true }).fill("11");
+    await expect(receive.getByRole("button", { name: "Receive", exact: true })).toBeDisabled();
+    // A second client receives one unit after this form loaded its remainder.
+    await inventory.post(`/purchase-orders/${po.id}/receive`, { receipts: [{ po_line_id: po.lines[0].id, location_id: location.id, quantity_received: 1 }] }, 200);
+    await receive.getByLabel("Quantity Received", { exact: true }).fill("10");
     before = await inventory.snapshot();
     response = page.waitForResponse(r => r.url().endsWith(`/purchase-orders/${po.id}/receive`) && r.request().method() === "POST");
     await receive.getByRole("button", { name: "Receive", exact: true }).click();
@@ -93,7 +97,7 @@ for (const width of [1440, 390]) {
     await expect(receive.getByRole("alert")).toHaveText("Receiving quantity exceeds the outstanding quantity on this purchase order line.");
     await receive.getByRole("alert").scrollIntoViewIfNeeded();
     await expect(receive.getByRole("alert")).toBeInViewport();
-    await expect(receive.getByLabel("Quantity Received", { exact: true })).toHaveValue("11");
+    await expect(receive.getByLabel("Quantity Received", { exact: true })).toHaveValue("10");
     expect(await inventory.snapshot()).toEqual(before);
     await page.screenshot({ path: testInfo.outputPath(`po-receive-error-${width}.png`), fullPage: true });
 
@@ -114,7 +118,7 @@ for (const width of [1440, 390]) {
     expect((await response).status()).toBe(200);
     await expect(receive.getByRole("alert")).toContainText("The operation completed");
     await expect(receive.getByRole("button", { name: "Receive", exact: true })).toBeDisabled();
-    await inventory.balances([[material.id, location.id, 4]]);
+    await inventory.balances([[material.id, location.id, 5]]);
     await receive.getByRole("button", { name: "Close", exact: true }).click();
     await expect(receive).toBeHidden();
     await expect(completionAlert).toBeVisible();
@@ -125,7 +129,7 @@ for (const width of [1440, 390]) {
     await expect(completionAlert).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Receive order", exact: true })).toBeEnabled();
     expect(writes.receive).toBe(3);
-    expect((await inventory.po(po.id)).lines[0].quantity_received).toBe(4);
+    expect((await inventory.po(po.id)).lines[0].quantity_received).toBe(5);
 
     await row.getByRole("button", { name: "Cancel", exact: true }).click();
     const cancel = page.getByRole("dialog", { name: "Confirm purchase order cancellation", exact: true });
