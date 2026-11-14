@@ -1,3 +1,4 @@
+import { NumberInput } from "@/components/number-input";
 import { useListReady } from "./list-read-boundary";
 import { useEffect, useState } from "react";
 
@@ -321,7 +322,7 @@ export function WorkbenchSuppliersSection({
               </label>
               <label className="field">
                 <span>{t("workbench.supplier.leadTime")}</span>
-                <input type="number" min={0} value={supplierLeadTime} onChange={(event) => setSupplierLeadTime(Number(event.target.value))} />
+                <NumberInput min={0} value={supplierLeadTime} onValueChange={(value) => setSupplierLeadTime(Number(value))} />
               </label>
               <label className="field field-span-2">
                 <span>{t("workbench.location.address")}</span>

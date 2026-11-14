@@ -7,7 +7,8 @@ const WORKFLOW_RUNTIME_FILES = new Set([
   "stock-management-overview-context.svg", "stock-management-overview-context-fr.svg",
   "stock-movement-workflow.svg", "stock-movement-workflow-fr.svg",
   "purchase-order-lifecycle.svg", "purchase-order-lifecycle-fr.svg",
-  "member-group-workflow.svg", "member-group-workflow-fr.svg"
+  "member-group-workflow.svg", "member-group-workflow-fr.svg",
+  "replenishment-workflow.svg", "replenishment-workflow-fr.svg"
 ]);
 
 function relativeFiles(directory, predicate) {

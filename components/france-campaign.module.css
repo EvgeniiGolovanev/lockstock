@@ -61,3 +61,12 @@
 .commandBoard p, .commandBoard dd { color: #596672; }
 .segmentCard, .channelCard, .sequenceCard, .checklistCard, .caseStudyCard { border: 1px solid var(--landing-line); border-radius: 3px; padding: 1.25rem; background: #fff; box-shadow: var(--ls-shadow); }
 .segmentCard h3, .channelCard h3, .checklistCard h2, .twoColumn h2 { font-family: var(--ls-font-display); font-weight: 750; }
+.workflowSteps {
+  margin: 1rem 0 0;
+  padding-left: 1.5rem;
+}
+
+.workflowSteps li {
+  margin-block: 0.75rem;
+  line-height: 1.6;
+}

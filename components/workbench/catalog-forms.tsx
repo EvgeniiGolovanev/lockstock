@@ -1,5 +1,7 @@
 "use client";
 
+import { NumberInput } from "@/components/number-input";
+
 import { useEffect, useState } from "react";
 
 import { message, type Locale, type StaticMessageKey } from "@/lib/i18n";
@@ -374,13 +376,12 @@ export function WorkbenchCatalogForms({
                 </label>
                 <label className={`field ${materialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
                   <span>{t("workbench.material.minimumStock")}</span>
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0}
                     required
                     aria-invalid={materialRequiredErrors.includes("minStock")}
                     value={materialMinStock}
-                    onChange={(event) => setMaterialMinStock(event.target.value)}
+                    onValueChange={(value) => setMaterialMinStock(value)}
                   />
                 </label>
                 <label className="field field-span-2">
@@ -452,21 +453,19 @@ export function WorkbenchCatalogForms({
                 </label>
                 <label className={`field ${editMaterialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
                   <span>{t("workbench.material.minimumStock")}</span>
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0}
                     required
                     aria-invalid={editMaterialRequiredErrors.includes("minStock")}
                     value={editMaterialMinStock}
-                    step="0.001"
-                    onChange={(event) => setEditMaterialMinStock(event.target.value)}
+                    onValueChange={(value) => setEditMaterialMinStock(value)}
                   />
                 </label>
                 <label className="field field-span-2">
                   <span>{t("workbench.material.description")}</span>
                   <textarea value={editMaterialDescription} maxLength={256} rows={3} onChange={(event) => setEditMaterialDescription(event.target.value)} />
                 </label>
-                <label className="field"><span>{locale === "fr" ? "Stock cible (facultatif)" : "Target stock (optional)"}</span><input type="number" min={editMaterialMinStock || 0} step="0.001" value={editMaterialTargetStock} onChange={e => setEditMaterialTargetStock(e.target.value)} /></label>
+                <label className="field"><span>{locale === "fr" ? "Stock cible (facultatif)" : "Target stock (optional)"}</span><NumberInput min={editMaterialMinStock || 0} value={editMaterialTargetStock} onValueChange={value => setEditMaterialTargetStock(value)} /></label>
                 {editMaterialTargetStock !== "" && Number(editMaterialTargetStock) < Number(editMaterialMinStock) ? <p role="alert">{locale === "fr" ? "La cible doit être supérieure ou égale au minimum." : "Target must be at least minimum."}</p> : null}
               </div>
               <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseEditMaterialForm} />

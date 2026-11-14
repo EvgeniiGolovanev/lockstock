@@ -1,5 +1,9 @@
 "use client";
 
+import { DateInput } from "@/components/date-input";
+
+import { NumberInput } from "@/components/number-input";
+
 import { useEffect, useMemo, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
@@ -101,6 +105,7 @@ export function WorkbenchPurchaseOrderForms({
   const [poSupplierId, setPoSupplierId] = useState("");
   const [poCurrency, setPoCurrency] = useState<PurchaseOrderCurrency>("EUR");
   const [poExpectedAt, setPoExpectedAt] = useState("");
+  const [poDateValid, setPoDateValid] = useState(true);
   const [poNotes, setPoNotes] = useState("");
   const [poMaterialId, setPoMaterialId] = useState("");
   const [poQuantityOrdered, setPoQuantityOrdered] = useState(1);
@@ -152,10 +157,26 @@ export function WorkbenchPurchaseOrderForms({
   }, [initialReceivePoId, initialReceivePoLineId, showPoReceiveForm]);
 
   const selectedPurchaseOrder = useMemo(() => purchaseOrders.find((po) => po.id === receivePoId) ?? null, [purchaseOrders, receivePoId]);
-  const selectedReceiveLine = useMemo(
-    () => selectedPurchaseOrder?.lines.find((line) => line.id === receivePoLineId) ?? null,
-    [receivePoLineId, selectedPurchaseOrder]
+  const receivableOrders = purchaseOrders.filter((po) =>
+    (po.status === "sent" || po.status === "partial") && po.lines.some((line) => Number(line.quantity_ordered) > Number(line.quantity_received))
   );
+  const receivableLines = useMemo(() =>
+    selectedPurchaseOrder && (selectedPurchaseOrder.status === "sent" || selectedPurchaseOrder.status === "partial")
+      ? selectedPurchaseOrder.lines.filter((line) => Number(line.quantity_ordered) > Number(line.quantity_received))
+      : [], [selectedPurchaseOrder]);
+  useEffect(() => {
+    setReceivePoLineId((current) => receivableLines.some((line) => line.id === current) ? current : receivableLines[0]?.id ?? "");
+  }, [receivableLines]);
+  const selectedReceiveLine = useMemo(
+    () => receivableLines.find((line) => line.id === receivePoLineId) ?? null,
+    [receivePoLineId, receivableLines]
+  );
+  // Inventory quantities are stored to three decimal places.
+  const remainingQuantity = selectedReceiveLine ? Math.max(0, Math.round((Number(selectedReceiveLine.quantity_ordered) - Number(selectedReceiveLine.quantity_received)) * 1000) / 1000) : 0;
+  const canSubmitReceipt = Boolean(selectedReceiveLine && receiveLocationId && Number.isFinite(receiveQuantity) && receiveQuantity > 0 && receiveQuantity <= remainingQuantity);
+  useEffect(() => {
+    setReceiveQuantity(remainingQuantity > 0 ? Math.min(1, remainingQuantity) : 0);
+  }, [receivePoId, receivePoLineId, remainingQuantity]);
   const selectedReceiveMaterial = useMemo(
     () => (selectedReceiveLine ? activeMaterials.find((item) => item.id === selectedReceiveLine.material_id) ?? null : null),
     [activeMaterials, selectedReceiveLine]
@@ -233,6 +254,7 @@ export function WorkbenchPurchaseOrderForms({
   }
 
   async function handleCreatePurchaseOrder() {
+    if (!poDateValid) return;
     if (createCommitted) return false;
     setCreateError("");
     try {
@@ -285,7 +307,7 @@ export function WorkbenchPurchaseOrderForms({
   }
 
   async function handleReceivePurchaseOrder() {
-    if (receiveCommitted) return false;
+    if (receiveCommitted || !canSubmitReceipt) return false;
     setReceiveError("");
     try {
       onBusyChange(true);
@@ -347,7 +369,7 @@ export function WorkbenchPurchaseOrderForms({
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.expectedDate")}</span>
-                    <input type="date" value={poExpectedAt} onChange={(event) => setPoExpectedAt(event.target.value)} />
+                    <DateInput locale={locale} value={poExpectedAt} onValueChange={(value) => setPoExpectedAt(value)} onValidityChange={setPoDateValid} />
                   </label>
                   <label className={`field ${poStyles.modalSpan2}`}>
                     <span>{t("workbench.po.notes")}</span>
@@ -372,11 +394,11 @@ export function WorkbenchPurchaseOrderForms({
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.quantity")}</span>
-                    <input type="number" min={0.001} step="0.001" value={poQuantityOrdered} onChange={(event) => setPoQuantityOrdered(Number(event.target.value))} />
+                    <NumberInput min={0.001} value={poQuantityOrdered} onValueChange={(value) => setPoQuantityOrdered(Number(value))} />
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.unitPriceWithCurrency")} ({currencySymbol(poCurrency)})</span>
-                    <input type="number" min={0} step="0.01" value={poUnitPrice} onChange={(event) => setPoUnitPrice(Number(event.target.value))} />
+                    <NumberInput min={0} value={poUnitPrice} onValueChange={(value) => setPoUnitPrice(Number(value))} />
                   </label>
                   <div className={`actions ${poStyles.itemAction}`}>
                     <button type="button" disabled={busy || !poMaterialId || poQuantityOrdered <= 0} onClick={handleAddPoDraftLine}>
@@ -438,7 +460,7 @@ export function WorkbenchPurchaseOrderForms({
               {createCommitted ? <button type="button" disabled={busy} onClick={() => void refreshCommittedForm(closeCreateForm, setCreateError)}>{t("workbench.po.refreshData")}</button> : null}
               <button
                 type="button"
-                disabled={busy || createCommitted || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0}
+                disabled={busy || createCommitted || !isOrgScopedReady || !poSupplierId || poDraftLines.length === 0 || !poDateValid}
                 onClick={() => void handleCreatePurchaseOrder()}
               >
                 {t("workbench.po.createTitle")}
@@ -463,10 +485,9 @@ export function WorkbenchPurchaseOrderForms({
                 <div className="grid grid-2">
                   <label className="field">
                     <span>{t("workbench.po.purchaseOrder")}</span>
-                    <select value={receivePoId} onChange={(event) => setReceivePoId(event.target.value)}>
+                    <select value={receivePoId} onChange={(event) => { setReceivePoId(event.target.value); setReceivePoLineId(""); }}>
                       <option value="">{t("workbench.po.selectPurchaseOrder")}</option>
-                      {purchaseOrders
-                        .filter((po) => po.status !== "received" && po.status !== "cancelled")
+                      {receivableOrders
                         .map((po) => (
                           <option key={po.id} value={po.id}>
                             {po.po_number} - {po.supplier?.name ?? t("workbench.po.unknown")} ({po.status})
@@ -478,12 +499,12 @@ export function WorkbenchPurchaseOrderForms({
                     <span>{t("workbench.po.lineLabel")}</span>
                     <select value={receivePoLineId} onChange={(event) => setReceivePoLineId(event.target.value)}>
                       <option value="">{t("workbench.po.selectLine")}</option>
-                      {(selectedPurchaseOrder?.lines ?? []).map((line) => {
+                      {receivableLines.map((line) => {
                         const material = activeMaterials.find((item) => item.id === line.material_id);
                         return (
                           <option key={line.id} value={line.id}>
                             {message(locale, "workbench.po.receiptLineOption", {
-                              material: material?.sku ?? t("workbench.po.material"),
+                              material: material ? `${material.sku} - ${material.name} (${material.uom})` : t("workbench.po.material"),
                               ordered: String(line.quantity_ordered),
                               received: String(line.quantity_received)
                             })}
@@ -506,7 +527,8 @@ export function WorkbenchPurchaseOrderForms({
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.quantityReceived")}</span>
-                    <input type="number" min={0.001} step="0.001" value={receiveQuantity} onChange={(event) => setReceiveQuantity(Number(event.target.value))} />
+                    <NumberInput aria-label={t("workbench.po.quantityReceived")} min={0.001} max={remainingQuantity} value={receiveQuantity} onValueChange={(value) => setReceiveQuantity(Number(value))} aria-describedby="receipt-quantity-help" />
+                    <small id="receipt-quantity-help">{message(locale, "workbench.po.remainingQuantity", { quantity: String(remainingQuantity), unit: selectedReceiveMaterial?.uom ?? "" })}</small>
                   </label>
                 </div>
               </section>
@@ -532,7 +554,7 @@ export function WorkbenchPurchaseOrderForms({
                     <div>
                       <p className={poStyles.metaLabel}>{t("workbench.po.remaining")}</p>
                       <p className={poStyles.metaValue}>
-                        {Math.max(0, Number(selectedReceiveLine.quantity_ordered || 0) - Number(selectedReceiveLine.quantity_received || 0))}
+                        {remainingQuantity}
                       </p>
                     </div>
                   </div>
@@ -546,7 +568,7 @@ export function WorkbenchPurchaseOrderForms({
               {receiveCommitted ? <button type="button" disabled={busy} onClick={() => void refreshCommittedForm(closeReceiveForm, setReceiveError)}>{t("workbench.po.refreshData")}</button> : null}
               <button
                 type="button"
-                disabled={busy || receiveCommitted || !isOrgScopedReady || !receivePoId || !receivePoLineId || !receiveLocationId || receiveQuantity <= 0}
+                disabled={busy || receiveCommitted || !isOrgScopedReady || !canSubmitReceipt}
                 onClick={() => void handleReceivePurchaseOrder()}
               >
                 {t("workbench.po.receive")}

@@ -1,5 +1,7 @@
 "use client";
 
+import { DateInput } from "@/components/date-input";
+
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -704,11 +706,11 @@ export function LockstockAccount() {
           <div className={styles.auditExportRow}>
             <label className="field">
               <span>{t("account.from")}</span>
-              <input type="date" value={auditExportFrom} onChange={(event) => setAuditExportFrom(event.target.value)} />
+              <DateInput locale={locale} value={auditExportFrom} onValueChange={(value) => setAuditExportFrom(value)} />
             </label>
             <label className="field">
               <span>{t("account.to")}</span>
-              <input type="date" value={auditExportTo} onChange={(event) => setAuditExportTo(event.target.value)} />
+              <DateInput locale={locale} value={auditExportTo} onValueChange={(value) => setAuditExportTo(value)} />
             </label>
             <button type="button" disabled={busy || audit.exportPhase === "loading" || !auditExportFrom || !auditExportTo} onClick={() => void audit.download()}>
               {t("account.downloadCsv")}

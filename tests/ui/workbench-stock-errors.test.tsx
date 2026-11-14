@@ -24,7 +24,10 @@ function setup(overrides: Partial<ComponentProps<typeof WorkbenchStockMovementsS
     onMovementLocationFilterChange: vi.fn(), onMovementReasonFilterChange: vi.fn(),
     onMovementPageChange: vi.fn(), onExportCsv: vi.fn(), onSort: vi.fn(), ...overrides
   };
-  return { props, ...render(<WorkbenchStockMovementsSection {...props} />) };
+  const view = render(<WorkbenchStockMovementsSection {...props} />);
+  fireEvent.change(screen.getByLabelText("Material"), { target: { value: props.activeMaterials[0]?.id ?? "" } });
+  fireEvent.change(screen.getByLabelText("Location"), { target: { value: props.activeLocations[0]?.id ?? "" } });
+  return { props, ...view };
 }
 
 describe("stock movement form errors", () => {
@@ -61,8 +64,12 @@ describe("stock movement form errors", () => {
     const refresh = vi.fn().mockRejectedValueOnce(new Error("private read detail")).mockRejectedValueOnce(new Error("still unavailable")).mockResolvedValue(undefined);
     const { props, rerender } = setup({ onRefreshCoreData: refresh });
     fireEvent.change(screen.getByLabelText("Reason"), { target: { value: reason } });
-    fireEvent.change(screen.getByLabelText(reason === "adjustment" ? "Quantity Delta" : "Quantity"), { target: { value: "4" } });
-    const submit = reason === "consumption" ? "Record Consumption" : "Add to Stock";
+    fireEvent.change(screen.getByLabelText(reason === "adjustment" ? "Change in quantity" : "Quantity"), { target: { value: "4" } });
+    if (reason === "transfer") {
+      fireEvent.change(screen.getByLabelText("Transfer out"), { target: { value: "a" } });
+      fireEvent.change(screen.getByLabelText("Transfer to"), { target: { value: "b" } });
+    }
+    const submit = reason === "consumption" ? "Record Consumption" : reason === "transfer" ? "Transfer stock" : "Add to Stock";
     fireEvent.click(screen.getByRole("button", { name: submit }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The operation completed");
     expect(screen.getByRole("alert")).not.toHaveTextContent("private read detail");
@@ -82,19 +89,19 @@ describe("stock movement form errors", () => {
   it("shows an API failure inside the dialog, preserves inputs, and clears it on a successful retry", async () => {
     const apiRequest = vi.fn().mockRejectedValueOnce(new Error("Not enough quantity at the specified location.")).mockResolvedValueOnce({});
     const { props } = setup({ apiRequest });
-    fireEvent.change(screen.getByLabelText("Quantity Delta"), { target: { value: "-101" } });
+    fireEvent.change(screen.getByLabelText("Change in quantity"), { target: { value: "-101" } });
     fireEvent.change(screen.getByLabelText("Comments"), { target: { value: "Cycle count" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record adjustment" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Not enough quantity at the specified location.");
     expect(screen.getByRole("dialog")).toContainElement(alert);
     expect(screen.getByRole("dialog")).toHaveAccessibleDescription("Not enough quantity at the specified location.");
-    expect(screen.getByLabelText("Quantity Delta")).toHaveValue(-101);
+    expect(screen.getByLabelText("Change in quantity")).toHaveValue(-101);
     expect(screen.getByLabelText("Comments")).toHaveValue("Cycle count");
     expect(props.onRefreshCoreData).not.toHaveBeenCalled();
     expect(props.onActivity).toHaveBeenCalledWith("Create movement failed: Not enough quantity at the specified location.");
     expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
-    fireEvent.change(screen.getByLabelText("Quantity Delta"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Change in quantity"), { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
     await waitFor(() => expect(props.onRefreshCoreData).toHaveBeenCalledOnce());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -117,19 +124,19 @@ describe("stock movement form errors", () => {
   });
 
   it.each([
-    ["missing material", "adjustment", "material", "", "material is required."],
-    ["missing transfer destination", "transfer", "destination", "", "source and destination locations are required."],
-    ["same transfer location", "transfer", "destination", "a", "transfer source and destination must differ."],
-    ["zero transfer", "transfer", "quantity", "0", "transfer quantity must be positive."],
-    ["zero adjustment", "adjustment", "quantity", "0", "location and non-zero quantity are required."]
-  ])("shows local validation for %s without sending a request", async (_name, reason, field, value, message) => {
+    ["missing material", "adjustment", "material", ""],
+    ["missing transfer destination", "transfer", "destination", ""],
+    ["same transfer location", "transfer", "destination", "a"],
+    ["zero transfer", "transfer", "quantity", "0"],
+    ["zero adjustment", "adjustment", "quantity", "0"]
+  ])("blocks %s without sending a request", async (_name, reason, field, value) => {
     const { props } = setup(value === "" ? field === "material" ? { activeMaterials: [] } : { activeLocations: [] } : {});
     fireEvent.change(screen.getByLabelText("Reason"), { target: { value: reason } });
-    const label = field === "material" ? "Material" : field === "destination" ? "Transfer to" : reason === "transfer" ? "Quantity" : "Quantity Delta";
+    const label = field === "material" ? "Material" : field === "destination" ? "Transfer to" : reason === "transfer" ? "Quantity" : "Change in quantity";
     fireEvent.change(screen.getByLabelText(label), { target: { value } });
-    fireEvent.click(screen.getByRole("button", { name: "Add to Stock" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    if (reason === "transfer" && props.activeLocations.length) fireEvent.change(screen.getByLabelText("Transfer out"), { target: { value: "a" } });
+    expect(screen.getByRole("button", { name: reason === "transfer" ? "Transfer stock" : "Add to Stock" })).toBeDisabled();
     expect(props.apiRequest).not.toHaveBeenCalled();
-    expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
+    expect(props.onBusyChange).not.toHaveBeenCalled();
   });
 });

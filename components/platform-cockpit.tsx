@@ -1,5 +1,7 @@
 "use client";
 
+import { DateInput } from "@/components/date-input";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -442,10 +444,10 @@ export function PlatformCockpit() {
                     <td>{formatDateTime(tenant.lastActivityAt, locale)}</td>
                     {platformRole === "admin" ? (
                       <td>
-                        <input
-                          type="datetime-local"
+                        <DateInput locale={locale}
+                          includeTime
                           value={trialDrafts[tenant.id] ?? ""}
-                          onChange={(event) => setTrialDrafts((current) => ({ ...current, [tenant.id]: event.target.value }))}
+                          onValueChange={(value) => setTrialDrafts((current) => ({ ...current, [tenant.id]: value }))}
                           aria-label={message(locale, "platform.trialEndAria", { name: tenant.name })}
                         />
                         <button type="button" disabled={busy || !trialDrafts[tenant.id]} onClick={() => void updateTrialEnd(tenant.id)}>

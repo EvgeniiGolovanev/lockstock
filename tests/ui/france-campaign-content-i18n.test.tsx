@@ -24,7 +24,7 @@ describe("France campaign render-time content", () => {
     render(<FranceUseCaseCards />);
 
     expect(screen.getByRole("heading", { name: "Gestion de stock pour PME" })).toBeInTheDocument();
-    expect(screen.getByText("Une page pilier pour les dirigeants et responsables operations qui cherchent une alternative simple a l'ERP.")).toBeInTheDocument();
+    expect(screen.getByText("Retrouvez les articles, quantités, emplacements et achats dans un espace partagé.")).toBeInTheDocument();
   });
 
   it("renders a vertical page's dynamic content in English", () => {

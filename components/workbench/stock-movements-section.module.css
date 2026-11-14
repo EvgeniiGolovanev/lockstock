@@ -39,3 +39,14 @@
     grid-column: auto;
   }
 }
+.stockPreview {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color, #d5dce2);
+  background: var(--surface-muted, #f4f6f8);
+  font-variant-numeric: tabular-nums;
+}
+
+.stockPreview p {
+  margin-block: 0.25rem;
+}

@@ -176,6 +176,7 @@ export function WorkbenchLocationsSection({
             ) : null}
           </div>
         </div>
+        <p className="subtle-line">{t("workbench.location.alertScope")}</p>
 
         <div className="table-wrap">
           <table className={`compact-table ${styles.locationsTable}`}>

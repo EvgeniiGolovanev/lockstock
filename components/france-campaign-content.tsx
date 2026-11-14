@@ -27,12 +27,12 @@ const useCaseCards: readonly { slug: string; title: StaticMessageKey; descriptio
   { slug: "inventaire-multi-sites", title: "france.useCase.multisite.title", description: "france.useCase.multisite.description" }
 ];
 
-type SegmentDetails = Omit<SegmentCard, "cta"> & { keywords: readonly StaticMessageKey[]; painPoints: readonly StaticMessageKey[] };
+type SegmentDetails = Omit<SegmentCard, "cta"> & { workflow: readonly StaticMessageKey[]; painPoints: readonly StaticMessageKey[] };
 
 const segmentDetails: Record<string, SegmentDetails> = {
-  "construction-materiaux": { ...segmentCards[0], keywords: ["france.detail.construction.keywordOne", "france.detail.construction.keywordTwo", "france.detail.construction.keywordThree"], painPoints: ["france.detail.construction.painOne", "france.detail.construction.painTwo", "france.detail.construction.painThree"] },
-  "industrie-atelier": { ...segmentCards[1], keywords: ["france.detail.industry.keywordOne", "france.detail.industry.keywordTwo", "france.detail.industry.keywordThree"], painPoints: ["france.detail.industry.painOne", "france.detail.industry.painTwo", "france.detail.industry.painThree"] },
-  "maintenance-terrain": { ...segmentCards[2], keywords: ["france.detail.maintenance.keywordOne", "france.detail.maintenance.keywordTwo", "france.detail.maintenance.keywordThree"], painPoints: ["france.detail.maintenance.painOne", "france.detail.maintenance.painTwo", "france.detail.maintenance.painThree"] }
+  "construction-materiaux": { ...segmentCards[0], workflow: ["france.detail.construction.workflowOne", "france.detail.construction.workflowTwo", "france.detail.construction.workflowThree"], painPoints: ["france.detail.construction.painOne", "france.detail.construction.painTwo", "france.detail.construction.painThree"] },
+  "industrie-atelier": { ...segmentCards[1], workflow: ["france.detail.industry.workflowOne", "france.detail.industry.workflowTwo", "france.detail.industry.workflowThree"], painPoints: ["france.detail.industry.painOne", "france.detail.industry.painTwo", "france.detail.industry.painThree"] },
+  "maintenance-terrain": { ...segmentCards[2], workflow: ["france.detail.maintenance.workflowOne", "france.detail.maintenance.workflowTwo", "france.detail.maintenance.workflowThree"], painPoints: ["france.detail.maintenance.painOne", "france.detail.maintenance.painTwo", "france.detail.maintenance.painThree"] }
 };
 
 export function FranceSegmentCards() {
@@ -69,12 +69,12 @@ export function FranceSegmentDetails({ slug }: Readonly<{ slug: string }>) {
   return <>
     <section className={styles.hero}><div className={`landing-wrap ${styles.heroGrid}`}><div>
       <p className={styles.eyebrow}>{message(locale, segment.eyebrow)}</p>
-      <h1>{message(locale, segment.title)}: {message(locale, "france.segment.titleSuffix")}</h1>
+      <h1>{message(locale, segment.title)}</h1>
       <p className={styles.heroCopy}>{message(locale, segment.description)}</p>
       <div className="landing-hero-actions"><Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">{message(locale, "france.requestDemo")}</Link><Link className="ghost-btn" href="/france-pme/checklist-audit-stock">{message(locale, "france.segment.downloadChecklist")}</Link></div>
-    </div><aside className={styles.commandBoard}><span>{message(locale, "france.segment.keywords")}</span><ul className={styles.keywordList}>{segment.keywords.map((keyword) => <li key={keyword}>{message(locale, keyword)}</li>)}</ul></aside></div></section>
+    </div><aside className={styles.commandBoard}><span>{message(locale, "france.segment.keywords")}</span><ol className={styles.workflowSteps}>{segment.workflow.map((step) => <li key={step}>{message(locale, step)}</li>)}</ol></aside></div></section>
     <section className="landing-section"><div className={`landing-wrap ${styles.twoColumn}`}><div>
-      <p className={styles.eyebrow}>{message(locale, "france.segment.currentProblems")}</p><h2>{message(locale, "france.segment.excelProblem")}</h2><div className={styles.usecaseList}>{segment.painPoints.map((painPoint) => <article key={painPoint}><h3>{message(locale, painPoint)}</h3><p>{message(locale, "france.segment.workflowExplanation")}</p></article>)}</div>
+      <p className={styles.eyebrow}>{message(locale, "france.segment.currentProblems")}</p><h2>{message(locale, "france.segment.excelProblem")}</h2><div className={styles.usecaseList}>{segment.painPoints.map((painPoint) => <article key={painPoint}><h3>{message(locale, painPoint)}</h3></article>)}</div>
     </div><div><p className={styles.eyebrow}>{message(locale, "france.segment.outcomes")}</p><h2>{message(locale, "france.segment.promise")}</h2><div className={styles.outcomePanel}>{segment.outcomes.map((outcome) => <article key={outcome}><span aria-hidden="true">+</span><p>{message(locale, outcome)}</p></article>)}</div></div></div></section>
     <section className="landing-cta"><div className="landing-wrap landing-cta-card"><h2>{message(locale, "france.segment.ctaTitle")}</h2><p>{message(locale, "france.segment.ctaDescription")}</p><div className="landing-cta-actions"><Link className={`ghost-btn ${styles.primaryLink}`} href="/contact">{message(locale, "france.segment.scheduleDemo")}</Link><Link className="ghost-btn" href="/pricing">{message(locale, "france.segment.viewPricing")}</Link></div></div></section>
   </>;

@@ -21,8 +21,8 @@ async function move(page: Page, material: Material, location: Location, reason: 
   } else {
     await dialog.getByRole("combobox", { name: "Location", exact: true }).selectOption(location.id);
   }
-  await dialog.getByLabel(reason === "adjustment" ? "Quantity Delta" : "Quantity", { exact: true }).fill(String(reason === "consumption" ? -quantity : quantity));
-  await submit(page, "/stock/movements", () => dialog.getByRole("button", { name: reason === "consumption" ? "Record Consumption" : "Add to Stock", exact: true }).click());
+  await dialog.getByLabel(reason === "adjustment" ? "Change in quantity" : "Quantity", { exact: true }).fill(String(quantity));
+  await submit(page, "/stock/movements", () => dialog.getByRole("button", { name: reason === "consumption" ? "Record Consumption" : reason === "transfer" ? "Transfer stock" : "Add to Stock", exact: true }).click());
   await expect(dialog).toBeHidden();
 }
 

@@ -45,29 +45,6 @@ const FEATURE_MESSAGE_KEYS: Array<{ title: StaticMessageKey; description: Static
   }
 ];
 
-const TESTIMONIAL_MESSAGE_KEYS: Array<{ name: string; role: StaticMessageKey; company: string; content: StaticMessageKey; rating: number }> = [
-  {
-    name: "Sarah Chen",
-    role: "landing.testimonial.operationsManager",
-    company: "TechSupply Co",
-    content: "landing.testimonial.one",
-    rating: 5
-  },
-  {
-    name: "Michael Rodriguez",
-    role: "landing.testimonial.ceo",
-    company: "FastParts Inc",
-    content: "landing.testimonial.two",
-    rating: 5
-  },
-  {
-    name: "Emily Thompson",
-    role: "landing.testimonial.warehouseDirector",
-    company: "GlobalDistribute",
-    content: "landing.testimonial.three",
-    rating: 5
-  }
-];
 
 function StaticProductScreenshot({ variant, locale }: { variant: "inventory" | "orders"; locale: "en" | "fr" }) {
   const isInventory = variant === "inventory";
@@ -332,8 +309,8 @@ export function LockstockLanding() {
             </p>
 
             <div className="landing-hero-actions">
-              <button type="button" onClick={() => openAuth("signup")}>
-                {t("landing.startTrial")}
+              <button type="button" onClick={() => signedInAs ? router.push("/inventory") : openAuth("signup")}>
+                {t(signedInAs ? "landing.openWorkspace" : "landing.startTrial")}
               </button>
               <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
                 {t("landing.watchDemo")}
@@ -398,37 +375,14 @@ export function LockstockLanding() {
         </div>
       </section>
 
-      <section className="landing-section">
-        <div className="landing-wrap">
-          <div className="landing-section-head">
-            <h2>{t("landing.testimonials.title")}</h2>
-            <p>{t("landing.testimonials.subtitle")}</p>
-          </div>
-          <div className="landing-testimonial-grid">
-            {TESTIMONIAL_MESSAGE_KEYS.map((item) => (
-              <article key={item.name} className="landing-testimonial-card">
-                <div className="landing-stars" aria-label={`${item.rating} stars`}>
-                  {"★★★★★"}
-                </div>
-                <p>&ldquo;{t(item.content)}&rdquo;</p>
-                <div className="landing-testimonial-meta">
-                  <strong>{item.name}</strong>
-                  <span>{t(item.role)}</span>
-                  <span>{item.company}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section id="pricing" className="landing-cta">
         <div className="landing-wrap landing-cta-card">
           <h2>{t("landing.cta.title")}</h2>
           <p>{t("landing.cta.description")}</p>
           <div className="landing-cta-actions">
-            <button type="button" onClick={() => openAuth("signup")}>
-              {t("landing.startTrial")}
+            <button type="button" onClick={() => signedInAs ? router.push("/inventory") : openAuth("signup")}>
+              {t(signedInAs ? "landing.openWorkspace" : "landing.startTrial")}
             </button>
             <button type="button" className="ghost-btn" onClick={() => setDemoOpen(true)}>
               {t("landing.watchDemo")}

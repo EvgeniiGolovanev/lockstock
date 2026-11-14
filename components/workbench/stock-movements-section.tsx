@@ -1,11 +1,15 @@
 "use client";
 
+import { NumberInput } from "@/components/number-input";
+
 import { useListReady } from "./list-read-boundary";
 
 import { useEffect, useRef, useState } from "react";
 
 import { useLanguage } from "@/components/language-provider";
 import { message, type StaticMessageKey } from "@/lib/i18n";
+import { formatNumberLabel } from "@/lib/ui/formatters";
+import type { MaterialBalanceRow } from "@/lib/ui/parity-models";
 import styles from "./stock-movements-section.module.css";
 import { type SortState } from "@/lib/ui/table-tools";
 
@@ -55,6 +59,8 @@ type MaterialLookup = {
   id: string;
   sku: string;
   name: string;
+  uom?: string;
+  balances?: MaterialBalanceRow[];
 };
 
 type LocationLookup = {
@@ -184,20 +190,29 @@ export function WorkbenchStockMovementsSection({
       return;
     }
 
-    if (!movementMaterialId && activeMaterials[0]) {
-      setMovementMaterialId(activeMaterials[0].id);
-    }
-    if (!movementLocationId && activeLocations[0]) {
-      setMovementLocationId(activeLocations[0].id);
-    }
-    if (!movementFromLocationId && activeLocations[0]) {
-      setMovementFromLocationId(activeLocations[0].id);
-    }
-    if (!movementToLocationId && activeLocations[0]) {
-      const fallbackLocation = activeLocations.find((location) => location.id !== activeLocations[0].id) ?? activeLocations[0];
-      setMovementToLocationId(fallbackLocation.id);
-    }
-  }, [activeLocations, activeMaterials, movementFromLocationId, movementLocationId, movementMaterialId, movementToLocationId, showMovementForm]);
+  }, [showMovementForm]);
+
+  const selectedMaterial = activeMaterials.find((material) => material.id === movementMaterialId);
+  function quantityAt(locationId: string): number | null {
+    const location = activeLocations.find((item) => item.id === locationId);
+    if (!location || !selectedMaterial?.balances || selectedMaterial.balances.some((balance) => !balance.location_id)) return null;
+    return selectedMaterial.balances.reduce((total, balance) => total + (
+      balance.location_id === locationId
+        ? Number(balance.quantity ?? 0) : 0
+    ), 0);
+  }
+  const sourceQuantity = quantityAt(movementReason === "transfer" ? movementFromLocationId : movementLocationId);
+  const destinationQuantity = quantityAt(movementToLocationId);
+  const quantityDelta = movementReason === "adjustment" ? movementQuantity : -Math.abs(movementQuantity);
+  const sourceAfter = sourceQuantity == null ? null : Math.round((sourceQuantity + quantityDelta) * 1000) / 1000;
+  const validQuantity = Number.isFinite(movementQuantity) && (movementReason === "adjustment" ? movementQuantity !== 0 : movementQuantity > 0);
+  const validLocations = movementReason === "transfer"
+    ? Boolean(movementFromLocationId && movementToLocationId && movementFromLocationId !== movementToLocationId)
+    : Boolean(movementLocationId);
+  const canSubmitMovement = Boolean(selectedMaterial && validLocations && validQuantity && (sourceAfter == null || sourceAfter >= 0));
+  const submitLabel = movementReason === "transfer" ? "workbench.movement.transferStock"
+    : movementReason === "consumption" ? "workbench.movement.recordConsumption"
+    : movementQuantity < 0 ? "workbench.movement.recordAdjustment" : "workbench.movement.addToStock";
 
   async function refreshCommittedMovement() {
     const startedFor = generation.current;
@@ -228,7 +243,7 @@ export function WorkbenchStockMovementsSection({
   }
 
   async function handleCreateMovement() {
-    if (committedRef.current || submitting.current) return;
+    if (committedRef.current || submitting.current || !canSubmitMovement) return;
     const startedFor = generation.current;
     submitting.current = true;
     const trimmedComment = movementComment.trim();
@@ -391,7 +406,11 @@ export function WorkbenchStockMovementsSection({
                     <span>{t("workbench.movement.reason")}</span>
                     <select
                       value={movementReason}
-                      onChange={(event) => setMovementReason(event.target.value as "adjustment" | "consumption" | "transfer")}
+                      onChange={(event) => {
+                        const reason = event.target.value as "adjustment" | "consumption" | "transfer";
+                        setMovementReason(reason);
+                        if (reason !== "adjustment") setMovementQuantity((current) => Math.abs(current));
+                      }}
                     >
                       <option value="adjustment">{t("workbench.movement.adjustment")}</option>
                       <option value="consumption">{t("workbench.movement.consumption")}</option>
@@ -444,32 +463,38 @@ export function WorkbenchStockMovementsSection({
                   </div>
                 )}
 
-                <div className={`${styles.formRow} ${styles.formRowSingle}`}>
+                <div className={styles.formRow}>
                   <label className="field">
                     <span>{movementReason === "adjustment" ? t("workbench.movement.quantityDelta") : t("workbench.movement.quantity")}</span>
-                    <input
-                      type="number"
-                      min={movementReason === "transfer" ? 1 : undefined}
-                      max={movementReason === "consumption" ? -1 : undefined}
+                    <NumberInput
+                      aria-label={t(movementReason === "adjustment" ? "workbench.movement.quantityDelta" : "workbench.movement.quantity")}
+                      min={movementReason === "adjustment" ? undefined : 0.001}
+                      max={movementReason === "adjustment" ? undefined : sourceQuantity ?? undefined}
+                      aria-describedby="movement-quantity-help"
                       value={movementQuantity}
-                      onChange={(event) => setMovementQuantity(Number(event.target.value))}
+                      onValueChange={(value) => setMovementQuantity(Number(value))}
                     />
+                    <small id="movement-quantity-help">{selectedMaterial?.uom ? `${t("workbench.catalog.unit")}: ${selectedMaterial.uom}. ` : ""}{t(movementReason === "adjustment" ? "workbench.movement.adjustmentHelp" : "workbench.movement.positiveQuantityHelp")}</small>
                   </label>
-                </div>
-
-                <div className={`${styles.formRow} ${styles.formRowSingle}`}>
                   <label className="field">
                     <span>{t("workbench.movement.comments")}</span>
-                    <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={3} />
+                    <textarea value={movementComment} onChange={(event) => setMovementComment(event.target.value)} rows={2} />
                   </label>
                 </div>
               </div>
+              {sourceQuantity != null && Number.isFinite(movementQuantity) ? (
+                <div role="status" className={styles.stockPreview}>
+                  <p>{t("workbench.movement.stockPreview")}: {formatNumberLabel(sourceQuantity)} → {formatNumberLabel(sourceAfter ?? sourceQuantity)} {selectedMaterial?.uom}</p>
+                  {movementReason === "transfer" && destinationQuantity != null ? <p>{t("workbench.movement.transferTo")}: {formatNumberLabel(destinationQuantity)} → {formatNumberLabel(Math.round((destinationQuantity + movementQuantity) * 1000) / 1000)} {selectedMaterial?.uom}</p> : null}
+                  {sourceAfter != null && sourceAfter < 0 ? <p>{t("workbench.movement.insufficientStock")}</p> : null}
+                </div>
+              ) : null}
             </div>
             {movementError ? <p id="stock-movement-error" role="alert" className={styles.formError}>{movementError}</p> : null}
             <div className="actions">
               {committed ? <button type="button" disabled={busy} onClick={() => void retryMovementRefresh()}>{t("workbench.movement.refreshData")}</button> : null}
-              <button type="button" disabled={busy || committed} onClick={() => void handleCreateMovement()}>
-                {movementReason === "consumption" ? t("workbench.movement.recordConsumption") : t("workbench.movement.addToStock")}
+              <button type="button" disabled={busy || committed || !canSubmitMovement} onClick={() => void handleCreateMovement()}>
+                {t(submitLabel)}
               </button>
               <button type="button" className="ghost-btn" disabled={busy} onClick={() => onShowMovementFormChange(false)}>
                 {t("workbench.movement.cancel")}

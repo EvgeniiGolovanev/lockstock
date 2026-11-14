@@ -17,7 +17,9 @@ const WORKFLOW_RUNTIME_FILES = new Set([
   "purchase-order-lifecycle.svg",
   "purchase-order-lifecycle-fr.svg",
   "member-group-workflow.svg",
-  "member-group-workflow-fr.svg"
+  "member-group-workflow-fr.svg",
+  "replenishment-workflow.svg",
+  "replenishment-workflow-fr.svg"
 ]);
 const DEMO_CAPTURE_DIRECTORIES = [
   path.join(ROOT, "design", "demo-captures"),

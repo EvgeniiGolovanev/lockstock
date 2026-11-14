@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="980" viewBox="0 0 1440 980" role="img" aria-labelledby="title desc">
+<title id="title">Workflow de réapprovisionnement</title>
+<desc id="desc">Six étapes des paramètres de stock à la réception, avec règles de calcul et de reprise.</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#111" stroke-opacity=".035"/></pattern>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth"><path d="M2 2L12 7L2 12Z" fill="#111"/></marker>
+    <style>
+      .bg{fill:#f4f0ea}.grid{fill:url(#grid)}.paper{fill:#fffdf9}.soft{fill:#f8f5ef}.cream{fill:#fff0e7}.orange{fill:#f26522}.red{fill:#bd2634}.green{fill:#ecf6ee}.ink{fill:#111}.frame,.box,.pill{stroke:#111;stroke-width:2;rx:0}.shadow{fill:#111;opacity:.1}.title{font:900 46px "Segoe UI",Arial,sans-serif;letter-spacing:-2px;fill:#161412}.sub{font:600 17px "Segoe UI",Arial,sans-serif;fill:#6b6259}.eyebrow{font:900 12px "Segoe UI",Arial,sans-serif;letter-spacing:1.4px;text-transform:uppercase;fill:#6b6259}.h{font:900 18px "Segoe UI",Arial,sans-serif;fill:#111}.t{font:600 15px "Segoe UI",Arial,sans-serif;fill:#4c453f}.tiny{font:900 11px "Segoe UI",Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;fill:#111}.white{fill:#fff}.line{fill:none;stroke:#111;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#111;stroke-width:2;stroke-dasharray:7 7;marker-end:url(#arrow)}
+    </style>
+  </defs>
+<rect class="bg" width="1440" height="980"/><rect class="grid" width="1440" height="980"/>
+<g transform="translate(64 50)"><rect class="shadow" x="8" y="8" width="1312" height="110"/><rect class="frame paper" width="1312" height="110"/>
+<text class="title" x="32" y="48">Workflow de réapprovisionnement</text>
+<text class="sub" x="34" y="80">Vérifier les besoins de l’entreprise, créer les brouillons, puis réceptionner.</text>
+<rect class="orange frame" x="1120" y="30" width="142" height="42"/>
+<text class="tiny" x="1140" y="56">Achats</text>
+</g>
+<g transform="translate(80 210)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box paper" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">01 · Configurer</text>
+<text class="h" x="24" y="62">Définir les règles de stock</text>
+<text class="t" x="24" y="93">Renseigner le minimum et la cible.</text>
+<text class="t" x="24" y="116">Choisir fournisseur actif et devise.</text>
+<text class="t" x="24" y="139">Modification : responsable avec écriture.</text>
+</g>
+<g transform="translate(520 210)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box paper" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">02 · Planifier</text>
+<text class="h" x="24" y="62">Choisir « Planifier jusqu’au »</text>
+<text class="t" x="24" y="93">Stock total, tous les emplacements.</text>
+<text class="t" x="24" y="116">Articles au minimum ou en dessous.</text>
+<text class="t" x="24" y="139">Sans cible, le minimum sert de cible.</text>
+</g>
+<g transform="translate(960 210)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box paper" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">03 · Vérifier</text>
+<text class="h" x="24" y="62">Livraisons et brouillons</text>
+<text class="t" x="24" y="93">Compter les commandes envoyées /</text>
+<text class="t" x="24" y="116">partielles attendues à temps. Vérifier</text>
+<text class="t" x="24" y="139">les retards et les dates manquantes.</text>
+</g>
+<g transform="translate(960 430)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box cream" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">04 · Revoir</text>
+<text class="h" x="24" y="62">Vérifier les brouillons</text>
+<text class="t" x="24" y="93">Sélectionner les besoins positifs.</text>
+<text class="t" x="24" y="116">Vérifier quantité, prix et date prévue.</text>
+<text class="t" x="24" y="139">Valider le risque des arrivages incertains.</text>
+</g>
+<g transform="translate(520 430)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box cream" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">05 · Créer</text>
+<text class="h" x="24" y="62">Créer les brouillons</text>
+<text class="t" x="24" y="93">Regrouper par fournisseur et devise.</text>
+<text class="t" x="24" y="116">Aucun envoi au fournisseur.</text>
+<text class="t" x="24" y="139">Le stock ne change pas à cette étape.</text>
+</g>
+<g transform="translate(80 430)"><rect class="shadow" x="8" y="8" width="400" height="160"/><rect class="box green" width="400" height="160"/>
+<text class="eyebrow" x="24" y="30">06 · Réceptionner</text>
+<text class="h" x="24" y="62">Ouvrir les commandes</text>
+<text class="t" x="24" y="93">Marquer Envoyée après la commande.</text>
+<text class="t" x="24" y="116">Réceptionner dans le bon emplacement.</text>
+<text class="t" x="24" y="139">Stock accru ; PO Partielle ou Reçue.</text>
+</g>
+<path class="line" d="M480 290H508"/><path class="line" d="M920 290H948"/><path class="line" d="M1160 370V418"/><path class="line" d="M960 510H932"/><path class="line" d="M520 510H492"/>
+<g transform="translate(80 640)"><rect class="box soft" width="1280" height="108"/><rect class="orange" width="16" height="108"/>
+<text class="h" x="38" y="31">Calcul de la quantité à commander</text>
+<text class="t" x="38" y="60">Suggestion = max(0, cible − stock − livraisons à temps − brouillons existants).</text>
+<text class="t" x="38" y="86">Exemple : cible 50 − stock 8 − livraisons à temps 12 − brouillons 10 = 20 à commander.</text>
+</g>
+<g transform="translate(80 790)"><rect class="box paper" width="1280" height="132"/>
+<text class="h" x="24" y="30">Avant de réessayer ou de racheter</text>
+<text class="t" x="24" y="58">Configuration requise : vérifier cible, fournisseur actif et devise. Couvert / Brouillon en cours : vérifier les commandes.</text>
+<text class="t" x="24" y="83">Recommandations modifiées : actualiser et revoir. Résultat incertain : vérifier le résultat ou réessayer la même demande.</text>
+<text class="t" x="24" y="108">Les brouillons évitent un double achat planifié sans confirmer la livraison. Actualiser le plan après réception.</text>
+</g>
+</svg>

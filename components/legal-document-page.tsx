@@ -3,10 +3,10 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import shellStyles from "@/components/marketing-shell.module.css";
 
 type LegalDocumentPageProps = {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   alternateHref: "/privacy" | "/terms";
-  alternateLabel: string;
+  alternateLabel: React.ReactNode;
 };
 
 export function LegalDocumentPage({ title, children, alternateHref, alternateLabel }: LegalDocumentPageProps) {

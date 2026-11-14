@@ -491,7 +491,7 @@ export function WorkbenchPurchaseOrdersSection({
                               disabled={busy || mutationsBlocked || summary.lineCount === 0}
                               className={`ghost-btn ${styles.receiveButton}`}
                               onClick={() => {
-                                onPrepareReceivePurchaseOrder(po.id, po.lines[0]?.id ?? "");
+                                onPrepareReceivePurchaseOrder(po.id, po.lines.find((line) => Number(line.quantity_ordered) > Number(line.quantity_received))?.id ?? "");
                               }}
                             >
                               {t("workbench.po.receive")}
