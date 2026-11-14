@@ -66,6 +66,26 @@ describe("POST /api/purchase-orders currency persistence", () => {
     vi.mocked(requireMinRole).mockImplementation(() => {});
   });
 
+  it("generates distinct numbers at the same timestamp and preserves explicit numbers", async () => {
+    const { supabase, rpc } = createSupabaseInsertHarness();
+    vi.mocked(requireRequestContext).mockResolvedValue({ orgId: "11111111-1111-4111-8111-111111111111", userId: "user-1", role: "manager", supabase } as never);
+    const request = (po_number?: string) => new NextRequest("http://localhost:3000/api/purchase-orders", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supplier_id: "22222222-2222-4222-8222-222222222222", po_number,
+        lines: [{ material_id: "33333333-3333-4333-8333-333333333333", quantity_ordered: 1 }] })
+    });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-15T00:00:00.000Z"));
+    try {
+      const responses = await Promise.all([POST(request()), POST(request()), POST(request("CUSTOM-PO-7"))]);
+      expect(responses.map(response => response.status)).toEqual([201, 201, 201]);
+      const numbers = rpc.mock.calls.map(([, args]) => args.p_po_number);
+      expect(new Set(numbers.slice(0, 2)).size).toBe(2);
+      expect(numbers[0]).toMatch(/^PO-20261115-000000-/);
+      expect(numbers[2]).toBe("CUSTOM-PO-7");
+    } finally { vi.useRealTimers(); }
+  });
+
   it("uses EUR by default when currency is omitted", async () => {
     const { supabase, rpc } = createSupabaseInsertHarness();
 

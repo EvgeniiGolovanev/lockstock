@@ -1,5 +1,18 @@
 import { test, expect, materialInput, type InventoryFixture } from "./fixtures";
 
+test("concurrent automatically numbered orders persist with distinct numbers", async ({ inventory }) => {
+  const catalog = await inventory.catalog();
+  const data = { supplier_id: catalog.suppliers[0].id,
+    lines: [{ material_id: catalog.materials[0].id, quantity_ordered: 1 }] };
+  const responses = await Promise.all([1, 2].map(() => inventory.request.post("/api/purchase-orders", {
+    headers: inventory.headers(), data
+  })));
+  for (const response of responses) expect(response.status(), await response.text()).toBe(201);
+  const orders = await inventory.rows("purchase_orders");
+  expect(orders).toHaveLength(2);
+  expect(new Set(orders.map(order => order.po_number)).size).toBe(2);
+});
+
 for (const width of [1440, 390]) {
   test(`stock form displays real errors and allows retry at ${width}px`, async ({ inventory, page }) => {
     const { materials: [material], locations: [a, b] } = await inventory.catalog();
