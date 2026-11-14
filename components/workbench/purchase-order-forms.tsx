@@ -369,7 +369,7 @@ export function WorkbenchPurchaseOrderForms({
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.expectedDate")}</span>
-                    <DateInput locale={locale} value={poExpectedAt} onValueChange={(value) => setPoExpectedAt(value)} onValidityChange={setPoDateValid} />
+                    <DateInput locale={locale} aria-label={t("workbench.po.expectedDate")} value={poExpectedAt} onValueChange={(value) => setPoExpectedAt(value)} onValidityChange={setPoDateValid} />
                   </label>
                   <label className={`field ${poStyles.modalSpan2}`}>
                     <span>{t("workbench.po.notes")}</span>
@@ -394,11 +394,11 @@ export function WorkbenchPurchaseOrderForms({
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.quantity")}</span>
-                    <NumberInput min={0.001} value={poQuantityOrdered} onValueChange={(value) => setPoQuantityOrdered(Number(value))} />
+                    <NumberInput aria-label={t("workbench.po.quantity")} min={0.001} value={poQuantityOrdered} onValueChange={(value) => setPoQuantityOrdered(Number(value))} />
                   </label>
                   <label className="field">
                     <span>{t("workbench.po.unitPriceWithCurrency")} ({currencySymbol(poCurrency)})</span>
-                    <NumberInput min={0} value={poUnitPrice} onValueChange={(value) => setPoUnitPrice(Number(value))} />
+                    <NumberInput aria-label={`${t("workbench.po.unitPriceWithCurrency")} (${currencySymbol(poCurrency)})`} min={0} value={poUnitPrice} onValueChange={(value) => setPoUnitPrice(Number(value))} />
                   </label>
                   <div className={`actions ${poStyles.itemAction}`}>
                     <button type="button" disabled={busy || !poMaterialId || poQuantityOrdered <= 0} onClick={handleAddPoDraftLine}>

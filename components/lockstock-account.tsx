@@ -706,11 +706,11 @@ export function LockstockAccount() {
           <div className={styles.auditExportRow}>
             <label className="field">
               <span>{t("account.from")}</span>
-              <DateInput locale={locale} value={auditExportFrom} onValueChange={(value) => setAuditExportFrom(value)} />
+              <DateInput locale={locale} aria-label={t("account.from")} value={auditExportFrom} onValueChange={(value) => setAuditExportFrom(value)} />
             </label>
             <label className="field">
               <span>{t("account.to")}</span>
-              <DateInput locale={locale} value={auditExportTo} onValueChange={(value) => setAuditExportTo(value)} />
+              <DateInput locale={locale} aria-label={t("account.to")} value={auditExportTo} onValueChange={(value) => setAuditExportTo(value)} />
             </label>
             <button type="button" disabled={busy || audit.exportPhase === "loading" || !auditExportFrom || !auditExportTo} onClick={() => void audit.download()}>
               {t("account.downloadCsv")}

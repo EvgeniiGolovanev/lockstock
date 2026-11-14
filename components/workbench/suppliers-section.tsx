@@ -322,7 +322,7 @@ export function WorkbenchSuppliersSection({
               </label>
               <label className="field">
                 <span>{t("workbench.supplier.leadTime")}</span>
-                <NumberInput min={0} value={supplierLeadTime} onValueChange={(value) => setSupplierLeadTime(Number(value))} />
+                <NumberInput aria-label={t("workbench.supplier.leadTime")} min={0} value={supplierLeadTime} onValueChange={(value) => setSupplierLeadTime(Number(value))} />
               </label>
               <label className="field field-span-2">
                 <span>{t("workbench.location.address")}</span>

@@ -377,6 +377,7 @@ export function WorkbenchCatalogForms({
                 <label className={`field ${materialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
                   <span>{t("workbench.material.minimumStock")}</span>
                   <NumberInput
+                    aria-label={t("workbench.material.minimumStock")}
                     min={0}
                     required
                     aria-invalid={materialRequiredErrors.includes("minStock")}
@@ -454,6 +455,7 @@ export function WorkbenchCatalogForms({
                 <label className={`field ${editMaterialRequiredErrors.includes("minStock") ? "field-invalid" : ""}`}>
                   <span>{t("workbench.material.minimumStock")}</span>
                   <NumberInput
+                    aria-label={t("workbench.material.minimumStock")}
                     min={0}
                     required
                     aria-invalid={editMaterialRequiredErrors.includes("minStock")}
@@ -465,7 +467,7 @@ export function WorkbenchCatalogForms({
                   <span>{t("workbench.material.description")}</span>
                   <textarea value={editMaterialDescription} maxLength={256} rows={3} onChange={(event) => setEditMaterialDescription(event.target.value)} />
                 </label>
-                <label className="field"><span>{locale === "fr" ? "Stock cible (facultatif)" : "Target stock (optional)"}</span><NumberInput min={editMaterialMinStock || 0} value={editMaterialTargetStock} onValueChange={value => setEditMaterialTargetStock(value)} /></label>
+                <label className="field"><span>{locale === "fr" ? "Stock cible (facultatif)" : "Target stock (optional)"}</span><NumberInput aria-label={locale === "fr" ? "Stock cible (facultatif)" : "Target stock (optional)"} min={editMaterialMinStock || 0} value={editMaterialTargetStock} onValueChange={value => setEditMaterialTargetStock(value)} /></label>
                 {editMaterialTargetStock !== "" && Number(editMaterialTargetStock) < Number(editMaterialMinStock) ? <p role="alert">{locale === "fr" ? "La cible doit être supérieure ou égale au minimum." : "Target must be at least minimum."}</p> : null}
               </div>
               <CatalogFeedback feedback={feedback} busy={busy} locale={locale} close={onCloseEditMaterialForm} />
